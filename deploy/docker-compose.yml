@@ -1,43 +1,73 @@
-name: gpt-image-playground-fork
+# 必填变量：APP_SECRET、ADMIN_PASSWORD；其余变量均可选，未填写时使用下方默认值。
+# ${变量:-默认值} 从同目录 .env 或 1Panel 编排环境变量读取；也可将整个引号内的值改为实际值。
+# 例如 APP_BASE_PATH: "web"；留空请写 ""。修改变量后需重新创建容器才能生效。
+name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部署多套时使用不同名称。
 
 services:
   app:
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+    # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
+    # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
-    container_name: gpt-image-playground-fork
-    restart: unless-stopped
+    container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
+    restart: unless-stopped # 可选：异常退出或重启服务器后自动启动，手动停止除外。
     ports:
+      # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
       - "${APP_PORT:-8788}:8787"
     environment:
+      # 以下四项均可选且互相独立，不会继承主页前缀；可填 web 或 /web/ 这样的形式。
+      # 主页/静态资源前缀：web → /web/；默认留空 → /。
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      # API 前缀：a → /a/api/…；默认留空 → /api/…。
       API_BASE_PATH: "${API_BASE_PATH:-}"
+      # 媒体前缀：m → /m/media/…；默认留空 → /media/…。
       MEDIA_BASE_PATH: "${MEDIA_BASE_PATH:-}"
+      # 健康检查前缀：h → /h/health 和 /h/health/；默认留空 → /health 和 /health/。
       HEALTH_BASE_PATH: "${HEALTH_BASE_PATH:-}"
+      # 可选：默认留空，不信任转发 IP；只填实际反向代理 IP 或受限 CIDR，多个值用逗号分隔。
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
+      # 可选：单文件上传上限，默认 32 MiB；填写 1–1024 的整数。
       UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
+      # 可选：单次上传累计上限，默认 128 MiB；填写 1–2048 的整数。
       UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
+      # 以下为容器内部运行设置，建议保持原值，避免与端口、挂载和健康检查不一致。
       NODE_ENV: production
       PORT: "8787"
       HOST: "0.0.0.0"
       DATA_DIR: /app/data
       WEB_DIST_DIR: /app/dist
+      # 必填：固定的随机会话签名密钥，至少 16 字符，建议 32 字符以上；升级继续使用原值。
+      # 可执行 openssl rand -hex 32 生成；填入 .env 或 1Panel 环境变量，勿提交到仓库。
       APP_SECRET: "${APP_SECRET:?Set APP_SECRET in .env}"
+      # 必填：应用网页登录管理员密码，与服务器和 1Panel 密码无关；升级保留原值。
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
+      # 可选：跨域允许来源，默认 *；限定时填写完整协议、域名和端口，不含路径前缀。
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      # 以下供应商初始化参数全部可选；URL 和 KEY 同时填写才启用，也可留空后在网页中配置。
+      # 供应商 API 地址与密钥，按供应商的接入说明填写。
       UPSTREAM_API_URL: "${UPSTREAM_API_URL:-}"
       UPSTREAM_API_KEY: "${UPSTREAM_API_KEY:-}"
+      # 可选：初始化模型名称，默认 gpt-image-2，按供应商支持的模型填写。
       UPSTREAM_MODEL: "${UPSTREAM_MODEL:-gpt-image-2}"
+      # 可选：接口模式，默认 images；支持 images/responses/videos/venice_images/wavespeed/kie。
       UPSTREAM_API_MODE: "${UPSTREAM_API_MODE:-images}"
+      # 可选：上游请求超时，单位秒，默认 300；填写正整数。
       UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-300}"
+      # 可选：Codex CLI 兼容开关，默认 false；仅对应供应商要求时设为 true。
       UPSTREAM_CODEX_CLI: "${UPSTREAM_CODEX_CLI:-false}"
     volumes:
+      # APP_DATA_DIR 可选，默认 ../docker-data（相对编排文件目录）；1Panel 推荐填写绝对路径。
+      # 左侧为宿主机持久化目录，需让 UID/GID 1000 可写；右侧保持 /app/data。
+      # 升级必须继续使用原数据目录，避免进入空数据库。
       - "${APP_DATA_DIR:-../docker-data}:/app/data"
+    # 可选安全设置，建议保留：禁止提权并移除额外 Linux capabilities。
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    mem_limit: 1536m
-    pids_limit: 128
+    mem_limit: 1536m # 可选：容器内存上限，可按服务器资源调整。
+    pids_limit: 128 # 可选：容器进程数上限。
+    # 可选健康检查，建议保留：自动读取 HEALTH_BASE_PATH，修改前缀无需修改脚本。
     healthcheck:
       test:
         - CMD
@@ -47,12 +77,13 @@ services:
           const p=(process.env.HEALTH_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
           fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
           .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
-      interval: 20s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      interval: 20s # 可选：检查间隔。
+      timeout: 5s # 可选：单次检查超时。
+      retries: 3 # 可选：连续失败阈值。
+      start_period: 30s # 可选：启动宽限时间。
+    # 可选日志轮转，建议保留，避免日志持续占用磁盘。
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "10m" # 可选：单个日志文件上限。
+        max-file: "3" # 可选：保留的日志文件数量。

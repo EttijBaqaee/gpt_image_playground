@@ -1,4 +1,12 @@
-# Update 0.3.66.1
+# Update 0.3.66.2
+
+**2026-10-28 · 基于本 fork 的 0.3.66.1 更新。**
+
+- **修复手机触屏参考图排序**：长按参考图约 0.45 秒后，拖至目标参考图并松手即可调整顺序；支持跨行拖动。短按选择/编辑和普通滑动保留原有行为，桌面鼠标拖拽继续可用。
+- **保留遮罩顺序限制**：遮罩主图固定在第一张；多指、取消手势或拖出参考图区域时取消排序，拖动结束不会误触编辑。
+- **编排参数注释**：将参数用途、默认值与必填/可选说明直接写入完整 YAML；README 示例和下载模板保持一致。
+
+## Update 0.3.66.1
 
 **2026-10-28 · 基于 XianYuDaXian 的 0.3.66 fork。** 本版只围绕以下内容修订，其余业务功能沿用 0.3.66。
 
@@ -20,12 +28,12 @@
 服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
 # 跟随本 fork 的最新发布版本
 docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
 ```
 
-正式部署建议固定 `0.3.66.1`。本次发布镜像为 **Linux amd64**，从 Debian/1Panel 上经过验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
+正式部署建议固定 `0.3.66.2`。本次发布镜像为 **Linux amd64**，从 Debian/1Panel 上经过验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
 
 ### 首次创建持久化目录
 
@@ -43,12 +51,12 @@ chown 1000:1000 /opt/gpt-image-playground-data
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.1 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.2 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.1 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.1) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.2 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.2) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -57,46 +65,76 @@ cp .env.example .env
 仓库内模板为 [`deploy/docker-compose.yml`](deploy/docker-compose.yml)。可以直接用于命令行，也可以粘贴进 1Panel 编排编辑器：
 
 ```yaml
-name: gpt-image-playground-fork
+# 必填变量：APP_SECRET、ADMIN_PASSWORD；其余变量均可选，未填写时使用下方默认值。
+# ${变量:-默认值} 从同目录 .env 或 1Panel 编排环境变量读取；也可将整个引号内的值改为实际值。
+# 例如 APP_BASE_PATH: "web"；留空请写 ""。修改变量后需重新创建容器才能生效。
+name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部署多套时使用不同名称。
 
 services:
   app:
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+    # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
+    # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
-    container_name: gpt-image-playground-fork
-    restart: unless-stopped
+    container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
+    restart: unless-stopped # 可选：异常退出或重启服务器后自动启动，手动停止除外。
     ports:
+      # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
       - "${APP_PORT:-8788}:8787"
     environment:
+      # 以下四项均可选且互相独立，不会继承主页前缀；可填 web 或 /web/ 这样的形式。
+      # 主页/静态资源前缀：web → /web/；默认留空 → /。
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      # API 前缀：a → /a/api/…；默认留空 → /api/…。
       API_BASE_PATH: "${API_BASE_PATH:-}"
+      # 媒体前缀：m → /m/media/…；默认留空 → /media/…。
       MEDIA_BASE_PATH: "${MEDIA_BASE_PATH:-}"
+      # 健康检查前缀：h → /h/health 和 /h/health/；默认留空 → /health 和 /health/。
       HEALTH_BASE_PATH: "${HEALTH_BASE_PATH:-}"
+      # 可选：默认留空，不信任转发 IP；只填实际反向代理 IP 或受限 CIDR，多个值用逗号分隔。
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
+      # 可选：单文件上传上限，默认 32 MiB；填写 1–1024 的整数。
       UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
+      # 可选：单次上传累计上限，默认 128 MiB；填写 1–2048 的整数。
       UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
+      # 以下为容器内部运行设置，建议保持原值，避免与端口、挂载和健康检查不一致。
       NODE_ENV: production
       PORT: "8787"
       HOST: "0.0.0.0"
       DATA_DIR: /app/data
       WEB_DIST_DIR: /app/dist
+      # 必填：固定的随机会话签名密钥，至少 16 字符，建议 32 字符以上；升级继续使用原值。
+      # 可执行 openssl rand -hex 32 生成；填入 .env 或 1Panel 环境变量，勿提交到仓库。
       APP_SECRET: "${APP_SECRET:?Set APP_SECRET in .env}"
+      # 必填：应用网页登录管理员密码，与服务器和 1Panel 密码无关；升级保留原值。
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
+      # 可选：跨域允许来源，默认 *；限定时填写完整协议、域名和端口，不含路径前缀。
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      # 以下供应商初始化参数全部可选；URL 和 KEY 同时填写才启用，也可留空后在网页中配置。
+      # 供应商 API 地址与密钥，按供应商的接入说明填写。
       UPSTREAM_API_URL: "${UPSTREAM_API_URL:-}"
       UPSTREAM_API_KEY: "${UPSTREAM_API_KEY:-}"
+      # 可选：初始化模型名称，默认 gpt-image-2，按供应商支持的模型填写。
       UPSTREAM_MODEL: "${UPSTREAM_MODEL:-gpt-image-2}"
+      # 可选：接口模式，默认 images；支持 images/responses/videos/venice_images/wavespeed/kie。
       UPSTREAM_API_MODE: "${UPSTREAM_API_MODE:-images}"
+      # 可选：上游请求超时，单位秒，默认 300；填写正整数。
       UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-300}"
+      # 可选：Codex CLI 兼容开关，默认 false；仅对应供应商要求时设为 true。
       UPSTREAM_CODEX_CLI: "${UPSTREAM_CODEX_CLI:-false}"
     volumes:
+      # APP_DATA_DIR 可选，默认 ../docker-data（相对编排文件目录）；1Panel 推荐填写绝对路径。
+      # 左侧为宿主机持久化目录，需让 UID/GID 1000 可写；右侧保持 /app/data。
+      # 升级必须继续使用原数据目录，避免进入空数据库。
       - "${APP_DATA_DIR:-../docker-data}:/app/data"
+    # 可选安全设置，建议保留：禁止提权并移除额外 Linux capabilities。
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    mem_limit: 1536m
-    pids_limit: 128
+    mem_limit: 1536m # 可选：容器内存上限，可按服务器资源调整。
+    pids_limit: 128 # 可选：容器进程数上限。
+    # 可选健康检查，建议保留：自动读取 HEALTH_BASE_PATH，修改前缀无需修改脚本。
     healthcheck:
       test:
         - CMD
@@ -106,35 +144,17 @@ services:
           const p=(process.env.HEALTH_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
           fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
           .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
-      interval: 20s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      interval: 20s # 可选：检查间隔。
+      timeout: 5s # 可选：单次检查超时。
+      retries: 3 # 可选：连续失败阈值。
+      start_period: 30s # 可选：启动宽限时间。
+    # 可选日志轮转，建议保留，避免日志持续占用磁盘。
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "10m" # 可选：单个日志文件上限。
+        max-file: "3" # 可选：保留的日志文件数量。
 ```
-
-### 这些字段怎么改
-
-| 字段 | 作用与填写方式 |
-| --- | --- |
-| `image` | 推荐固定本 fork 的 GHCR 镜像：`ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1`。 |
-| `pull_policy` | `if_not_present` 在本机没有镜像时拉取；升级镜像时主动执行 `docker compose pull app`。 |
-| `ports` | 左侧是宿主机端口，默认 `8788`；右侧容器端口保持 `8787`。 |
-| `volumes` | 左侧为持久化目录，右侧保持 `/app/data`。升级必须继续使用原目录。 |
-| `APP_BASE_PATH` | 主页/静态资源前缀；`web` 或 `/web/` 均得到 `/web/`。 |
-| `API_BASE_PATH` | API 前缀；`a` 得到 `/a/api/…`，留空得到 `/api/…`。 |
-| `MEDIA_BASE_PATH` | 媒体前缀；`m` 得到 `/m/media/…`，留空得到 `/media/…`。 |
-| `HEALTH_BASE_PATH` | 健康检查前缀；`h` 得到 `/h/health` 与 `/h/health/`，留空得到 `/health`。 |
-| `APP_SECRET` | 用于会话签名的固定随机密钥，至少 16 字符，建议 32 字符以上；升级不要重新生成。 |
-| `ADMIN_PASSWORD` | 应用网页登录管理员密码，与服务器或 1Panel 密码无关。 |
-| `CORS_ORIGIN` | 默认 `*` 沿用原行为；若限定来源，填完整协议、域名及端口，不包含路径前缀。 |
-| `TRUSTED_PROXIES` | 默认留空；只填实际反向代理的 IP 或受限 CIDR，多个值用逗号分隔。 |
-| `UPLOAD_MAX_FILE_MB` | 单文件上限，默认 32 MiB，可设 1–1024。 |
-| `UPLOAD_MAX_TOTAL_MB` | 单次上传累计上限，默认 128 MiB，可设 1–2048。 |
 
 ## 3. 环境变量怎么写
 
@@ -170,7 +190,7 @@ UPLOAD_MAX_TOTAL_MB=128
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。四项路径可独立填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
@@ -180,7 +200,7 @@ UPLOAD_MAX_TOTAL_MB=128
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.1
+image: gpt-image-playground-fork:0.3.66.2
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -215,7 +235,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.1`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.2`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 四项路径独立设置
 
@@ -392,17 +412,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.1-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `gpt-image-playground-fork-0.3.66.2-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.1-amd64.tar.gz
+docker load -i gpt-image-playground-fork-0.3.66.2-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.1
+image: gpt-image-playground-fork:0.3.66.2
 pull_policy: never
 ```
 

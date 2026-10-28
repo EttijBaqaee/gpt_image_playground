@@ -16,7 +16,7 @@ COPY --from=build /app/server/dist /app/server/dist
 COPY --from=build /app/dist /app/dist
 COPY --from=build /app/LICENSE /app/LICENSE
 RUN mkdir -p /app/data && chown node:node /app/data
-LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.revision="0477e08e8328652cfdfaf66c463970e626a9ff69+0.3.66.1" org.opencontainers.image.version="0.3.66.1" org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.revision="0477e08e8328652cfdfaf66c463970e626a9ff69+0.3.66.2" org.opencontainers.image.version="0.3.66.2" org.opencontainers.image.licenses="MIT"
 USER node
 VOLUME ["/app/data"]
 EXPOSE 8787

@@ -28,6 +28,7 @@ import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
 import { useHintTooltip } from '../hooks/useHintTooltip'
 import { useKeyboardVisible } from '../hooks/useKeyboardVisible'
 import { usePreventBackgroundScroll } from '../hooks/usePreventBackgroundScroll'
+import { useTouchImageSort } from '../hooks/useTouchImageSort'
 import Select from './Select'
 import ProviderProfileTag from './ProviderProfileTag'
 import { getProviderProfileDisplayName } from './ProviderProfileTag'
@@ -1539,6 +1540,40 @@ export default function InputBar() {
     resetInputImageDragState()
   }
 
+  useTouchImageSort(imagesRef, {
+    onStart: (imageId) => {
+      const index = inputImages.findIndex((image) => image.id === imageId)
+      if (index < 0) return false
+      if (maskDraft?.targetImageId === imageId) {
+        showImageHint(imageId)
+        return false
+      }
+      setDragInputImageIndex(index)
+      setDragOverInputImageIndex(index)
+      return true
+    },
+    onTarget: (imageId) => {
+      const index = inputImages.findIndex((image) => image.id === imageId)
+      if (index === 0 && maskDraft?.targetImageId === inputImages[0]?.id) {
+        showImageHint(inputImages[0].id)
+        setDragOverInputImageIndex(null)
+        return
+      }
+      setDragOverInputImageIndex(index < 0 ? null : index)
+    },
+    onDrop: (imageId, targetId) => {
+      const from = inputImages.findIndex((image) => image.id === imageId)
+      const to = inputImages.findIndex((image) => image.id === targetId)
+      if (from < 0 || to < 0 || maskDraft?.targetImageId === imageId) return
+      if (to === 0 && maskDraft?.targetImageId === inputImages[0]?.id) {
+        showImageHint(inputImages[0].id)
+        return
+      }
+      moveInputImage(from, to)
+    },
+    onEnd: resetInputImageDragState,
+  })
+
   const renderImageThumb = (img: (typeof inputImages)[number]) => {
     const originalIndex = inputImages.findIndex((i) => i.id === img.id)
     const isMaskTarget = maskDraft?.targetImageId === img.id
@@ -1563,8 +1598,10 @@ export default function InputBar() {
     return (
       <div
         key={img.id}
+        data-input-image-id={img.id}
         draggable={!isMobile}
-        className={`relative group inline-block transition-transform ${isDraggingThumb ? 'scale-95 opacity-60' : ''}`}
+        style={{ WebkitTouchCallout: 'none' }}
+        className={`relative group inline-block select-none transition-transform ${isDraggingThumb ? 'scale-95 opacity-60' : ''}`}
         onDragStart={(event) => handleInputImageDragStart(event, originalIndex)}
         onDragOver={(event) => handleInputImageDragOver(event, originalIndex)}
         onDrop={(event) => handleInputImageDrop(event, originalIndex)}
@@ -1671,6 +1708,7 @@ export default function InputBar() {
             if (originalIndex >= 0) handleRemoveInputImage(originalIndex, img.id)
           }}
           aria-label="删除参考图"
+          data-input-image-action="delete"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

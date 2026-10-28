@@ -1,8 +1,13 @@
-# Optional source-build override; combine with docker-compose.yml.
+# 可选：仅自行构建镜像时使用，与 docker-compose.yml 一起加载。
 services:
   app:
-    image: gpt-image-playground-fork:0.3.66.1
+    # 本地构建镜像名；可按需修改，保持部署时引用的名称一致。
+    image: gpt-image-playground-fork:0.3.66.2
+    # 使用本地构建镜像，无需从仓库拉取。
     pull_policy: never
     build:
+      # 可选：APP_SOURCE_DIR 默认 ..，即 deploy/ 的上级源码目录。
+      # 1Panel 使用源码构建时应填写源码根目录的绝对路径。
       context: ${APP_SOURCE_DIR:-..}
+      # 相对于源码根目录，保留此路径即可在 Docker 内安装依赖和构建。
       dockerfile: deploy/Dockerfile
