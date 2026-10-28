@@ -9,7 +9,7 @@
 - **限制上传与可信代理**：默认单文件 32 MiB、单次累计 128 MiB，流式累计检查；最多 32 个文件、16 个普通字段。默认不信任转发 IP，只有明确配置的可信代理才生效。
 - **仓库与更新源**：页面仓库入口、帮助页、镜像来源和默认版本检测统一指向 [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)。
 - **验证与发布**：在 Debian 上通过自动化测试、Chromium 真实剪贴板、默认/自定义前缀 HTTP、真实 Worker 与模拟供应商集成验证。具体结果、镜像架构与 SHA256 随 Release 提供；没有调用付费供应商 API。
-- **部署文档**：仅提供 Docker 构建部署，补全 1Panel 编排与环境变量说明；推荐通过 Nginx 反代访问，提供保留路径前缀、SSE 无缓冲和上传限制配置。
+- **Docker 发布与文档**：支持从 GHCR 拉取本 fork 的已验证镜像（固定版本与 `latest`），保留源码 Docker 构建和离线导入；补全 1Panel 编排、四项独立路径和 Nginx 反代说明。
 - **许可证**：与上游相同，继续使用 MIT，保留 `LICENSE` 中原版权声明。
 
 ---
@@ -25,9 +25,32 @@
   <img src="asset/设置界面.png" alt="设置界面" width="45%" />
 </p>
 
-## 1. 获取源码
+## 1. 获取 Docker 镜像（推荐）
 
-服务器需要安装 Docker Engine、Docker Compose v2 和 Git。构建时需要能够访问基础镜像、npm 和 Debian 软件源。
+服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
+
+```bash
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+# 跟随本 fork 的最新发布版本
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
+```
+
+正式部署建议固定 `0.3.66.1`。本次发布镜像为 **Linux amd64**，从 Debian/1Panel 上经过验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
+
+### 首次创建持久化目录
+
+以下命令由 root 执行，为新部署创建数据目录：
+
+```bash
+mkdir -p /opt/gpt-image-playground-data
+chown 1000:1000 /opt/gpt-image-playground-data
+```
+
+如果已有部署，继续使用原数据目录，不要新建空目录替代它；确认运行用户对原目录可写。
+
+### 可选：获取源码并在 Docker 内构建
+
+只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
 git clone --branch v0.3.66.1 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
@@ -48,11 +71,8 @@ name: gpt-image-playground-fork
 
 services:
   app:
-    image: gpt-image-playground-fork:0.3.66.1
-    build:
-      # CLI default: repository root; in 1Panel set an absolute APP_SOURCE_DIR.
-      context: ${APP_SOURCE_DIR:-..}
-      dockerfile: deploy/Dockerfile
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+    pull_policy: if_not_present
     container_name: gpt-image-playground-fork
     restart: unless-stopped
     ports:
@@ -111,9 +131,8 @@ services:
 
 | 字段 | 作用与填写方式 |
 | --- | --- |
-| `image` | 本地构建后的镜像名：`gpt-image-playground-fork:0.3.66.1`，不是需要从公共仓库拉取的镜像地址。 |
-| `build.context` | 源码根目录。命令行使用默认 `..`；1Panel 建议在环境变量中填绝对 `APP_SOURCE_DIR`。 |
-| `build.dockerfile` | 保持 `deploy/Dockerfile`，路径相对于源码根目录。 |
+| `image` | 推荐固定本 fork 的 GHCR 镜像：`ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1`。 |
+| `pull_policy` | `if_not_present` 在本机没有镜像时拉取；升级镜像时主动执行 `docker compose pull app`。 |
 | `ports` | 左侧是宿主机端口，默认 `8788`；右侧容器端口保持 `8787`。 |
 | `volumes` | 左侧为持久化目录，右侧保持 `/app/data`。升级必须继续使用原目录。 |
 | `APP_BASE_PATH` | 主页/静态资源前缀；`web` 或 `/web/` 均得到 `/web/`。 |
@@ -143,9 +162,10 @@ MEDIA_BASE_PATH=
 HEALTH_BASE_PATH=
 CORS_ORIGIN=*
 
-# 1Panel 使用绝对路径，避免把数据写到错误目录
-APP_SOURCE_DIR=/opt/gpt-image-playground
-APP_DATA_DIR=/opt/gpt-image-playground/docker-data
+# 使用绝对数据路径，避免把数据写到错误目录
+APP_DATA_DIR=/opt/gpt-image-playground-data
+# 仅源码构建时需要；镜像拉取部署可以不填
+APP_SOURCE_DIR=
 
 TRUSTED_PROXIES=
 UPLOAD_MAX_FILE_MB=32
@@ -156,39 +176,56 @@ UPLOAD_MAX_TOTAL_MB=128
 
 `UPSTREAM_API_URL` / `UPSTREAM_API_KEY` 可留空，登录网页后配置供应商。可选初始化参数见 [`deploy/.env.example`](deploy/.env.example)。
 
-## 4. 在 1Panel 中构建部署
+## 4. 在 1Panel 中部署
 
-1. 将源码下载到服务器，例如 `/opt/gpt-image-playground`，确认 `/opt/gpt-image-playground/deploy/Dockerfile` 存在。
-2. 在 **容器 → 编排 → 创建编排** 中选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节的完整 YAML。
-4. 填写第 3 节的环境变量。特别是 `APP_SOURCE_DIR`、`APP_DATA_DIR` 使用服务器绝对路径。
-5. 创建并启动编排。`build` 指向本机源码，通过 Docker 构建镜像；首次构建需要等待依赖安装与前后端编译完成。
-6. 查看构建/容器日志，容器健康状态应变为 `healthy`，然后访问应用。
+1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
+2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1`。
+4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。四项路径可独立填写或留空。
+5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
+6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
 
-如果某个 1Panel 版本的首次创建只执行镜像拉取，没有执行 `build`，可以在服务器终端对 **1Panel 管理的同一份编排文件** 执行构建，再回到面板启动；不要额外建立一套不同数据目录的部署：
+### 在 1Panel 内改用源码构建
 
-```bash
-# 替换为 1Panel 中该编排的实际目录
-cd /opt/1panel/docker/compose/gpt-image-playground-fork
-docker compose build app
+下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
+
+```yaml
+image: gpt-image-playground-fork:0.3.66.1
+pull_policy: never
+build:
+  context: ${APP_SOURCE_DIR}
+  dockerfile: deploy/Dockerfile
 ```
 
-> 上面的路径仅为常见示例，以你面板显示的编排实际路径为准。
+这些键与主编排 `app` 下的 `ports`、`environment` 平级。源码目录必须含 `package.json`、`server/`、`deploy/Dockerfile`；`build.context` 不是 `deploy/` 或 1Panel 编排自身目录。
 
-## 5. 命令行 Docker Compose 构建
+如果面板版本首次创建未执行构建，可在服务器终端进入 **面板管理的同一份编排目录**，执行 `docker compose build app`，再回面板启动。编排实际路径以面板显示为准，例如 `/opt/1panel/docker/compose/gpt-image-playground-fork`。不要另外建立不同数据目录的一套部署。
 
-在第 1 节创建的 `deploy/.env` 中填好参数后：
+## 5. 命令行 Docker Compose
+
+把第 2 节 YAML 保存为 `docker-compose.yml`，同目录创建第 3 节的 `.env`，准备好数据目录后：
 
 ```bash
-cd /opt/gpt-image-playground/deploy
 docker compose config --quiet
-docker compose build app
+docker compose pull app
 docker compose up -d
 docker compose ps
 docker compose logs --tail=100 app
 ```
 
-这只在 Docker 内安装依赖和编译，不需要在宿主机执行 `npm install` 或 `npm run build`。
+若使用仓库内模板，则在 `/opt/gpt-image-playground/deploy` 目录执行上述命令。
+
+### 可选：从源码 Docker 构建
+
+仓库提供 [`deploy/docker-compose.build.yml`](deploy/docker-compose.build.yml) 作为源码构建覆盖文件：
+
+```bash
+cd /opt/gpt-image-playground/deploy
+docker compose -f docker-compose.yml -f docker-compose.build.yml build app
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
+```
+
+该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.1`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 四项路径独立设置
 
@@ -372,7 +409,7 @@ sha256sum -c SHA256SUMS --ignore-missing
 docker load -i gpt-image-playground-fork-0.3.66.1-amd64.tar.gz
 ```
 
-使用离线镜像时，将上述编排中的整个 `build:` 块删除，保留：
+使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
 image: gpt-image-playground-fork:0.3.66.1
@@ -385,7 +422,8 @@ pull_policy: never
 
 升级前备份整个持久化数据目录，并保留原 `.env`。供应商设置、使用码额度、历史任务和媒体文件都依赖原数据目录。
 
-- 源码构建升级：更新到目标版本后执行 `docker compose build app`，再执行 `docker compose up -d`。
+- GHCR 镜像升级：修改 `image` 中的版本标签，执行 `docker compose pull app`，再执行 `docker compose up -d`；1Panel 等价操作为拉取镜像并重新部署编排。
+- 源码构建升级：更新源码后，使用第 5 节相同的两个 `-f` 文件重新构建并启动。
 - 离线镜像升级：导入新镜像，修改 `image` 标签后重新部署。
 - 只改环境变量：重新创建容器，不需要重新构建镜像。
 - 继续使用相同的 `APP_SECRET`、管理员密码和数据挂载；不要删除数据卷或对旧部署执行 `down -v`。
@@ -399,7 +437,7 @@ pull_policy: never
 - **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `HEALTH_BASE_PATH`，不要改回固定 `/health`。
 - **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
 - **数据库只读或图片保存失败**：检查 `/app/data` 的实际宿主机挂载目录和写入权限。
-- **镜像拉取失败**：本仓库提供源码 Docker 构建和 Release 离线镜像；离线方式先 `docker load`，删除 `build` 并使用 `pull_policy: never`。
+- **镜像拉取失败**：确认域名为 `ghcr.io`，账号与仓库全小写，标签正确，服务器能访问 GHCR；也可使用 Release 离线镜像，先 `docker load`，改成本地镜像名和 `pull_policy: never`。
 
 ## 许可证与来源
 

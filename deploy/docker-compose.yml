@@ -2,11 +2,8 @@ name: gpt-image-playground-fork
 
 services:
   app:
-    image: gpt-image-playground-fork:0.3.66.1
-    build:
-      # CLI default: repository root; in 1Panel set an absolute APP_SOURCE_DIR.
-      context: ${APP_SOURCE_DIR:-..}
-      dockerfile: deploy/Dockerfile
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.1
+    pull_policy: if_not_present
     container_name: gpt-image-playground-fork
     restart: unless-stopped
     ports:
