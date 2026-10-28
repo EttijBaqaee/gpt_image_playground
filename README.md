@@ -7,18 +7,8 @@
 - **修复额度事务**：额度预扣、任务、附件记录和初始事件通过同一 SQLite 事务提交；预校验失败不扣额度，任务失败按原有规则退款。
 - **修复附件路径与清理**：附件使用 UUID 和安全扩展名保存，避免同名覆盖和原始文件名影响路径；失败时清理本次上传，不留下可执行的残缺任务。
 - **限制上传与可信代理**：默认单文件 32 MiB、单次累计 128 MiB，流式累计检查；最多 32 个文件、16 个普通字段。默认不信任转发 IP，只有明确配置的可信代理才生效。
-- **仓库与更新源**：页面仓库入口、帮助页、镜像来源和默认版本检测统一指向 [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)。
-- **验证与发布**：在 Debian 上通过自动化测试、Chromium 真实剪贴板、默认/自定义前缀 HTTP、真实 Worker 与模拟供应商集成验证。具体结果、镜像架构与 SHA256 随 Release 提供；没有调用付费供应商 API。
-- **Docker 发布与文档**：支持从 GHCR 拉取本 fork 的已验证镜像（固定版本与 `latest`），保留源码 Docker 构建和离线导入；补全 1Panel 编排、四项独立路径和 Nginx 反代说明。
-- **许可证**：与上游相同，继续使用 MIT，保留 `LICENSE` 中原版权声明。
 
 ---
-
-# GPT Image Playground — Docker fork
-
-本仓库由 [@EttijBaqaee](https://github.com/EttijBaqaee/gpt_image_playground) 维护，基于 XianYuDaXian 的 0.3.66 fork，原项目来自 [CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)。
-
-**本版仅提供 Docker 构建与部署说明。** 前后端在一个容器中运行，SQLite、任务记录、图片和配置保存在挂载的数据目录中。没有 Render、桌面安装包或直接在宿主机运行 npm 的部署方式。
 
 <p align="center">
   <img src="asset/主界面.png" alt="主界面" width="45%" />
