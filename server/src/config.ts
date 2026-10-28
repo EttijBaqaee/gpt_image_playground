@@ -2,6 +2,10 @@ import path from 'node:path'
 import { z } from 'zod'
 
 const envSchema = z.object({
+  APP_BASE_PATH: z.string().default(''),
+  TRUSTED_PROXIES: z.string().default(''),
+  UPLOAD_MAX_FILE_MB: z.coerce.number().int().min(1).max(1024).default(32),
+  UPLOAD_MAX_TOTAL_MB: z.coerce.number().int().min(1).max(2048).default(128),
   PORT: z.coerce.number().int().positive().default(8787),
   HOST: z.string().default('0.0.0.0'),
   DATA_DIR: z.string().optional(),
@@ -17,7 +21,7 @@ const envSchema = z.object({
   UPSTREAM_API_MODE: z.enum(['images', 'responses', 'videos', 'venice_images', 'wavespeed', 'kie']).optional(),
   UPSTREAM_TIMEOUT_SECONDS: z.coerce.number().int().positive().optional(),
   UPSTREAM_CODEX_CLI: z.string().optional(),
-  VERSION_CHECK_REPO_OWNER: z.string().default('XianYuDaXian'),
+  VERSION_CHECK_REPO_OWNER: z.string().default('EttijBaqaee'),
   VERSION_CHECK_REPO_NAME: z.string().default('gpt_image_playground'),
 })
 
@@ -29,7 +33,25 @@ const webDistDir = parsed.WEB_DIST_DIR
   ? path.resolve(parsed.WEB_DIST_DIR)
   : path.resolve(process.cwd(), '..', 'dist')
 
+export function normalizeBasePath(value: string) {
+  const normalized = value.trim().replace(/^\/+|\/+$/g, '')
+  if (!normalized) return ''
+  if (!normalized.split('/').every((part) => /^[A-Za-z0-9_-]+$/.test(part))) {
+    throw new Error('APP_BASE_PATH 只允许字母、数字、下划线、短横线和路径分隔符')
+  }
+  return `/${normalized}`
+}
+
+const trustedProxies = parsed.TRUSTED_PROXIES.split(',').map((value) => value.trim()).filter(Boolean)
+if (trustedProxies.some((value) => ['true', '*', '0.0.0.0/0', '::/0'].includes(value.toLowerCase()))) {
+  throw new Error('TRUSTED_PROXIES 必须指定可信代理 IP 或受限 CIDR，不能信任所有来源')
+}
+
 export const appConfig = {
+  basePath: normalizeBasePath(parsed.APP_BASE_PATH),
+  trustedProxies: trustedProxies.length ? trustedProxies : false as false,
+  uploadFileBytes: parsed.UPLOAD_MAX_FILE_MB * 1024 * 1024,
+  uploadTotalBytes: parsed.UPLOAD_MAX_TOTAL_MB * 1024 * 1024,
   port: parsed.PORT,
   host: parsed.HOST,
   dataDir,

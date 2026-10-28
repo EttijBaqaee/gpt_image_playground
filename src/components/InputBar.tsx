@@ -1,3 +1,4 @@
+import { readPromptEditor, promptEditorBoundaryOffset, insertPromptPlainText } from '../lib/promptEditorDom'
 import { Fragment, useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useStore, submitTask, addImageFromFile, updateTaskInStore, removeMultipleTasks, ensureTaskImageAvailable } from '../store'
 import {
@@ -89,37 +90,8 @@ function getMentionTagTextLength(el: Element) {
   return el.textContent?.length ?? 0
 }
 
-function getNodeVisibleTextLength(node: Node): number {
-  if (node.nodeType === Node.TEXT_NODE) return node.textContent?.length ?? 0
-  if (node instanceof HTMLElement && node.classList.contains('mention-tag')) {
-    return getMentionTagTextLength(node)
-  }
-  return Array.from(node.childNodes).reduce((sum, child) => sum + getNodeVisibleTextLength(child), 0)
-}
-
-function getVisibleOffsetBeforeNode(root: HTMLElement, target: Node): number {
-  let offset = 0
-  let found = false
-
-  const walk = (node: Node) => {
-    if (found) return
-    if (node === target) {
-      found = true
-      return
-    }
-    if (node.nodeType === Node.TEXT_NODE) {
-      offset += node.textContent?.length ?? 0
-      return
-    }
-    if (node instanceof HTMLElement && node.classList.contains('mention-tag')) {
-      offset += getMentionTagTextLength(node)
-      return
-    }
-    node.childNodes.forEach(walk)
-  }
-
-  root.childNodes.forEach(walk)
-  return offset
+function getVisibleOffsetBeforeNode(root: HTMLElement, target: Node) {
+  return readPromptEditor(root, true).starts.get(target) ?? 0
 }
 
 function getMentionTagForBoundary(root: HTMLElement, container: Node) {
@@ -146,16 +118,8 @@ function getContentEditableBoundaryOffset(
   edge: 'start' | 'end',
   collapsed: boolean,
 ) {
-  if (container === root) {
-    let visibleOffset = 0
-    for (const child of Array.from(root.childNodes).slice(0, offset)) {
-      visibleOffset += getNodeVisibleTextLength(child)
-    }
-    return visibleOffset
-  }
-
-  if (!root.contains(container)) {
-    return edge === 'start' ? 0 : root.textContent?.length ?? 0
+  if (!root.contains(container) && container !== root) {
+    return edge === 'start' ? 0 : readPromptEditor(root, true).text.length
   }
 
   const mentionTag = getMentionTagForBoundary(root, container)
@@ -167,26 +131,13 @@ function getContentEditableBoundaryOffset(
     return mentionStart + (mentionOffset < mentionLength / 2 ? 0 : mentionLength)
   }
 
-  if (container.nodeType === Node.TEXT_NODE) {
-    return getVisibleOffsetBeforeNode(root, container) + offset
-  }
-
-  const element = container.nodeType === Node.ELEMENT_NODE ? container as Element : null
-  if (element) {
-    let visibleOffset = element === root ? 0 : getVisibleOffsetBeforeNode(root, element)
-    for (const child of Array.from(element.childNodes).slice(0, offset)) {
-      visibleOffset += getNodeVisibleTextLength(child)
-    }
-    return visibleOffset
-  }
-
-  return root.textContent?.length ?? 0
+  return promptEditorBoundaryOffset(root, container, offset)
 }
 
 function getContentEditableSelection(el: HTMLElement) {
   const sel = window.getSelection()
   if (!sel || sel.rangeCount === 0) {
-    const end = el.textContent?.length ?? 0
+    const end = readPromptEditor(el, true).text.length
     return { start: end, end }
   }
   try {
@@ -197,7 +148,7 @@ function getContentEditableSelection(el: HTMLElement) {
       : getContentEditableBoundaryOffset(el, range.endContainer, range.endOffset, 'end', false)
     return { start, end }
   } catch {
-    const end = el.textContent?.length ?? 0
+    const end = readPromptEditor(el, true).text.length
     return { start: end, end }
   }
 }
@@ -207,41 +158,11 @@ function getContentEditableCursor(el: HTMLElement) {
 }
 
 function getContentEditablePlainText(el: HTMLElement) {
-  let text = ''
-  const appendNodeText = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      text += node.textContent ?? ''
-      return
-    }
-    if (node instanceof HTMLElement && node.classList.contains('mention-tag')) {
-      text += node.dataset.mentionText ?? node.textContent ?? ''
-      return
-    }
-    node.childNodes.forEach(appendNodeText)
-  }
-  el.childNodes.forEach(appendNodeText)
-  return text.replace(/\r\n?/g, '\n')
+  return readPromptEditor(el).text
 }
 
 function getPlainTextFromNode(node: Node) {
-  let text = ''
-  const appendNodeText = (current: Node) => {
-    if (current.nodeType === Node.TEXT_NODE) {
-      text += current.textContent ?? ''
-      return
-    }
-    if (current instanceof HTMLBRElement) {
-      text += '\n'
-      return
-    }
-    if (current instanceof HTMLElement && current.classList.contains('mention-tag')) {
-      text += current.dataset.mentionText ?? current.textContent ?? ''
-      return
-    }
-    current.childNodes.forEach(appendNodeText)
-  }
-  appendNodeText(node)
-  return text.replace(/\r\n?/g, '\n')
+  return readPromptEditor(node).text
 }
 
 function syncMentionTagSelection(el: HTMLElement) {
@@ -327,6 +248,13 @@ function renderPromptEditor(el: HTMLDivElement, prompt: string, inputImages: Inp
     fragment.appendChild(tag)
   }
 
+  // Chromium needs a final BR to keep the caret on a trailing empty line.
+  // It is editor-only and is excluded from prompt text and clipboard content.
+  if (prompt.endsWith('\n')) {
+    const placeholder = document.createElement('br')
+    placeholder.dataset.promptPlaceholder = 'true'
+    fragment.appendChild(placeholder)
+  }
   el.replaceChildren(fragment)
 }
 
@@ -1233,6 +1161,20 @@ export default function InputBar() {
   }, [atImageQuery, prompt, setPrompt])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      const editor = textareaRef.current
+      const selection = window.getSelection()
+      if (editor && selection) {
+        e.preventDefault()
+        const range = document.createRange()
+        range.selectNodeContents(editor)
+        selection.removeAllRanges()
+        selection.addRange(range)
+        syncMentionTagSelection(editor)
+      }
+      return
+    }
+
     if (showAtImageMenu) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()
@@ -1277,7 +1219,7 @@ export default function InputBar() {
     const text = e.clipboardData.getData('text/plain')
     if (!text) return
     e.preventDefault()
-    document.execCommand('insertText', false, text)
+    insertPromptPlainText(e.currentTarget, text)
   }, [])
 
   const handlePromptCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {

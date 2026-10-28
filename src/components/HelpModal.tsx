@@ -127,12 +127,12 @@ export default function HelpModal({ onClose }: HelpModalProps) {
             </a>
             <span className="hidden sm:inline text-gray-300 dark:text-gray-600">·</span>
             <a
-              href="https://github.com/XianYuDaXian/gpt_image_playground"
+              href="https://github.com/EttijBaqaee/gpt_image_playground"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium hover:text-gray-900 dark:hover:text-gray-100 transition-colors whitespace-nowrap"
             >
-              Forked by @XianYuDaXian
+              Forked by @EttijBaqaee
             </a>
           </div>
         </div>

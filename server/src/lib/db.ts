@@ -2704,6 +2704,40 @@ ${selectUsageCodeFields()}
     return this.getTask(input.id)
   }
 
+  createTaskWithAttachments(
+    input: Parameters<AppDatabase['createTask']>[0],
+    images: Array<Parameters<AppDatabase['addTaskImage']>[0]>,
+    message: string,
+  ) {
+    // Keep quota, task, attachments and the initial event in one commit.
+    return this.sqlite.transaction(() => {
+      if (input.ownerKind === 'usage_code' && input.ownerUsageCodeId && input.reservedImageCredits) {
+        const reserve = {
+          usageCodeId: input.ownerUsageCodeId,
+          taskId: input.id,
+          credits: input.reservedImageCredits,
+          providerProfileId: input.providerProfileId ?? '',
+        }
+        try {
+          if (input.taskType === 'video') this.reserveVideoCreditsForTask(reserve)
+          else this.reserveUsageCreditsForTask(reserve)
+        } catch (error) {
+          throw Object.assign(error instanceof Error ? error : new Error('使用码额度不足'), { statusCode: 403 })
+        }
+      }
+      const task = this.createTask(input)
+      if (!task) throw new Error('创建任务失败')
+      for (const image of images) {
+        if (!this.addTaskImage(image)) throw new Error('保存附件记录失败')
+      }
+      const event = this.appendTaskEvent({
+        taskId: input.id, status: 'queued', step: 'queued', percent: 5, message,
+      })
+      if (!event) throw new Error('保存任务事件失败')
+      return { task, event }
+    }).immediate()
+  }
+
   listActiveTasks() {
     return this.sqlite
       .prepare(`

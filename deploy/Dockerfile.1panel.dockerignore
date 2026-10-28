@@ -1,0 +1,10 @@
+# Linux node_modules are deliberately included for the offline dependency cache.
+.git
+**/.cache
+data
+docker-data
+coverage
+dist
+server/dist
+*.log
+chromium-install.log

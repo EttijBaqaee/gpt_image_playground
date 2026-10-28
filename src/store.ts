@@ -1,3 +1,4 @@
+import { appUrl } from './lib/appUrl'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
@@ -1772,7 +1773,7 @@ function syncTaskEventSources(tasks: TaskRecord[]) {
   for (const task of tasks) {
     if (task.status !== 'running' || taskEventSources.has(task.id)) continue
 
-    const source = new EventSource(`/api/tasks/${task.id}/events`)
+    const source = new EventSource(appUrl(`/api/tasks/${task.id}/events`))
     source.addEventListener('snapshot', (event) => {
       const payload = JSON.parse((event as MessageEvent<string>).data) as { task?: TaskRecord }
       if (!payload.task) return
@@ -1795,7 +1796,7 @@ function syncTaskEventSources(tasks: TaskRecord[]) {
 function setupGlobalTaskListStream() {
   if (taskListEventSource || typeof window === 'undefined') return
 
-  const source = new EventSource('/api/tasks/events')
+  const source = new EventSource(appUrl('/api/tasks/events'))
   source.addEventListener('snapshot', () => {
     scheduleTaskRefresh(0)
   })

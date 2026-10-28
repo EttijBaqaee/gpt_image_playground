@@ -1,397 +1,264 @@
-# GPT Image Playground
+# Update 0.3.66.1
+
+**2026-10-28 · 基于 XianYuDaXian 的 0.3.66 fork。** 本版只围绕以下内容修订，其余业务功能沿用 0.3.66。
+
+- **可配置路径前缀**：新增 `APP_BASE_PATH`。填写 `aaa` 后，网页、API、媒体和健康检查统一使用 `/aaa/` 前缀；留空保持原路径。前端请求、SSE、静态资源和 PWA 同步适配，修改参数后只需重建容器。
+- **修复 Chromium 复制粘贴丢换行**：保留连续空行、首尾换行、CRLF、中文、emoji，以及参考图 mention；修复全选复制漏掉末尾换行、粘贴后光标与继续输入的问题。
+- **修复额度事务**：额度预扣、任务、附件记录和初始事件通过同一 SQLite 事务提交；预校验失败不扣额度，任务失败按原有规则退款。
+- **修复附件路径与清理**：附件使用 UUID 和安全扩展名保存，避免同名覆盖和原始文件名影响路径；失败时清理本次上传，不留下可执行的残缺任务。
+- **限制上传与可信代理**：默认单文件 32 MiB、单次累计 128 MiB，流式累计检查；最多 32 个文件、16 个普通字段。默认不信任转发 IP，只有明确配置的可信代理才生效。
+- **仓库与更新源**：页面仓库入口、帮助页、镜像来源和默认版本检测统一指向 [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)。
+- **验证与发布**：在 Debian 上通过自动化测试、Chromium 真实剪贴板、默认/自定义前缀 HTTP、真实 Worker 与模拟供应商集成验证。具体结果、镜像架构与 SHA256 随 Release 提供；没有调用付费供应商 API。
+- **许可证**：与上游相同，继续使用 MIT，保留 `LICENSE` 中原版权声明。
+
+---
+
+# GPT Image Playground — Docker fork
+
+本仓库由 [@EttijBaqaee](https://github.com/EttijBaqaee/gpt_image_playground) 维护，基于 XianYuDaXian 的 0.3.66 fork，原项目来自 [CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)。
+
+**本版仅提供 Docker 构建与部署说明。** 前后端在一个容器中运行，SQLite、任务记录、图片和配置保存在挂载的数据目录中。没有 Render、桌面安装包或直接在宿主机运行 npm 的部署方式。
 
 <p align="center">
   <img src="asset/主界面.png" alt="主界面" width="45%" />
   <img src="asset/设置界面.png" alt="设置界面" width="45%" />
 </p>
-<p align="center">
-  <img src="asset/高级编辑.png" alt="高级编辑" width="45%" />
-  <img src="asset/遮罩编辑.png" alt="遮罩编辑" width="45%" />
-</p>
-<p align="center">
-  <img src="asset/分发功能设置.png" alt="分发功能设置" width="45%" />
-</p>
 
-## Render一键部署
+## 1. 获取源码
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/XianYuDaXian/gpt_image_playground)
-
-**请注意** Render 一键部署仅供**临时测试**：
-
-- 当前 `render.yaml` 不挂持久盘
-- 服务重启、重建或重新部署后，数据库与图片文件都会丢失
-- 如需正式使用，请自行在 Render 或其他平台配置持久化存储
-
----
-
-基于 OpenAI 图像接口的图片生成与编辑工具，当前版本已经重构为**前后端一体**架构：
-
-- 前端只负责界面与编辑交互
-- 后端统一保存 `API URL / API Key / model / timeout`
-- 任务由后端发起、排队、落盘和回看
-- 输入图、遮罩图、输出图都会先保存到后端本地，再由前端显示
-- 不再依赖 WebDAV
-
-本仓库为 **[@XianYuDaXian](https://github.com/XianYuDaXian/gpt_image_playground)** 的 fork，原项目来自 **[@CookSleep](https://github.com/CookSleep/gpt_image_playground)**。
-
----
-
-## 功能概览
-
-- 文本生图
-- 多参考图编辑
-- 遮罩编辑
-- Images API / Responses API 切换
-- 历史任务回看
-- 后端统一实时进度
-- 后端保存运行配置
-- 后端导出 / 导入备份
-- 管理员登录与使用码分发
-- 使用码图片额度统计
-- Docker 单容器部署
-- 移动端与 PWA 适配
-
----
-
-## 当前架构
-
-### 前端
-
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- Zustand
-- Fabric.js
-
-### 后端
-
-- Fastify
-- SQLite
-- 本地磁盘媒体存储
-- SSE 任务事件流
-
-### 数据落点
-
-- 运行配置：SQLite
-- 任务记录：SQLite
-- 输入图 / 遮罩图 / 输出图 / 缩略图：后端本地目录
-
----
-
-## Docker 部署
-
-当前 Docker 方案是**单容器**生产部署：
-
-- Fastify 同时提供前端静态页面
-- `/api` 后端接口
-- `/media` 媒体文件
-
-### 使用已构建镜像
-
-如果你只想直接使用现成镜像，优先使用：
-
-- `ghcr.io/xianyudaxian/gpt_image_playground:latest`
-
-也可以按版本固定：
-
-- `ghcr.io/xianyudaxian/gpt_image_playground:0.3.2`
-
-可以直接运行：
+服务器需要安装 Docker Engine、Docker Compose v2 和 Git。构建时需要能够访问基础镜像、npm 和 Debian 软件源。
 
 ```bash
-docker run -d \
-  --name gpt-image-playground \
-  -p 8787:8787 \
-  -e PORT=8787 \
-  -e HOST=0.0.0.0 \
-  -e APP_SECRET=change-this-secret  \
-  -e ADMIN_PASSWORD=change-this-admin-password \
-  -e UPSTREAM_API_URL=https://api.openai.com/v1 \
-  -e UPSTREAM_API_KEY=sk-xxxx \
-  -e UPSTREAM_MODEL=gpt-5.5 \
-  -e UPSTREAM_API_MODE=responses \
-  -e UPSTREAM_TIMEOUT_SECONDS=300 \
-  -e UPSTREAM_CODEX_CLI=false \
-  -v gpt-image-playground-data:/app/data \
-  ghcr.io/xianyudaxian/gpt_image_playground:latest
+git clone --branch v0.3.66.1 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+cd /opt/gpt-image-playground/deploy
+cp .env.example .env
 ```
 
-启动后访问：
+也可以从 [0.3.66.1 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.1) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
-- [http://localhost:8787/](http://localhost:8787/)
-- [http://localhost:8787/health](http://localhost:8787/health)
+标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
-如果你希望宿主机直接看到数据库和媒体文件，也可以改用目录挂载：
+## 2. 完整编排文件
 
-```bash
-docker run -d \
-  --name gpt-image-playground \
-  -p 8787:8787 \
-  -e APP_SECRET=change-this-secret \
-  -e ADMIN_PASSWORD=change-this-admin-password \
-  -v ./docker-data:/app/data \
-  ghcr.io/xianyudaxian/gpt_image_playground:latest
-```
-
-### 使用 Docker Compose 运行已构建镜像
+仓库内模板为 [`deploy/docker-compose.yml`](deploy/docker-compose.yml)。可以直接用于命令行，也可以粘贴进 1Panel 编排编辑器：
 
 ```yaml
+name: gpt-image-playground-fork
+
 services:
   app:
-    image: ghcr.io/xianyudaxian/gpt_image_playground:latest
-    ports:
-      - "8787:8787"
-    environment:
-      PORT: 8787
-      HOST: 0.0.0.0
-      APP_SECRET: change-this-secret
-      ADMIN_PASSWORD: change-this-admin-password
-      UPSTREAM_API_URL: https://api.openai.com/v1
-      UPSTREAM_API_KEY: sk-xxxx
-      UPSTREAM_MODEL: gpt-5.5
-      UPSTREAM_API_MODE: responses
-      UPSTREAM_TIMEOUT_SECONDS: 300
-      UPSTREAM_CODEX_CLI: false
-    volumes:
-      - ./docker-data:/app/data
+    image: gpt-image-playground-fork:0.3.66.1
+    build:
+      # CLI default: repository root; in 1Panel set an absolute APP_SOURCE_DIR.
+      context: ${APP_SOURCE_DIR:-..}
+      dockerfile: deploy/Dockerfile
+    container_name: gpt-image-playground-fork
     restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8788}:8787"
+    environment:
+      APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
+      UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
+      UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
+      NODE_ENV: production
+      PORT: "8787"
+      HOST: "0.0.0.0"
+      DATA_DIR: /app/data
+      WEB_DIST_DIR: /app/dist
+      APP_SECRET: "${APP_SECRET:?Set APP_SECRET in .env}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      UPSTREAM_API_URL: "${UPSTREAM_API_URL:-}"
+      UPSTREAM_API_KEY: "${UPSTREAM_API_KEY:-}"
+      UPSTREAM_MODEL: "${UPSTREAM_MODEL:-gpt-image-2}"
+      UPSTREAM_API_MODE: "${UPSTREAM_API_MODE:-images}"
+      UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-300}"
+      UPSTREAM_CODEX_CLI: "${UPSTREAM_CODEX_CLI:-false}"
+    volumes:
+      - "${APP_DATA_DIR:-../docker-data}:/app/data"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1536m
+    pids_limit: 128
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const p=(process.env.APP_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
+          fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
+          .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
-### 快速启动
+### 这些字段怎么改
 
-```bash
-cd deploy
-cp .env.example .env
-docker compose up -d --build
+| 字段 | 作用与填写方式 |
+| --- | --- |
+| `image` | 本地构建后的镜像名：`gpt-image-playground-fork:0.3.66.1`，不是需要从公共仓库拉取的镜像地址。 |
+| `build.context` | 源码根目录。命令行使用默认 `..`；1Panel 建议在环境变量中填绝对 `APP_SOURCE_DIR`。 |
+| `build.dockerfile` | 保持 `deploy/Dockerfile`，路径相对于源码根目录。 |
+| `ports` | 左侧是宿主机端口，默认 `8788`；右侧容器端口保持 `8787`。 |
+| `volumes` | 左侧为持久化目录，右侧保持 `/app/data`。升级必须继续使用原目录。 |
+| `APP_BASE_PATH` | 留空不加前缀；填 `aaa` 或 `/aaa/` 均得到 `/aaa`。也可直接在编排中写 `APP_BASE_PATH: "aaa"`。 |
+| `APP_SECRET` | 用于会话签名的固定随机密钥，至少 16 字符，建议 32 字符以上；升级不要重新生成。 |
+| `ADMIN_PASSWORD` | 应用网页登录管理员密码，与服务器或 1Panel 密码无关。 |
+| `CORS_ORIGIN` | 默认 `*` 沿用原行为；若限定来源，填完整协议、域名及端口，不包含路径前缀。 |
+| `TRUSTED_PROXIES` | 默认留空；只填实际反向代理的 IP 或受限 CIDR，多个值用逗号分隔。 |
+| `UPLOAD_MAX_FILE_MB` | 单文件上限，默认 32 MiB，可设 1–1024。 |
+| `UPLOAD_MAX_TOTAL_MB` | 单次上传累计上限，默认 128 MiB，可设 1–2048。 |
+
+## 3. 环境变量怎么写
+
+命令行部署使用 `deploy/.env`。1Panel 使用该编排的环境变量编辑区，或者编排目录中的 `.env`。**不要把 `.env` 提交到 GitHub。**
+
+下面是首次部署示例，两个密码占位符必须替换：
+
+```dotenv
+APP_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+ADMIN_PASSWORD=replace-with-your-admin-password
+APP_PORT=8788
+APP_BASE_PATH=
+CORS_ORIGIN=*
+
+# 1Panel 使用绝对路径，避免把数据写到错误目录
+APP_SOURCE_DIR=/opt/gpt-image-playground
+APP_DATA_DIR=/opt/gpt-image-playground/docker-data
+
+TRUSTED_PROXIES=
+UPLOAD_MAX_FILE_MB=32
+UPLOAD_MAX_TOTAL_MB=128
 ```
 
-启动后访问：
+可用 `openssl rand -hex 32` 生成 `APP_SECRET`。如果已有部署，继续使用原来的 `APP_SECRET`、管理员密码和数据目录，不能照抄示例覆盖。
 
-- [http://localhost:8787/](http://localhost:8787/)
-- [http://localhost:8787/health](http://localhost:8787/health)
+`UPSTREAM_API_URL` / `UPSTREAM_API_KEY` 可留空，登录网页后配置供应商。可选初始化参数见 [`deploy/.env.example`](deploy/.env.example)。
 
-### 关键环境变量
+## 4. 在 1Panel 中构建部署
 
-见 [deploy/.env.example](/C:/Users/xianyu/Desktop/gpt_image_playground/deploy/.env.example)。
+1. 将源码下载到服务器，例如 `/opt/gpt-image-playground`，确认 `/opt/gpt-image-playground/deploy/Dockerfile` 存在。
+2. 在 **容器 → 编排 → 创建编排** 中选择编辑编排，名称填写 `gpt-image-playground-fork`。
+3. 粘贴第 2 节的完整 YAML。
+4. 填写第 3 节的环境变量。特别是 `APP_SOURCE_DIR`、`APP_DATA_DIR` 使用服务器绝对路径。
+5. 创建并启动编排。`build` 指向本机源码，通过 Docker 构建镜像；首次构建需要等待依赖安装与前后端编译完成。
+6. 查看构建/容器日志，容器健康状态应变为 `healthy`，然后访问应用。
 
-常用项：
-
-- `PORT`
-- `HOST`
-- `APP_SECRET`
-- `ADMIN_PASSWORD`
-- `UPSTREAM_API_URL`
-- `UPSTREAM_API_KEY`
-- `UPSTREAM_MODEL`
-- `UPSTREAM_API_MODE`
-- `UPSTREAM_TIMEOUT_SECONDS`
-- `UPSTREAM_CODEX_CLI`
-
-### Docker 数据保存位置
-
-`docker-compose.yml` 默认把容器内 `/app/data` 挂到宿主机：
-
-- `./docker-data`
-
-其中包含：
-
-- `app.db`
-- `media/uploads`
-- `media/masks`
-- `media/outputs`
-- `media/thumbs`
-
-也就是说，**容器删掉后数据仍保留在宿主机**。
-
-### `APP_SECRET` 是什么
-
-`APP_SECRET` 不是网页登录密码，也不是要让终端用户记住后手动输入的口令。
-
-它更像是**后端本地加密钥匙**，主要用来保护已经保存到数据库里的 `API Key`：
-
-- 平时正常使用时，用户几乎感觉不到它存在
-- 首次部署时设置一次即可，后续尽量不要改
-- 如果你迁移数据目录、恢复备份、重建容器后还想继续读取原来保存的 `API Key`，就必须继续使用同一个 `APP_SECRET`
-- 如果改了它，程序通常还能启动，但以前加密保存的 `API Key` 可能解不开，需要重新填写
-
-建议把它设置成一段**固定、足够长、只保存在部署环境里**的字符串，例如：
+如果某个 1Panel 版本的首次创建只执行镜像拉取，没有执行 `build`，可以在服务器终端对 **1Panel 管理的同一份编排文件** 执行构建，再回到面板启动；不要额外建立一套不同数据目录的部署：
 
 ```bash
-APP_SECRET=9b2f4d8d4d7c4d7fa1e58d7c0e9a4c6b7f2e1d9c5a8b3f6e
+# 替换为 1Panel 中该编排的实际目录
+cd /opt/1panel/docker/compose/gpt-image-playground-fork
+docker compose build app
 ```
 
-### `ADMIN_PASSWORD` 是什么
+> 上面的路径仅为常见示例，以你面板显示的编排实际路径为准。
 
-`ADMIN_PASSWORD` 是网页登录用的管理员密码。
+## 5. 命令行 Docker Compose 构建
 
-管理员可以：
-
-- 配置 API
-- 开启或关闭分发功能
-- 生成使用码
-- 设置使用码图片额度
-- 查看所有用户生成的图片
-
-普通用户只能用使用码登录，只能看到该使用码对应的任务和图片。
-
-### 镜像更新方式
-
-如果你使用的是远端镜像，并且容器名是 `gpt-image-playground`：
+在第 1 节创建的 `deploy/.env` 中填好参数后：
 
 ```bash
-docker pull ghcr.io/xianyudaxian/gpt_image_playground:latest
-docker stop gpt-image-playground
-docker rm gpt-image-playground
-```
-
-然后用相同参数重新 `docker run` 即可。
-
-如果你固定使用版本号，比如 `0.3.2`，更新步骤就是：
-
-1. 把镜像标签从旧版本改成新版本
-2. 重新 `docker pull`
-3. 删掉旧容器
-4. 用相同挂载目录和环境变量重新运行
-
-例如更新到 `0.3.2`：
-
-```bash
-docker pull ghcr.io/xianyudaxian/gpt_image_playground:0.3.2
-docker stop gpt-image-playground
-docker rm gpt-image-playground
-
-docker run -d \
-  --name gpt-image-playground \
-  -p 8787:8787 \
-  -e PORT=8787 \
-  -e HOST=0.0.0.0 \
-  -e APP_SECRET=请继续使用原来的固定字符串 \
-  -v ./docker-data:/app/data \
-  ghcr.io/xianyudaxian/gpt_image_playground:0.3.2
-```
-
-如果你使用的是 Docker Compose：
-
-```bash
-docker compose pull
+cd /opt/gpt-image-playground/deploy
+docker compose config --quiet
+docker compose build app
 docker compose up -d
+docker compose ps
+docker compose logs --tail=100 app
 ```
 
-如果你希望更新后顺手清掉旧容器残留，可以用：
+这只在 Docker 内安装依赖和编译，不需要在宿主机执行 `npm install` 或 `npm run build`。
+
+## 6. 路径前缀与访问地址
+
+假设宿主机端口为 `8788`：
+
+| 用途 | `APP_BASE_PATH=` | `APP_BASE_PATH=aaa` |
+| --- | --- | --- |
+| 网页 | `http://服务器IP:8788/` | `http://服务器IP:8788/aaa/` |
+| API | `/api/…` | `/aaa/api/…` |
+| 媒体 | `/media/…` | `/aaa/media/…` |
+| 健康检查 | `/health`、`/health/` | `/aaa/health`、`/aaa/health/` |
+
+前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。设置前缀后，旧的不带前缀 API、媒体和健康检查地址不再使用。
+
+要改成 `aaa`，可以在编排环境变量中填写 `APP_BASE_PATH=aaa`，或直接修改 YAML 的这一行：
+
+```yaml
+APP_BASE_PATH: "aaa"
+```
+
+然后在 1Panel 重新部署/重建容器。命令行等价操作是：
 
 ```bash
-docker compose up -d --remove-orphans
+docker compose up -d --force-recreate
 ```
 
-如果你是本地重新构建镜像：
+**只改前缀不需要重新构建镜像，单纯重启旧容器不会读取新的 Compose 环境变量。** 前缀属于应用本身，与 1Panel 的安全入口相互独立。
+
+若使用 Nginx/OpenResty 反向代理，应把前缀原样转发给后端，例如 `/aaa/…` 仍转发为 `/aaa/…`，不要剥掉 `/aaa`。代理层的请求体上限也要允许你配置的上传大小。
+
+## 7. 上传限制与代理
+
+- 上传大小按实际流式读取的字节累计检查，不只看请求头声明。
+- 单次最多 32 个文件、16 个普通字段，普通字段上限为 1 MiB。
+- 超限请求会被拒绝并清理本次附件；未完成上传不会产生可运行的残缺任务或错误扣费。
+- `TRUSTED_PROXIES` 留空时，不采信请求中自行填写的 `X-Forwarded-For`。
+- 使用代理时只配置真正的代理 IP/CIDR，不能填写 `*`、`true`、`0.0.0.0/0` 或 `::/0`。
+
+## 8. 离线镜像（可选）
+
+Release 中的 `gpt-image-playground-fork-0.3.66.1-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
-docker build -f deploy/Dockerfile -t gpt-image-playground:latest .
-docker compose up -d --build
+sha256sum -c SHA256SUMS --ignore-missing
+docker load -i gpt-image-playground-fork-0.3.66.1-amd64.tar.gz
 ```
 
-如果你本地改了代码并想更新正在运行的服务，推荐完整步骤：
+使用离线镜像时，将上述编排中的整个 `build:` 块删除，保留：
 
-```bash
-git pull
-docker build -f deploy/Dockerfile -t gpt-image-playground:latest .
-docker compose up -d --build
+```yaml
+image: gpt-image-playground-fork:0.3.66.1
+pull_policy: never
 ```
 
-更新时只要继续挂载原来的 `/app/data`，原有数据库和图片就不会丢。
+其他端口、环境变量和数据挂载照常填写，然后在 1Panel 创建/启动或执行 `docker compose up -d`。不要执行 `docker compose pull`，该镜像已经通过 `docker load` 导入本机。
 
----
+## 9. 升级与数据保留
 
-## 本地开发
+升级前备份整个持久化数据目录，并保留原 `.env`。供应商设置、使用码额度、历史任务和媒体文件都依赖原数据目录。
 
-### 安装依赖
+- 源码构建升级：更新到目标版本后执行 `docker compose build app`，再执行 `docker compose up -d`。
+- 离线镜像升级：导入新镜像，修改 `image` 标签后重新部署。
+- 只改环境变量：重新创建容器，不需要重新构建镜像。
+- 继续使用相同的 `APP_SECRET`、管理员密码和数据挂载；不要删除数据卷或对旧部署执行 `down -v`。
+- 本版离线镜像使用 UID/GID 1000。若挂载目录不可写，按实际部署用户调整该目录权限；不要把容器改成特权模式。
 
-```bash
-npm install
-npm --prefix server install
-```
+## 10. 常见问题
 
-### 启动前后端开发服务
+- **1Panel 找不到 Dockerfile**：检查 `APP_SOURCE_DIR` 是否为绝对源码根目录，而不是 `deploy/` 或编排自身目录。
+- **要求设置 APP_SECRET / ADMIN_PASSWORD**：环境变量未保存或 `.env` 不在编排读取位置，填写后重新部署。
+- **改前缀后 404**：使用新的网页入口，并确认反向代理没有剥掉前缀。
+- **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `APP_BASE_PATH`，不要改回固定 `/health`。
+- **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
+- **数据库只读或图片保存失败**：检查 `/app/data` 的实际宿主机挂载目录和写入权限。
+- **镜像拉取失败**：本仓库提供源码 Docker 构建和 Release 离线镜像；离线方式先 `docker load`，删除 `build` 并使用 `pull_policy: never`。
 
-前端：
+## 许可证与来源
 
-```bash
-npm run dev -- --host 0.0.0.0
-```
+[MIT License](LICENSE)。本 fork 与上游使用相同许可证，保留 `Copyright (c) 2026 CookSleep` 和原 MIT 许可文本。
 
-后端：
-
-```bash
-npm run dev:server
-```
-
-默认地址：
-
-- 前端：[http://localhost:5173/](http://localhost:5173/)
-- 后端：[http://localhost:8787/health](http://localhost:8787/health)
-
-### 本地构建
-
-前端：
-
-```bash
-npm run build
-```
-
-后端：
-
-```bash
-npm run build:server
-```
-
----
-
-## 运行配置
-
-程序启动后可以通过前端设置页配置：
-
-- API URL
-- API Key
-- API 接口模式
-- 模型 ID
-- 请求超时
-- Codex CLI 模式
-
-这些配置会保存到后端，而不是浏览器本地。
-
-同时也支持通过环境变量在服务启动时注入默认值。
-
----
-
-## 备份与清理
-
-设置页支持：
-
-- 打包保存到本地
-- 导入本地备份
-- 清空远端记录
-- 清空远端全部
-- 清空本地缓存
-
-其中“远端”指后端 SQLite 与后端媒体目录。
-
----
-
-## 技术说明
-
-- 前端不再直接向上游图片接口发请求
-- 前端显示结果图时优先走后端 `/media/...`
-- 编辑器需要本地可编辑数据时，会把后端图片转存到浏览器缓存
-- 任务完成或失败后都保留在后端，可随时回看
-
----
-
-## 许可证
-
-[MIT License](LICENSE)
-
-## 致谢
-
-- 原项目：[CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
-- Fork 维护：[XianYuDaXian/gpt_image_playground](https://github.com/XianYuDaXian/gpt_image_playground)
+- 原始项目：[CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
+- 0.3.66 基线：XianYuDaXian fork，提交 `0477e08e8328652cfdfaf66c463970e626a9ff69`
+- 当前维护：[EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)

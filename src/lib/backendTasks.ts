@@ -1,3 +1,4 @@
+import { appFetch } from './appUrl'
 import type { TaskParams, TaskRecord, VideoTaskParams } from '../types'
 import type { AuthStatus } from './backendAuth'
 import { dataUrlToBlob, imageDataUrlToPngBlob, maskDataUrlToPngBlob } from './canvasImage'
@@ -18,7 +19,7 @@ async function readResponseJson<T>(response: Response): Promise<T> {
 }
 
 export async function fetchBackendTasks(): Promise<TaskRecord[]> {
-  const response = await fetch('/api/tasks', { cache: 'no-store' })
+  const response = await appFetch('/api/tasks', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: TaskRecord[] }>(response)
   return payload.items
 }
@@ -56,18 +57,18 @@ export async function fetchBackendTaskPage(input: {
   if (input.favorite) params.set('favorite', '1')
   if (input.archived) params.set('archived', '1')
   if (input.showUsageCodeTasksForAdmin) params.set('showUsageCodeTasksForAdmin', '1')
-  const response = await fetch(`/api/tasks?${params.toString()}`, { cache: 'no-store' })
+  const response = await appFetch(`/api/tasks?${params.toString()}`, { cache: 'no-store' })
   return readResponseJson<BackendTaskListResult>(response)
 }
 
 export async function fetchBackendTask(taskId: string): Promise<TaskRecord> {
-  const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' })
+  const response = await appFetch(`/api/tasks/${taskId}`, { cache: 'no-store' })
   const payload = await readResponseJson<{ task: TaskRecord }>(response)
   return payload.task
 }
 
 export async function deleteBackendTask(taskId: string): Promise<void> {
-  const response = await fetch(`/api/tasks/${taskId}`, {
+  const response = await appFetch(`/api/tasks/${taskId}`, {
     method: 'DELETE',
   })
   await readResponseJson<{ ok: true }>(response)
@@ -77,7 +78,7 @@ export async function updateBackendTaskFlags(
   taskId: string,
   patch: { isFavorite?: boolean; isArchived?: boolean },
 ): Promise<TaskRecord> {
-  const response = await fetch(`/api/tasks/${taskId}`, {
+  const response = await appFetch(`/api/tasks/${taskId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
@@ -124,7 +125,7 @@ export async function createBackendTask(input: {
     formData.append('mask', maskBlob, 'mask.png')
   }
 
-  const response = await fetch('/api/tasks', {
+  const response = await appFetch('/api/tasks', {
     method: 'POST',
     body: formData,
   })

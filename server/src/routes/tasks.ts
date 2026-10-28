@@ -179,7 +179,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     }), task.id))
   }
 
-  app.post('/api/tasks', async (request, reply) => {
+  app.post('/api/tasks', { bodyLimit: app.config.uploadTotalBytes + 2 * 1024 * 1024 }, async (request, reply) => {
     const auth = await requireAuth(app, request, reply)
 
     const taskId = crypto.randomUUID()
@@ -196,8 +196,13 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       buffer: Buffer
     }> = []
 
-    for await (const part of request.parts()) {
+    let uploadedBytes = 0
+    for await (const part of request.parts({ limits: {
+      fileSize: app.config.uploadFileBytes, files: 32, fields: 16,
+      parts: 48, fieldSize: 1024 * 1024, fieldNameSize: 100,
+    } })) {
       if (part.type === 'field') {
+        if (part.valueTruncated || part.fieldnameTruncated) throw Object.assign(new Error('上传字段超出限制'), { statusCode: 413 })
         if (part.fieldname === 'prompt') {
           prompt = String(part.value ?? '').trim()
         }
@@ -229,11 +234,20 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         continue
       }
 
+      const chunks: Buffer[] = []
+      for await (const chunk of part.file) {
+        uploadedBytes += chunk.length
+        if (uploadedBytes > app.config.uploadTotalBytes) {
+          throw Object.assign(new Error('附件总大小超出限制'), { statusCode: 413 })
+        }
+        chunks.push(chunk)
+      }
+      if (part.file.truncated) throw Object.assign(new Error('单个附件超出限制'), { statusCode: 413 })
       pendingFiles.push({
         fieldname: part.fieldname,
-        filename: part.filename?.replace(/[^\w.-]+/g, '-') || `${crypto.randomUUID()}.png`,
-        mimetype: part.mimetype || 'image/png',
-        buffer: await part.toBuffer(),
+        filename: part.filename,
+        mimetype: part.mimetype || 'application/octet-stream',
+        buffer: Buffer.concat(chunks),
       })
     }
 
@@ -283,30 +297,6 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         return { message: '使用码不可用' }
       }
       reservedImageCredits = taskType === 'video' ? 1 : parsedParams.n
-      try {
-        if (taskType === 'video') {
-          app.db.reserveVideoCreditsForTask({
-            usageCodeId: selectedUsageCodeId,
-            taskId,
-            credits: reservedImageCredits,
-            providerProfileId: providerProfile.id,
-          })
-        } else {
-          app.db.reserveUsageCreditsForTask({
-            usageCodeId: selectedUsageCodeId,
-            taskId,
-            credits: reservedImageCredits,
-            providerProfileId: providerProfile.id,
-          })
-        }
-      } catch (error) {
-        reply.code(403)
-        const baseMessage = error instanceof Error ? error.message : '使用码额度不足'
-        if (baseMessage.includes('当前端点')) {
-          return { message: `${providerProfile.name} 额度不足。${baseMessage}` }
-        }
-        return { message: baseMessage }
-      }
     }
 
     const inputImageCount = pendingFiles.filter((file) => file.fieldname !== 'mask').length
@@ -328,80 +318,57 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       inputImageCount,
     })
 
-    const task = app.db.createTask({
-      id: taskId,
-      prompt,
-      taskType,
-      paramsJson: JSON.stringify(taskType === 'video' ? parsedVideoParams : parsedParams),
-      providerProfileId: providerProfile.id,
-      providerProfileModel,
-      ownerUsageCodeId: auth.role === 'user' ? selectedUsageCodeId : null,
-      ownerKind: auth.role === 'user' ? 'usage_code' : 'admin',
-      reservedImageCredits,
-    })
-
-    if (!task) {
-      if (auth.role === 'user') {
-        if (taskType === 'video') {
-          app.db.refundVideoCreditsForTask({
-            usageCodeId: selectedUsageCodeId ?? '',
-            taskId,
-            credits: reservedImageCredits,
-            reason: 'task_create_failed',
-            providerProfileId: providerProfile.id,
-          })
-        } else {
-          app.db.refundUsageCreditsForTask({
-            usageCodeId: selectedUsageCodeId ?? '',
-            taskId,
-            credits: reservedImageCredits,
-            reason: 'task_create_failed',
-            providerProfileId: providerProfile.id,
-          })
-        }
-      }
-      throw new Error('创建任务失败')
-    }
-
-    let maskImageId: string | null = null
+    const images: Array<Parameters<typeof app.db.addTaskImage>[0]> = []
+    const createdFiles: string[] = []
+    let event: ReturnType<typeof app.db.appendTaskEvent>
     try {
       for (const file of pendingFiles) {
         const fileId = crypto.randomUUID()
         const kind = file.fieldname === 'mask' ? 'masks' : 'uploads'
-        const relativePath = buildStoredPath(kind, taskId, file.filename)
+        // Original filenames never participate in storage paths.
+        const extension = ({ 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif', 'image/avif': '.avif' } as Record<string, string>)[file.mimetype] ?? '.bin'
+        const relativePath = buildStoredPath(kind, taskId, fileId + extension)
         const absolutePath = resolveAbsoluteMediaPath(app, relativePath)
-
         await fs.mkdir(path.dirname(absolutePath), { recursive: true })
-        await fs.writeFile(absolutePath, file.buffer)
-
-        app.db.addTaskImage({
-          id: fileId,
-          taskId,
+        const handle = await fs.open(absolutePath, 'wx')
+        createdFiles.push(absolutePath)
+        try {
+          await handle.writeFile(file.buffer)
+        } finally {
+          await handle.close()
+        }
+        images.push({
+          id: fileId, taskId,
           kind: file.fieldname === 'mask' ? 'mask' : taskType === 'video' ? 'video_input' : 'input',
-          filePath: relativePath,
-          mimeType: file.mimetype,
+          filePath: relativePath, mimeType: file.mimetype,
           bytes: file.buffer.byteLength,
           sha256: crypto.createHash('sha256').update(file.buffer).digest('hex'),
         })
-
-        if (file.fieldname === 'mask') {
-          maskImageId = fileId
-        }
       }
+      ;({ event } = app.db.createTaskWithAttachments({
+        id: taskId, prompt, taskType,
+        paramsJson: JSON.stringify(taskType === 'video' ? parsedVideoParams : parsedParams),
+        providerProfileId: providerProfile.id, providerProfileModel,
+        ownerUsageCodeId: auth.role === 'user' ? selectedUsageCodeId : null,
+        ownerKind: auth.role === 'user' ? 'usage_code' : 'admin', reservedImageCredits,
+      }, images, taskType === 'video'
+        ? '视频任务已创建，等待执行'
+        : images.some((image) => image.kind === 'mask') ? '任务已创建，等待带遮罩处理' : '任务已创建，等待执行'))
     } catch (error) {
-      app.db.refundTaskQuota(taskId, 'task_create_failed')
+      const cleanupResults = await Promise.allSettled(createdFiles.map((file) => fs.unlink(file)))
+      for (const result of cleanupResults) {
+        if (result.status === 'rejected') app.log.error({ err: result.reason, taskId }, '清理失败任务附件异常')
+      }
+      for (const kind of ['uploads', 'masks']) {
+        await fs.rmdir(path.join(app.config.mediaDir, kind, taskId)).catch(() => {})
+      }
+      if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 403) {
+        reply.code(403)
+        const message = error instanceof Error ? error.message : '使用码额度不足'
+        return { message: message.includes('当前端点') ? `${providerProfile.name} 额度不足。${message}` : message }
+      }
       throw error
     }
-
-    const event = app.db.appendTaskEvent({
-      taskId,
-      status: 'queued',
-      step: 'queued',
-      percent: 5,
-      message: taskType === 'video'
-        ? '视频任务已创建，等待执行'
-        : maskImageId ? '任务已创建，等待带遮罩处理' : '任务已创建，等待执行',
-    })
     if (event) {
       app.taskEvents.emit(taskId, event)
     }

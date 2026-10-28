@@ -1,3 +1,4 @@
+import { appFetch } from './appUrl'
 import type { MaintenanceStatus } from './backendAuth'
 
 export interface UsageCodeMediaExportSummary {
@@ -53,7 +54,7 @@ async function readResponseJson<T>(response: Response): Promise<T> {
 }
 
 export async function startBackendBackupExport() {
-  return readResponseJson<MaintenanceStatus>(await fetch('/api/admin/data/export/start', {
+  return readResponseJson<MaintenanceStatus>(await appFetch('/api/admin/data/export/start', {
     method: 'POST',
     cache: 'no-store',
     credentials: 'include',
@@ -61,14 +62,14 @@ export async function startBackendBackupExport() {
 }
 
 export async function fetchBackendBackupExportStatus() {
-  return readResponseJson<MaintenanceStatus>(await fetch('/api/admin/data/export/status', {
+  return readResponseJson<MaintenanceStatus>(await appFetch('/api/admin/data/export/status', {
     cache: 'no-store',
     credentials: 'include',
   }))
 }
 
 export async function startUsageCodeMediaExport() {
-  return readResponseJson<MaintenanceStatus>(await fetch('/api/user/data/export-media/start', {
+  return readResponseJson<MaintenanceStatus>(await appFetch('/api/user/data/export-media/start', {
     method: 'POST',
     cache: 'no-store',
     credentials: 'include',
@@ -77,7 +78,7 @@ export async function startUsageCodeMediaExport() {
 
 export async function fetchUsageCodeMediaExportFiles() {
   return readResponseJson<{ items: UsageCodeMediaExportFile[] }>(
-    await fetch('/api/user/data/export-media/files', {
+    await appFetch('/api/user/data/export-media/files', {
       cache: 'no-store',
       credentials: 'include',
     }),
@@ -86,7 +87,7 @@ export async function fetchUsageCodeMediaExportFiles() {
 
 export async function deleteUsageCodeMediaExportFiles() {
   return readResponseJson<{ ok: true }>(
-    await fetch('/api/user/data/export-media', {
+    await appFetch('/api/user/data/export-media', {
       method: 'DELETE',
       cache: 'no-store',
       credentials: 'include',
@@ -96,7 +97,7 @@ export async function deleteUsageCodeMediaExportFiles() {
 
 export async function markUsageCodeMediaExportDownloadCompleted(fileName: string) {
   return readResponseJson<{ ok: true }>(
-    await fetch('/api/user/data/export-media/download-complete', {
+    await appFetch('/api/user/data/export-media/download-complete', {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',
@@ -113,7 +114,7 @@ export async function downloadUsageCodeMediaExportFile(
     signal?: AbortSignal
   } = {},
 ) {
-  const response = await fetch(`/api/user/data/export-media/download/${encodeURIComponent(fileName)}`, {
+  const response = await appFetch(`/api/user/data/export-media/download/${encodeURIComponent(fileName)}`, {
     cache: 'no-store',
     credentials: 'include',
     signal: options.signal,
@@ -167,7 +168,7 @@ export async function downloadUsageCodeMediaExportFile(
 
 export async function fetchUsageCodeMediaExportSummary() {
   return readResponseJson<UsageCodeMediaExportSummary>(
-    await fetch('/api/user/data/export-media/summary', {
+    await appFetch('/api/user/data/export-media/summary', {
       cache: 'no-store',
       credentials: 'include',
     }),
@@ -181,7 +182,7 @@ export async function importBackendBackup(files: File[]) {
   }
 
   return readResponseJson<AdminBackupImportResult>(
-    await fetch('/api/admin/data/import', {
+    await appFetch('/api/admin/data/import', {
       method: 'POST',
       credentials: 'include',
       body: formData,
@@ -191,7 +192,7 @@ export async function importBackendBackup(files: File[]) {
 
 export async function fetchAdminBackupImportCandidates() {
   return readResponseJson<{ items: AdminBackupImportCandidate[] }>(
-    await fetch('/api/admin/data/import-candidates', {
+    await appFetch('/api/admin/data/import-candidates', {
       cache: 'no-store',
       credentials: 'include',
     }),
@@ -200,7 +201,7 @@ export async function fetchAdminBackupImportCandidates() {
 
 export async function importBackendBackupFromServer(archivePath: string) {
   return readResponseJson<Omit<AdminBackupImportResult, 'uploadedArchivePath'>>(
-    await fetch('/api/admin/data/import-from-server', {
+    await appFetch('/api/admin/data/import-from-server', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

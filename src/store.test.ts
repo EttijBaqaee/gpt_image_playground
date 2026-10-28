@@ -26,7 +26,7 @@ function task(overrides: Partial<TaskRecord> = {}): TaskRecord {
 describe('mask draft lifecycle in store actions', () => {
   beforeEach(() => {
     useStore.setState({
-      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key' },
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', providerProfileId: 'test-provider' },
       prompt: 'prompt',
       inputImages: [],
       maskDraft: null,

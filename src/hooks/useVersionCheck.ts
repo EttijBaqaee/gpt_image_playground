@@ -1,3 +1,4 @@
+import { appFetch } from '../lib/appUrl'
 import { useEffect, useMemo, useState } from 'react'
 
 function compareVersions(a: string, b: string) {
@@ -42,7 +43,7 @@ export function useVersionCheck() {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/meta/latest-version')
+    appFetch('/api/meta/latest-version')
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json() as Promise<LatestVersionResponse>

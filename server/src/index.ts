@@ -28,7 +28,7 @@ declare module 'fastify' {
 
 const app = Fastify({
   logger: true,
-  trustProxy: true,
+  trustProxy: appConfig.trustedProxies,
   bodyLimit: 4 * 1024 * 1024 * 1024,
 })
 
@@ -58,7 +58,7 @@ app.decorate('taskWorker', new TaskWorker(app.db, app.taskEvents, {
 
 if (appConfig.accessLogVerbose) {
   app.addHook('onRequest', async (request) => {
-    if (appConfig.accessLogMediaOnly && !request.url.startsWith('/media/')) return
+    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.basePath}/media/`)) return
 
     request.log.info({
       type: 'access-request',
@@ -78,7 +78,7 @@ if (appConfig.accessLogVerbose) {
   })
 
   app.addHook('onResponse', async (request, reply) => {
-    if (appConfig.accessLogMediaOnly && !request.url.startsWith('/media/')) return
+    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.basePath}/media/`)) return
 
     request.log.info({
       type: 'access-response',
@@ -95,18 +95,18 @@ if (appConfig.accessLogVerbose) {
 app.addHook('preHandler', async (request, reply) => {
   const maintenance = getBackupJobState(app)
   const isReadOnlyMethod = request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS'
-  const isMaintenanceExempt = request.url.startsWith('/api/auth/admin/login')
-    || request.url.startsWith('/api/auth/logout')
+  const isMaintenanceExempt = request.url.startsWith(`${appConfig.basePath}/api/auth/admin/login`)
+    || request.url.startsWith(`${appConfig.basePath}/api/auth/logout`)
 
   if (maintenance.active && !isReadOnlyMethod && !isMaintenanceExempt) {
     reply.code(503)
     return reply.send({ message: getMaintenanceMessage() })
   }
 
-  if (!request.url.startsWith('/media/')) return
+  if (!request.url.startsWith(`${appConfig.basePath}/media/`)) return
 
   const url = new URL(request.url, 'http://local')
-  const relativePath = decodeURIComponent(url.pathname.replace(/^\/media\/+/, ''))
+  const relativePath = decodeURIComponent(url.pathname.slice(`${appConfig.basePath}/media/`.length))
   const image = app.db.getTaskImageByFilePath(relativePath)
   if (!image) {
     reply.code(404)
@@ -155,19 +155,20 @@ await app.register(multipart, {
 
 await app.register(fastifyStatic, {
   root: appConfig.mediaDir,
-  prefix: '/media/',
+  prefix: `${appConfig.basePath}/media/`,
 })
 
 const webIndexPath = path.join(appConfig.webDistDir, 'index.html')
 const webIndexHtml = fs.existsSync(webIndexPath)
-  ? fs.readFileSync(webIndexPath, 'utf8')
+  ? fs.readFileSync(webIndexPath, 'utf8').replace('<head>', `<head><base href="${appConfig.basePath}/"><meta name="app-base-path" content="${appConfig.basePath}">`)
   : null
 if (webIndexHtml) {
   await app.register(fastifyStatic, {
     root: appConfig.webDistDir,
-    prefix: '/',
+    prefix: `${appConfig.basePath}/`,
     decorateReply: false,
     wildcard: false,
+    globIgnore: ['**/index.html'],
     index: false,
     setHeaders: (res, filePath) => {
       const filename = path.basename(filePath)
@@ -182,26 +183,36 @@ if (webIndexHtml) {
     },
   })
 
-  app.get('/', async (_request, reply) => {
+  app.get(`${appConfig.basePath}/index.html`, async (_request, reply) => {
+    reply.header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
+    return reply.type('text/html; charset=utf-8').send(webIndexHtml)
+  })
+
+  app.get(`${appConfig.basePath}/`, async (_request, reply) => {
     reply.header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
     return reply.type('text/html; charset=utf-8').send(webIndexHtml)
   })
 }
 
-app.get('/health', async () => ({
+if (appConfig.basePath) app.get(appConfig.basePath, async (_request, reply) => reply.redirect(`${appConfig.basePath}/`))
+
+app.get(`${appConfig.basePath}/health/`, async () => ({ ok: true, now: new Date().toISOString() }))
+
+app.get(`${appConfig.basePath}/health`, async () => ({
   ok: true,
   now: new Date().toISOString(),
 }))
 
-await app.register(authRoutes)
-await app.register(settingsRoutes)
-await app.register(taskRoutes)
-await app.register(metaRoutes)
+await app.register(authRoutes, { prefix: appConfig.basePath })
+await app.register(settingsRoutes, { prefix: appConfig.basePath })
+await app.register(taskRoutes, { prefix: appConfig.basePath })
+await app.register(metaRoutes, { prefix: appConfig.basePath })
 
 if (webIndexHtml) {
-  app.get('/*', async (request, reply) => {
+  app.get(`${appConfig.basePath}/*`, async (request, reply) => {
     const accept = request.headers.accept ?? ''
-    if (!accept.includes('text/html')) {
+    const localPath = new URL(request.url, 'http://local').pathname.slice(appConfig.basePath.length)
+    if (/^\/(api|media)(\/|$)/.test(localPath) || !accept.includes('text/html')) {
       return reply.code(404).send({ message: '未找到资源' })
     }
     reply.header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
@@ -237,7 +248,8 @@ void recoverKieNetworkFailedTasks({
 
 app.setErrorHandler((error, _request, reply) => {
   app.log.error(error)
-  const statusCode = reply.statusCode >= 400 ? reply.statusCode : 400
+  const declaredStatus = error && typeof error === 'object' && 'statusCode' in error ? Number(error.statusCode) : 0
+  const statusCode = declaredStatus >= 400 && declaredStatus <= 599 ? declaredStatus : reply.statusCode >= 400 ? reply.statusCode : 400
   reply.code(statusCode).send({
     message: error instanceof Error ? error.message : '未知错误',
   })

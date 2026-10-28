@@ -1,18 +1,28 @@
+name: gpt-image-playground-fork
+
 services:
   app:
+    image: gpt-image-playground-fork:0.3.66.1
     build:
-      context: ..
+      # CLI default: repository root; in 1Panel set an absolute APP_SOURCE_DIR.
+      context: ${APP_SOURCE_DIR:-..}
       dockerfile: deploy/Dockerfile
-    image: gpt-image-playground-backend:latest
+    container_name: gpt-image-playground-fork
+    restart: unless-stopped
     ports:
-      - "${APP_PORT:-8787}:8787"
+      - "${APP_PORT:-8788}:8787"
     environment:
-      PORT: 8787
-      HOST: 0.0.0.0
+      APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
+      UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
+      UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
+      NODE_ENV: production
+      PORT: "8787"
+      HOST: "0.0.0.0"
       DATA_DIR: /app/data
       WEB_DIST_DIR: /app/dist
-      APP_SECRET: "${APP_SECRET}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      APP_SECRET: "${APP_SECRET:?Set APP_SECRET in .env}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}"
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
       UPSTREAM_API_URL: "${UPSTREAM_API_URL:-}"
       UPSTREAM_API_KEY: "${UPSTREAM_API_KEY:-}"
@@ -21,5 +31,28 @@ services:
       UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-300}"
       UPSTREAM_CODEX_CLI: "${UPSTREAM_CODEX_CLI:-false}"
     volumes:
-      - ../docker-data:/app/data
-    restart: unless-stopped
+      - "${APP_DATA_DIR:-../docker-data}:/app/data"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1536m
+    pids_limit: 128
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const p=(process.env.APP_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
+          fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
+          .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

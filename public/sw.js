@@ -1,6 +1,7 @@
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev'
 const CACHE_PREFIX = 'gpt-image-playground'
 const CACHE_NAME = `${CACHE_PREFIX}-${VERSION}`
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '')
 const APP_SHELL = ['./manifest.webmanifest', './pwa-icon.svg']
 
 function isHtmlRequest(request) {
@@ -8,11 +9,11 @@ function isHtmlRequest(request) {
 }
 
 function isAppApi(url) {
-  return url.pathname.startsWith('/api/')
+  return url.pathname.startsWith(`${BASE_PATH}/api/`)
 }
 
 function isAppMedia(url) {
-  return url.pathname.startsWith('/media/')
+  return url.pathname.startsWith(`${BASE_PATH}/media/`)
 }
 
 function isStaticAsset(request) {

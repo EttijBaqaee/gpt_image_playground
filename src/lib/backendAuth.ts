@@ -1,3 +1,4 @@
+import { appFetch } from './appUrl'
 export type AuthRole = 'admin' | 'user'
 
 export interface MaintenanceStatus {
@@ -75,12 +76,12 @@ async function readResponseJson<T>(response: Response): Promise<T> {
 }
 
 export async function fetchAuthStatus() {
-  const response = await fetch('/api/auth/status', { cache: 'no-store' })
+  const response = await appFetch('/api/auth/status', { cache: 'no-store' })
   return readResponseJson<AuthStatus>(response)
 }
 
 export async function loginAdmin(password: string) {
-  const response = await fetch('/api/auth/admin/login', {
+  const response = await appFetch('/api/auth/admin/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
@@ -89,7 +90,7 @@ export async function loginAdmin(password: string) {
 }
 
 export async function loginWithCode(code: string) {
-  const response = await fetch('/api/auth/code/login', {
+  const response = await appFetch('/api/auth/code/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -98,7 +99,7 @@ export async function loginWithCode(code: string) {
 }
 
 export async function addSessionUsageCode(code: string) {
-  const response = await fetch('/api/auth/code/add', {
+  const response = await appFetch('/api/auth/code/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
@@ -107,6 +108,6 @@ export async function addSessionUsageCode(code: string) {
 }
 
 export async function logoutAuth() {
-  const response = await fetch('/api/auth/logout', { method: 'POST' })
+  const response = await appFetch('/api/auth/logout', { method: 'POST' })
   return readResponseJson<{ ok: true }>(response)
 }

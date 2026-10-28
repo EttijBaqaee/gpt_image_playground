@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { appConfig } from '../config.js'
 import type { AppDatabase, ProviderProfileRecord, TaskImageRecord, TaskRecord } from './db.js'
 import { decryptText } from './crypto.js'
 import { resolveEffectiveMaxReferenceImages } from './maxReferenceImages.js'
@@ -15,7 +16,7 @@ function toMs(value: string | null) {
 
 function buildMediaUrl(filePath: string) {
   const normalized = filePath.split(path.sep).join('/')
-  return `/media/${normalized.replace(/^\/+/, '')}`
+  return `${appConfig.basePath}/media/${normalized.replace(/^\/+/, '')}`
 }
 
 function buildImageUrlMap(images: TaskImageRecord[]) {

@@ -1,3 +1,4 @@
+import { appFetch } from './appUrl'
 import { normalizeBaseUrl } from './devProxy'
 import type { AppSettings, VideoDurationOption, VideoResolutionOption } from '../types'
 import type { MaintenanceStatus } from './backendAuth'
@@ -355,7 +356,7 @@ function normalizeReminderItem(item: BackendReminderItem): BackendReminderItem {
 }
 
 export async function fetchBackendRuntimeSettings(): Promise<BackendRuntimeSettings | null> {
-  const response = await fetch('/api/runtime-settings', {
+  const response = await appFetch('/api/runtime-settings', {
     cache: 'no-store',
   })
 
@@ -389,7 +390,7 @@ export async function saveBackendRuntimeSettings(settings: {
   alwaysShowRetryButton: boolean
   showUsageCodeAliasOnTaskCard: boolean
 }): Promise<BackendRuntimeSettings> {
-  const response = await fetch('/api/runtime-settings', {
+  const response = await appFetch('/api/runtime-settings', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -417,7 +418,7 @@ export async function saveBackendRuntimePreferences(settings: {
   | 'alwaysShowRetryButton'
   | 'showUsageCodeAliasOnTaskCard'
 >> {
-  const response = await fetch('/api/runtime-preferences', {
+  const response = await appFetch('/api/runtime-preferences', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -429,18 +430,18 @@ export async function saveBackendRuntimePreferences(settings: {
 }
 
 export async function fetchBackendProviderProfiles(): Promise<BackendProviderProfile[]> {
-  const response = await fetch('/api/admin/provider-profiles', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/provider-profiles', { cache: 'no-store' })
   return readResponseJson<BackendProviderProfile[]>(response)
 }
 
 export async function fetchBackendProviderOptions(): Promise<BackendProviderOption[]> {
-  const response = await fetch('/api/provider-options', { cache: 'no-store' })
+  const response = await appFetch('/api/provider-options', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: BackendProviderOption[] }>(response)
   return payload.items
 }
 
 export async function createBackendProviderProfile(profile: Omit<BackendProviderProfile, 'id' | 'createdAt' | 'updatedAt' | 'apiKeyMasked' | 'apiKeyConfigured'>): Promise<BackendProviderProfile> {
-  const response = await fetch('/api/admin/provider-profiles', {
+  const response = await appFetch('/api/admin/provider-profiles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -452,7 +453,7 @@ export async function createBackendProviderProfile(profile: Omit<BackendProvider
 }
 
 export async function updateBackendProviderProfile(profile: BackendProviderProfile): Promise<BackendProviderProfile> {
-  const response = await fetch(`/api/admin/provider-profiles/${encodeURIComponent(profile.id)}`, {
+  const response = await appFetch(`/api/admin/provider-profiles/${encodeURIComponent(profile.id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -464,7 +465,7 @@ export async function updateBackendProviderProfile(profile: BackendProviderProfi
 }
 
 export async function deleteBackendProviderProfile(profileId: string): Promise<void> {
-  const response = await fetch(`/api/admin/provider-profiles/${encodeURIComponent(profileId)}`, {
+  const response = await appFetch(`/api/admin/provider-profiles/${encodeURIComponent(profileId)}`, {
     method: 'DELETE',
   })
   await readResponseJson<{ ok: true }>(response)
@@ -480,7 +481,7 @@ export async function fetchBackendProviderBalance(input: {
   proxyUrl?: string | null
 }): Promise<BackendProviderBalance> {
   const profileId = input.profileId?.trim() || '__draft__'
-  const response = await fetch(`/api/admin/provider-profiles/${encodeURIComponent(profileId)}/balance`, {
+  const response = await appFetch(`/api/admin/provider-profiles/${encodeURIComponent(profileId)}/balance`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -502,7 +503,7 @@ export async function resetBackendRemoteData(
     taskIds?: string[]
   },
 ) {
-  const response = await fetch('/api/admin/data/reset', {
+  const response = await appFetch('/api/admin/data/reset', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -518,40 +519,40 @@ export async function resetBackendRemoteData(
 }
 
 export async function fetchBackendAdminTaskCleanupCandidates(): Promise<BackendAdminTaskCleanupCandidate[]> {
-  const response = await fetch('/api/admin/data/admin-task-cleanup-candidates', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/data/admin-task-cleanup-candidates', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: BackendAdminTaskCleanupCandidate[] }>(response)
   return payload.items
 }
 
 export async function fetchBackendManagementLogs() {
-  const response = await fetch('/api/admin/data/management-logs', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/data/management-logs', { cache: 'no-store' })
   return readResponseJson<{ items: BackendManagementOperationLog[] }>(response)
 }
 
 export async function fetchBackendMediaStats() {
-  const response = await fetch('/api/admin/data/media-stats', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/data/media-stats', { cache: 'no-store' })
   return readResponseJson<BackendMediaStats>(response)
 }
 
 export async function fetchBackendDistribution(): Promise<BackendDistributionSettings> {
-  const response = await fetch('/api/admin/distribution', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/distribution', { cache: 'no-store' })
   return readResponseJson<BackendDistributionSettings>(response)
 }
 
 export async function fetchBackendReminders(): Promise<BackendReminderItem[]> {
-  const response = await fetch('/api/reminders', { cache: 'no-store' })
+  const response = await appFetch('/api/reminders', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: BackendReminderItem[] }>(response)
   return payload.items.map(normalizeReminderItem)
 }
 
 export async function fetchAdminBackendReminders(): Promise<BackendReminderItem[]> {
-  const response = await fetch('/api/admin/reminders', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/reminders', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: BackendReminderItem[] }>(response)
   return payload.items.map(normalizeReminderItem)
 }
 
 export async function saveBackendReminders(items: BackendReminderItem[]): Promise<BackendReminderItem[]> {
-  const response = await fetch('/api/admin/reminders', {
+  const response = await appFetch('/api/admin/reminders', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items }),
@@ -561,7 +562,7 @@ export async function saveBackendReminders(items: BackendReminderItem[]): Promis
 }
 
 export async function saveBackendDistribution(settings: BackendDistributionSettings): Promise<BackendDistributionSettings> {
-  const response = await fetch('/api/admin/distribution', {
+  const response = await appFetch('/api/admin/distribution', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
@@ -570,7 +571,7 @@ export async function saveBackendDistribution(settings: BackendDistributionSetti
 }
 
 export async function fetchBackendUsageCodes(): Promise<BackendUsageCode[]> {
-  const response = await fetch('/api/admin/usage-codes', { cache: 'no-store' })
+  const response = await appFetch('/api/admin/usage-codes', { cache: 'no-store' })
   const payload = await readResponseJson<{ items: BackendUsageCode[] }>(response)
   return payload.items
 }
@@ -582,7 +583,7 @@ export async function createBackendUsageCode(input: {
   providerImageQuotas?: Record<string, number> | null
   providerVideoQuotas?: Record<string, number> | null
 }): Promise<{ code: string; item: BackendUsageCode }> {
-  const response = await fetch('/api/admin/usage-codes', {
+  const response = await appFetch('/api/admin/usage-codes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -601,7 +602,7 @@ export async function updateBackendUsageCode(
     providerVideoQuotas?: Record<string, number> | null
   },
 ): Promise<BackendUsageCode> {
-  const response = await fetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}`, {
+  const response = await appFetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
@@ -617,7 +618,7 @@ export async function adjustBackendUsageCodeQuota(
     providerProfileId?: string | null
   },
 ): Promise<BackendUsageCode> {
-  const response = await fetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}/adjust-quota`, {
+  const response = await appFetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}/adjust-quota`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -626,7 +627,7 @@ export async function adjustBackendUsageCodeQuota(
 }
 
 export async function deleteBackendUsageCode(codeId: string): Promise<void> {
-  const response = await fetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}`, {
+  const response = await appFetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}`, {
     method: 'DELETE',
   })
   await readResponseJson<{ ok: true }>(response)
@@ -656,7 +657,7 @@ export async function fetchBackendUsageCodeEvents(
   if (query.startAt) params.set('startAt', query.startAt)
   if (query.endAt) params.set('endAt', query.endAt)
   if (query.taskId?.trim()) params.set('taskId', query.taskId.trim())
-  const response = await fetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}/events?${params.toString()}`, {
+  const response = await appFetch(`/api/admin/usage-codes/${encodeURIComponent(codeId)}/events?${params.toString()}`, {
     cache: 'no-store',
   })
   return readResponseJson<BackendUsageCodeEventQueryResult>(response)
