@@ -13,6 +13,9 @@ services:
       - "${APP_PORT:-8788}:8787"
     environment:
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      API_BASE_PATH: "${API_BASE_PATH:-}"
+      MEDIA_BASE_PATH: "${MEDIA_BASE_PATH:-}"
+      HEALTH_BASE_PATH: "${HEALTH_BASE_PATH:-}"
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
       UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
       UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
@@ -44,7 +47,7 @@ services:
         - node
         - -e
         - >-
-          const p=(process.env.APP_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
+          const p=(process.env.HEALTH_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
           fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
           .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       interval: 20s

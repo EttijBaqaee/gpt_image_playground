@@ -1,4 +1,4 @@
-import { appUrl } from './lib/appUrl'
+import { serviceWorkerUrl } from './lib/appUrl'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
@@ -64,7 +64,7 @@ if ('serviceWorker' in navigator) {
       })
 
       navigator.serviceWorker
-        .register(appUrl(`/sw.js?v=${__APP_VERSION__}`))
+        .register(serviceWorkerUrl(__APP_VERSION__))
         .then((registration) => {
           const activateWaitingWorker = (worker: ServiceWorker | null) => {
             worker?.postMessage({ type: 'SKIP_WAITING' })

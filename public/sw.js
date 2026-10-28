@@ -1,7 +1,11 @@
-const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev'
+const SCRIPT_PARAMS = new URL(self.location.href).searchParams
+const VERSION = SCRIPT_PARAMS.get('v') || 'dev'
 const CACHE_PREFIX = 'gpt-image-playground'
 const CACHE_NAME = `${CACHE_PREFIX}-${VERSION}`
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '')
+const API_BASE_PATH = SCRIPT_PARAMS.get('api') ?? BASE_PATH
+const MEDIA_BASE_PATH = SCRIPT_PARAMS.get('media') ?? BASE_PATH
+const HEALTH_BASE_PATH = SCRIPT_PARAMS.get('health') ?? BASE_PATH
 const APP_SHELL = ['./manifest.webmanifest', './pwa-icon.svg']
 
 function isHtmlRequest(request) {
@@ -9,11 +13,15 @@ function isHtmlRequest(request) {
 }
 
 function isAppApi(url) {
-  return url.pathname.startsWith(`${BASE_PATH}/api/`)
+  return url.pathname === `${API_BASE_PATH}/api` || url.pathname.startsWith(`${API_BASE_PATH}/api/`)
 }
 
 function isAppMedia(url) {
-  return url.pathname.startsWith(`${BASE_PATH}/media/`)
+  return url.pathname.startsWith(`${MEDIA_BASE_PATH}/media/`)
+}
+
+function isAppHealth(url) {
+  return url.pathname === `${HEALTH_BASE_PATH}/health` || url.pathname.startsWith(`${HEALTH_BASE_PATH}/health/`)
 }
 
 function isStaticAsset(request) {
@@ -62,7 +70,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
-  if (isAppApi(url)) return
+  if (isAppApi(url) || isAppHealth(url)) return
 
   if (isHtmlRequest(request)) {
     event.respondWith(

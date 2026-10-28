@@ -1,0 +1,70 @@
+# 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
+# APP_BASE_PATH=gpt_image_playground
+# API_BASE_PATH=a  MEDIA_BASE_PATH=m  HEALTH_BASE_PATH=h
+# APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
+location = /gpt_image_playground {
+    return 301 /gpt_image_playground/;
+}
+
+# 主页和静态资源
+location ^~ /gpt_image_playground/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+}
+
+# API、上传和 SSE 任务进度
+location ^~ /a/api/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    # 为默认 128 MiB 文件累计限制预留 multipart / 字段开销。
+    client_max_body_size 160m;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_cache off;
+}
+
+# 媒体仍由应用鉴权，不在代理层建立公共缓存。
+location ^~ /m/media/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_cache off;
+}
+
+# 同时覆盖 /h/health 和 /h/health/；不存在的后缀由应用返回 404。
+location /h/health {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_cache off;
+}

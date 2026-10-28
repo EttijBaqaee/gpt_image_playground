@@ -16,7 +16,7 @@ function toMs(value: string | null) {
 
 function buildMediaUrl(filePath: string) {
   const normalized = filePath.split(path.sep).join('/')
-  return `${appConfig.basePath}/media/${normalized.replace(/^\/+/, '')}`
+  return `${appConfig.mediaBasePath}/media/${normalized.replace(/^\/+/, '')}`
 }
 
 function buildImageUrlMap(images: TaskImageRecord[]) {

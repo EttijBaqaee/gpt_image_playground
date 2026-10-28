@@ -2,13 +2,14 @@
 
 **2026-10-28 · 基于 XianYuDaXian 的 0.3.66 fork。** 本版只围绕以下内容修订，其余业务功能沿用 0.3.66。
 
-- **可配置路径前缀**：新增 `APP_BASE_PATH`。填写 `aaa` 后，网页、API、媒体和健康检查统一使用 `/aaa/` 前缀；留空保持原路径。前端请求、SSE、静态资源和 PWA 同步适配，修改参数后只需重建容器。
+- **四项独立路径前缀**：`APP_BASE_PATH` 控制主页，`API_BASE_PATH`、`MEDIA_BASE_PATH`、`HEALTH_BASE_PATH` 分别控制 API、媒体和健康检查。例如 `web` / `a` / `m` / `h` 对应 `/web/`、`/a/api/`、`/m/media/`、`/h/health`。新版编排各项留空使用各自默认路径，修改参数只需重建容器。
 - **修复 Chromium 复制粘贴丢换行**：保留连续空行、首尾换行、CRLF、中文、emoji，以及参考图 mention；修复全选复制漏掉末尾换行、粘贴后光标与继续输入的问题。
 - **修复额度事务**：额度预扣、任务、附件记录和初始事件通过同一 SQLite 事务提交；预校验失败不扣额度，任务失败按原有规则退款。
 - **修复附件路径与清理**：附件使用 UUID 和安全扩展名保存，避免同名覆盖和原始文件名影响路径；失败时清理本次上传，不留下可执行的残缺任务。
 - **限制上传与可信代理**：默认单文件 32 MiB、单次累计 128 MiB，流式累计检查；最多 32 个文件、16 个普通字段。默认不信任转发 IP，只有明确配置的可信代理才生效。
 - **仓库与更新源**：页面仓库入口、帮助页、镜像来源和默认版本检测统一指向 [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)。
 - **验证与发布**：在 Debian 上通过自动化测试、Chromium 真实剪贴板、默认/自定义前缀 HTTP、真实 Worker 与模拟供应商集成验证。具体结果、镜像架构与 SHA256 随 Release 提供；没有调用付费供应商 API。
+- **部署文档**：仅提供 Docker 构建部署，补全 1Panel 编排与环境变量说明；推荐通过 Nginx 反代访问，提供保留路径前缀、SSE 无缓冲和上传限制配置。
 - **许可证**：与上游相同，继续使用 MIT，保留 `LICENSE` 中原版权声明。
 
 ---
@@ -58,6 +59,9 @@ services:
       - "${APP_PORT:-8788}:8787"
     environment:
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      API_BASE_PATH: "${API_BASE_PATH:-}"
+      MEDIA_BASE_PATH: "${MEDIA_BASE_PATH:-}"
+      HEALTH_BASE_PATH: "${HEALTH_BASE_PATH:-}"
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-}"
       UPLOAD_MAX_FILE_MB: "${UPLOAD_MAX_FILE_MB:-32}"
       UPLOAD_MAX_TOTAL_MB: "${UPLOAD_MAX_TOTAL_MB:-128}"
@@ -89,7 +93,7 @@ services:
         - node
         - -e
         - >-
-          const p=(process.env.APP_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
+          const p=(process.env.HEALTH_BASE_PATH||'').trim().replace(/^[/]+|[/]+$/g,'');
           fetch('http://127.0.0.1:8787'+(p?'/'+p:'')+'/health')
           .then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
       interval: 20s
@@ -112,7 +116,10 @@ services:
 | `build.dockerfile` | 保持 `deploy/Dockerfile`，路径相对于源码根目录。 |
 | `ports` | 左侧是宿主机端口，默认 `8788`；右侧容器端口保持 `8787`。 |
 | `volumes` | 左侧为持久化目录，右侧保持 `/app/data`。升级必须继续使用原目录。 |
-| `APP_BASE_PATH` | 留空不加前缀；填 `aaa` 或 `/aaa/` 均得到 `/aaa`。也可直接在编排中写 `APP_BASE_PATH: "aaa"`。 |
+| `APP_BASE_PATH` | 主页/静态资源前缀；`web` 或 `/web/` 均得到 `/web/`。 |
+| `API_BASE_PATH` | API 前缀；`a` 得到 `/a/api/…`，留空得到 `/api/…`。 |
+| `MEDIA_BASE_PATH` | 媒体前缀；`m` 得到 `/m/media/…`，留空得到 `/media/…`。 |
+| `HEALTH_BASE_PATH` | 健康检查前缀；`h` 得到 `/h/health` 与 `/h/health/`，留空得到 `/health`。 |
 | `APP_SECRET` | 用于会话签名的固定随机密钥，至少 16 字符，建议 32 字符以上；升级不要重新生成。 |
 | `ADMIN_PASSWORD` | 应用网页登录管理员密码，与服务器或 1Panel 密码无关。 |
 | `CORS_ORIGIN` | 默认 `*` 沿用原行为；若限定来源，填完整协议、域名及端口，不包含路径前缀。 |
@@ -131,6 +138,9 @@ APP_SECRET=replace-with-a-long-random-secret-at-least-32-characters
 ADMIN_PASSWORD=replace-with-your-admin-password
 APP_PORT=8788
 APP_BASE_PATH=
+API_BASE_PATH=
+MEDIA_BASE_PATH=
+HEALTH_BASE_PATH=
 CORS_ORIGIN=*
 
 # 1Panel 使用绝对路径，避免把数据写到错误目录
@@ -180,36 +190,172 @@ docker compose logs --tail=100 app
 
 这只在 Docker 内安装依赖和编译，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
-## 6. 路径前缀与访问地址
+## 6. 四项路径独立设置
 
-假设宿主机端口为 `8788`：
+所有参数都是**前缀**，不是完整 URL；`/api`、`/media`、`/health` 这三个末尾段仍保留。新版编排显式传入四项参数，各项留空即使用该项的默认路径，互不影响。
 
-| 用途 | `APP_BASE_PATH=` | `APP_BASE_PATH=aaa` |
-| --- | --- | --- |
-| 网页 | `http://服务器IP:8788/` | `http://服务器IP:8788/aaa/` |
-| API | `/api/…` | `/aaa/api/…` |
-| 媒体 | `/media/…` | `/aaa/media/…` |
-| 健康检查 | `/health`、`/health/` | `/aaa/health`、`/aaa/health/` |
-
-前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。设置前缀后，旧的不带前缀 API、媒体和健康检查地址不再使用。
-
-要改成 `aaa`，可以在编排环境变量中填写 `APP_BASE_PATH=aaa`，或直接修改 YAML 的这一行：
-
-```yaml
-APP_BASE_PATH: "aaa"
+```dotenv
+APP_BASE_PATH=web
+API_BASE_PATH=a
+MEDIA_BASE_PATH=m
+HEALTH_BASE_PATH=h
 ```
 
-然后在 1Panel 重新部署/重建容器。命令行等价操作是：
+假设宿主机端口是 `8788`：
+
+| 用途 | 四项均留空 | 上面的独立配置 |
+| --- | --- | --- |
+| 主页与静态资源 | `http://服务器IP:8788/` | `http://服务器IP:8788/web/` |
+| API 与 SSE | `/api/…` | `/a/api/…` |
+| 媒体 | `/media/…` | `/m/media/…` |
+| 健康检查 | `/health`、`/health/` | `/h/health`、`/h/health/` |
+
+例如只想把主页放在 `/gpt_image_playground/`，后端保持根路径，就填：
+
+```dotenv
+APP_BASE_PATH=gpt_image_playground
+API_BASE_PATH=
+MEDIA_BASE_PATH=
+HEALTH_BASE_PATH=
+```
+
+如果希望四项共用 `aaa`，则四项都填 `aaa`。也可以直接在 YAML 的 `environment` 中写固定值：
+
+```yaml
+APP_BASE_PATH: "web"
+API_BASE_PATH: "a"
+MEDIA_BASE_PATH: "m"
+HEALTH_BASE_PATH: "h"
+```
+
+每个前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。前端请求、SSE、媒体 DTO、PWA 排除规则和健康检查会分别跟随对应参数。
+
+修改后，在 1Panel 重新部署/重建容器；命令行等价操作是：
 
 ```bash
 docker compose up -d --force-recreate
 ```
 
-**只改前缀不需要重新构建镜像，单纯重启旧容器不会读取新的 Compose 环境变量。** 前缀属于应用本身，与 1Panel 的安全入口相互独立。
+**不需要重新构建镜像；只重启旧容器不会读取新的 Compose 环境变量。** 这四项都是应用自身路径，与 1Panel 的安全入口独立。
 
-若使用 Nginx/OpenResty 反向代理，应把前缀原样转发给后端，例如 `/aaa/…` 仍转发为 `/aaa/…`，不要剥掉 `/aaa`。代理层的请求体上限也要允许你配置的上传大小。
+**没有隐式继承：** 每项未声明或留空都会使用自己的默认路径。只设置 `APP_BASE_PATH` 不会改变三个后端路径；若要统一前缀，需要四项显式填写相同值。
 
-## 7. 上传限制与代理
+## 7. 推荐使用 Nginx 反代部署
+
+**我们推荐使用 Nginx（或 OpenResty）反代部署，由反向代理统一提供域名和 HTTPS。**
+
+### 四个独立路径的配置示例
+
+下面假设 Nginx 运行在 Docker 宿主机，应用映射到宿主机 `8788` 端口。先设置：
+
+```dotenv
+APP_PORT=8788
+APP_BASE_PATH=gpt_image_playground
+API_BASE_PATH=a
+MEDIA_BASE_PATH=m
+HEALTH_BASE_PATH=h
+CORS_ORIGIN=https://image.example.com
+```
+
+将 `image.example.com` 替换为实际域名，`CORS_ORIGIN` 不包含路径。重新创建应用容器后，在域名现有的 `server { ... }` 中加入下面的配置。HTTPS 证书沿用站点配置。片段文件见 [`deploy/nginx.conf.example`](deploy/nginx.conf.example)。
+
+```nginx
+# 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
+# APP_BASE_PATH=gpt_image_playground
+# API_BASE_PATH=a  MEDIA_BASE_PATH=m  HEALTH_BASE_PATH=h
+# APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
+location = /gpt_image_playground {
+    return 301 /gpt_image_playground/;
+}
+
+# 主页和静态资源
+location ^~ /gpt_image_playground/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+}
+
+# API、上传和 SSE 任务进度
+location ^~ /a/api/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    # 为默认 128 MiB 文件累计限制预留 multipart / 字段开销。
+    client_max_body_size 160m;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_cache off;
+}
+
+# 媒体仍由应用鉴权，不在代理层建立公共缓存。
+location ^~ /m/media/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_cache off;
+}
+
+# 同时覆盖 /h/health 和 /h/health/；不存在的后缀由应用返回 404。
+location /h/health {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_cache off;
+}
+```
+
+对应的公开地址为：主页 `https://image.example.com/gpt_image_playground/`、API `/a/api/…`、媒体 `/m/media/…`、健康检查 `/h/health` 或 `/h/health/`。
+
+**每段 `proxy_pass` 末尾都不加 `/`，完整路径原样转发给应用。** 不要剥掉前缀，也不要把三类后端请求全部塞进主页的 `location`；它们分别匹配自己的路径。
+
+如果后端三项留空，保持主页前缀不变，只需把三段后端 `location` 分别改为 `/api/`、`/media/`、`/health`。如果修改任何一个参数，只改对应的 `location` 即可。若主页也留空，则删除补斜线重定向，把主页段改成 `location /`，API/媒体等更具体的段继续保留。
+
+API 段关闭响应缓冲和缓存，确保 SSE 实时进度及时到达；不强制发送 `Connection: upgrade`。后端是 HTTP，不需要 `proxy_ssl_server_name`、`proxy_ssl_name`。默认 `client_max_body_size 160m` 给 128 MiB 文件累计上限预留 multipart 和字段开销；应用仍检查单文件 32 MiB 和累计 128 MiB，调整应用上限时也要调整代理上限。
+
+检查并重载：
+
+```bash
+nginx -t && nginx -s reload
+```
+
+1Panel/OpenResty 使用面板的配置检测、重载操作。
+
+### 后端端口与可信代理
+
+- 示例的 `8788` 是宿主机端口；如果 `APP_PORT=8787`，四段代理地址都相应改为 `127.0.0.1:8787`。容器内端口始终是 `8787`。
+- Nginx 在宿主机且只通过反代访问时，可以把编排端口映射改为 `127.0.0.1:${APP_PORT:-8788}:8787`，让后端仅监听本机。
+- 如果 Nginx 也在容器中，`127.0.0.1` 指向 Nginx 容器自己，应改用共享 Docker 网络中的应用服务名和容器端口 `8787`，或实际可达的宿主机地址。
+- `TRUSTED_PROXIES` 应填写应用实际看到的代理 IP/CIDR，Docker 转发下可能是网关地址，不能直接假定为 `127.0.0.1`；不确定时保持留空。
+
+## 8. 上传限制与代理
 
 - 上传大小按实际流式读取的字节累计检查，不只看请求头声明。
 - 单次最多 32 个文件、16 个普通字段，普通字段上限为 1 MiB。
@@ -217,7 +363,7 @@ docker compose up -d --force-recreate
 - `TRUSTED_PROXIES` 留空时，不采信请求中自行填写的 `X-Forwarded-For`。
 - 使用代理时只配置真正的代理 IP/CIDR，不能填写 `*`、`true`、`0.0.0.0/0` 或 `::/0`。
 
-## 8. 离线镜像（可选）
+## 9. 离线镜像（可选）
 
 Release 中的 `gpt-image-playground-fork-0.3.66.1-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
@@ -235,7 +381,7 @@ pull_policy: never
 
 其他端口、环境变量和数据挂载照常填写，然后在 1Panel 创建/启动或执行 `docker compose up -d`。不要执行 `docker compose pull`，该镜像已经通过 `docker load` 导入本机。
 
-## 9. 升级与数据保留
+## 10. 升级与数据保留
 
 升级前备份整个持久化数据目录，并保留原 `.env`。供应商设置、使用码额度、历史任务和媒体文件都依赖原数据目录。
 
@@ -245,12 +391,12 @@ pull_policy: never
 - 继续使用相同的 `APP_SECRET`、管理员密码和数据挂载；不要删除数据卷或对旧部署执行 `down -v`。
 - 本版离线镜像使用 UID/GID 1000。若挂载目录不可写，按实际部署用户调整该目录权限；不要把容器改成特权模式。
 
-## 10. 常见问题
+## 11. 常见问题
 
 - **1Panel 找不到 Dockerfile**：检查 `APP_SOURCE_DIR` 是否为绝对源码根目录，而不是 `deploy/` 或编排自身目录。
 - **要求设置 APP_SECRET / ADMIN_PASSWORD**：环境变量未保存或 `.env` 不在编排读取位置，填写后重新部署。
-- **改前缀后 404**：使用新的网页入口，并确认反向代理没有剥掉前缀。
-- **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `APP_BASE_PATH`，不要改回固定 `/health`。
+- **改前缀后 404**：分别核对四项参数和对应的 Nginx `location`，确认代理未剥掉前缀；网页入口只跟随 `APP_BASE_PATH`。
+- **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `HEALTH_BASE_PATH`，不要改回固定 `/health`。
 - **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
 - **数据库只读或图片保存失败**：检查 `/app/data` 的实际宿主机挂载目录和写入权限。
 - **镜像拉取失败**：本仓库提供源码 Docker 构建和 Release 离线镜像；离线方式先 `docker load`，删除 `build` 并使用 `pull_policy: never`。

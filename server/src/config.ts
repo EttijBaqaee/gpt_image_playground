@@ -3,6 +3,9 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   APP_BASE_PATH: z.string().default(''),
+  API_BASE_PATH: z.string().optional(),
+  MEDIA_BASE_PATH: z.string().optional(),
+  HEALTH_BASE_PATH: z.string().optional(),
   TRUSTED_PROXIES: z.string().default(''),
   UPLOAD_MAX_FILE_MB: z.coerce.number().int().min(1).max(1024).default(32),
   UPLOAD_MAX_TOTAL_MB: z.coerce.number().int().min(1).max(2048).default(128),
@@ -33,13 +36,28 @@ const webDistDir = parsed.WEB_DIST_DIR
   ? path.resolve(parsed.WEB_DIST_DIR)
   : path.resolve(process.cwd(), '..', 'dist')
 
-export function normalizeBasePath(value: string) {
+export function normalizeBasePath(value: string, name = 'APP_BASE_PATH') {
   const normalized = value.trim().replace(/^\/+|\/+$/g, '')
   if (!normalized) return ''
   if (!normalized.split('/').every((part) => /^[A-Za-z0-9_-]+$/.test(part))) {
-    throw new Error('APP_BASE_PATH 只允许字母、数字、下划线、短横线和路径分隔符')
+    throw new Error(`${name} 只允许字母、数字、下划线、短横线和路径分隔符`)
   }
   return `/${normalized}`
+}
+
+export function resolveBasePaths(env: {
+  APP_BASE_PATH?: string
+  API_BASE_PATH?: string
+  MEDIA_BASE_PATH?: string
+  HEALTH_BASE_PATH?: string
+}) {
+  const homepage = env.APP_BASE_PATH ?? ''
+  return {
+    basePath: normalizeBasePath(homepage),
+    apiBasePath: normalizeBasePath(env.API_BASE_PATH ?? '', 'API_BASE_PATH'),
+    mediaBasePath: normalizeBasePath(env.MEDIA_BASE_PATH ?? '', 'MEDIA_BASE_PATH'),
+    healthBasePath: normalizeBasePath(env.HEALTH_BASE_PATH ?? '', 'HEALTH_BASE_PATH'),
+  }
 }
 
 const trustedProxies = parsed.TRUSTED_PROXIES.split(',').map((value) => value.trim()).filter(Boolean)
@@ -48,7 +66,7 @@ if (trustedProxies.some((value) => ['true', '*', '0.0.0.0/0', '::/0'].includes(v
 }
 
 export const appConfig = {
-  basePath: normalizeBasePath(parsed.APP_BASE_PATH),
+  ...resolveBasePaths(parsed),
   trustedProxies: trustedProxies.length ? trustedProxies : false as false,
   uploadFileBytes: parsed.UPLOAD_MAX_FILE_MB * 1024 * 1024,
   uploadTotalBytes: parsed.UPLOAD_MAX_TOTAL_MB * 1024 * 1024,
