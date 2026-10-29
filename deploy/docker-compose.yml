@@ -59,6 +59,7 @@ services:
       # APP_DATA_DIR 可选，默认 ../docker-data（相对编排文件目录）；1Panel 推荐填写绝对路径。
       # 左侧为宿主机持久化目录，需让 UID/GID 1000 可写；右侧保持 /app/data。
       # 升级必须继续使用原数据目录，避免进入空数据库。
+      # 从 0.3.66 升级时，旧文件可能属于 root；先按 README 第 10 节一次性迁移整个目录权限。
       - "${APP_DATA_DIR:-../docker-data}:/app/data"
     # 可选安全设置，建议保留：禁止提权并移除额外 Linux capabilities。
     security_opt:
