@@ -1,13 +1,29 @@
 # 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
 # APP_BASE_PATH=gpt_image_playground
+# ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  HEALTH_BASE_PATH=h
 # APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
 location = /gpt_image_playground {
     return 301 /gpt_image_playground/;
 }
 
-# 主页和静态资源
+# 主页、图标、manifest 和 Service Worker
 location ^~ /gpt_image_playground/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+}
+
+# 独立 JS/CSS 构建资源；留空 ASSETS_BASE_PATH 时资源随主页，此段无需单独添加。
+# ASSETS_BASE_PATH=/ 时改为 location ^~ /assets/；不要去掉 assets 末尾段。
+location ^~ /s/assets/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_http_version 1.1;
     proxy_set_header Host $host;

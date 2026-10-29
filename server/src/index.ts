@@ -16,6 +16,7 @@ import { authRoutes } from './routes/auth.js'
 import { metaRoutes } from './routes/meta.js'
 import { settingsRoutes } from './routes/settings.js'
 import { taskRoutes } from './routes/tasks.js'
+import { renderWebIndexHtml } from './lib/webAssets.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -159,22 +160,26 @@ await app.register(fastifyStatic, {
 })
 
 const webIndexPath = path.join(appConfig.webDistDir, 'index.html')
-const runtimePathMeta = [
-  ['app', appConfig.basePath],
-  ['api', appConfig.apiBasePath],
-  ['media', appConfig.mediaBasePath],
-  ['health', appConfig.healthBasePath],
-].map(([kind, prefix]) => `<meta name="${kind}-base-path" content="${prefix}">`).join('')
 const webIndexHtml = fs.existsSync(webIndexPath)
-  ? fs.readFileSync(webIndexPath, 'utf8').replace('<head>', `<head><base href="${appConfig.basePath}/">${runtimePathMeta}`)
+  ? renderWebIndexHtml(fs.readFileSync(webIndexPath, 'utf8'), appConfig)
   : null
 if (webIndexHtml) {
+  await app.register(fastifyStatic, {
+    root: path.join(appConfig.webDistDir, 'assets'),
+    prefix: `${appConfig.assetsBasePath}/assets/`,
+    decorateReply: false,
+    wildcard: false,
+    index: false,
+    maxAge: 31536000000,
+    immutable: true,
+  })
+
   await app.register(fastifyStatic, {
     root: appConfig.webDistDir,
     prefix: `${appConfig.basePath}/`,
     decorateReply: false,
     wildcard: false,
-    globIgnore: ['**/index.html'],
+    globIgnore: ['**/index.html', 'assets/**', '**/assets/**'],
     index: false,
     setHeaders: (res, filePath) => {
       const filename = path.basename(filePath)
@@ -223,9 +228,10 @@ if (webIndexHtml) {
       `${appConfig.apiBasePath}/api`,
       `${appConfig.mediaBasePath}/media`,
       `${appConfig.healthBasePath}/health`,
+      `${appConfig.assetsBasePath}/assets`,
     ]
     const isBackendPath = backendRoots.some((root) => requestPath === root || requestPath.startsWith(`${root}/`))
-    if (isBackendPath || /^\/(api|media|health)(\/|$)/.test(localPath) || !accept.includes('text/html')) {
+    if (isBackendPath || /^\/(api|media|health)(\/|$)/.test(localPath) || /(?:^|\/)assets(?:\/|$)/.test(requestPath) || !accept.includes('text/html')) {
       return reply.code(404).send({ message: '未找到资源' })
     }
     reply.header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')

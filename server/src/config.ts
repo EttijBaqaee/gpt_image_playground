@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   APP_BASE_PATH: z.string().default(''),
+  ASSETS_BASE_PATH: z.string().optional(),
   API_BASE_PATH: z.string().optional(),
   MEDIA_BASE_PATH: z.string().optional(),
   HEALTH_BASE_PATH: z.string().optional(),
@@ -47,6 +48,7 @@ export function normalizeBasePath(value: string, name = 'APP_BASE_PATH') {
 
 export function resolveBasePaths(env: {
   APP_BASE_PATH?: string
+  ASSETS_BASE_PATH?: string
   API_BASE_PATH?: string
   MEDIA_BASE_PATH?: string
   HEALTH_BASE_PATH?: string
@@ -54,6 +56,7 @@ export function resolveBasePaths(env: {
   const homepage = env.APP_BASE_PATH ?? ''
   return {
     basePath: normalizeBasePath(homepage),
+    assetsBasePath: normalizeBasePath(env.ASSETS_BASE_PATH?.trim() || homepage, 'ASSETS_BASE_PATH'),
     apiBasePath: normalizeBasePath(env.API_BASE_PATH ?? '', 'API_BASE_PATH'),
     mediaBasePath: normalizeBasePath(env.MEDIA_BASE_PATH ?? '', 'MEDIA_BASE_PATH'),
     healthBasePath: normalizeBasePath(env.HEALTH_BASE_PATH ?? '', 'HEALTH_BASE_PATH'),

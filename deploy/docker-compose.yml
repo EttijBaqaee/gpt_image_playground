@@ -6,7 +6,7 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 services:
   app:
     # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.3
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -15,9 +15,13 @@ services:
       # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
       - "${APP_PORT:-8788}:8787"
     environment:
-      # 以下四项均可选且互相独立，不会继承主页前缀；可填 web 或 /web/ 这样的形式。
-      # 主页/静态资源前缀：web → /web/；默认留空 → /。
+      # 以下路径参数均可选；可填 web 或 /web/ 这样的形式。
+      # 主页前缀（含图标、manifest、Service Worker）：web → /web/；默认留空 → /。
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      # JS/CSS 等构建资源前缀：s → /s/assets/；留空沿用主页前缀以兼容旧版；填 / → /assets/。
+      # 可单独设置，不需要重新构建镜像。assets 末尾段保持不变。
+      ASSETS_BASE_PATH: "${ASSETS_BASE_PATH:-}"
+      # 以下三个后端前缀互相独立，留空均不继承主页前缀。
       # API 前缀：a → /a/api/…；默认留空 → /api/…。
       API_BASE_PATH: "${API_BASE_PATH:-}"
       # 媒体前缀：m → /m/media/…；默认留空 → /media/…。

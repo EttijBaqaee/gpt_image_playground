@@ -6,7 +6,7 @@ afterEach(() => vi.unstubAllGlobals())
 function setPaths(paths: Record<string, string>) {
   vi.stubGlobal('document', {
     querySelector: (selector: string) => {
-      const kind = selector.match(/name="(app|api|media|health)-base-path"/)?.[1]
+      const kind = selector.match(/name="(app|assets|api|media|health)-base-path"/)?.[1]
       return kind && kind in paths ? { content: paths[kind] } : null
     },
   })
@@ -20,9 +20,9 @@ describe('independent runtime URLs', () => {
     ['/media/outputs/image.png', '/m/media/outputs/image.png'],
     ['/health/', '/h/health/'],
     ['/manifest.webmanifest', '/web/manifest.webmanifest'],
-    ['/assets/app.js', '/web/assets/app.js'],
+    ['/assets/app.js', '/s/assets/app.js'],
   ])('resolves %s to its own prefix', (input, expected) => {
-    setPaths({ app: '/web', api: '/a', media: '/m', health: '/h' })
+    setPaths({ app: '/web', assets: '/s', api: '/a', media: '/m', health: '/h' })
     expect(appUrl(input)).toBe(expected)
   })
   it('keeps explicit root API/media/health paths when the homepage has a prefix', () => {
@@ -35,6 +35,12 @@ describe('independent runtime URLs', () => {
   it('uses legacy metadata only if the independent metadata is absent', () => {
     setPaths({ app: '/legacy' })
     expect(appUrl('/api/tasks')).toBe('/legacy/api/tasks')
+    expect(appUrl('/assets/app.js')).toBe('/legacy/assets/app.js')
+  })
+  it('uses explicitly configured root assets without changing the homepage', () => {
+    setPaths({ app: '/web', assets: '' })
+    expect(appUrl('/assets/app.js')).toBe('/assets/app.js')
+    expect(appUrl('/manifest.webmanifest')).toBe('/web/manifest.webmanifest')
   })
   it.each(['https://example.test/api/tasks', '//example.test/media/a.png', 'relative/path'])('preserves %s', (url) => {
     setPaths({ app: '/web', api: '/a', media: '/m', health: '/h' })

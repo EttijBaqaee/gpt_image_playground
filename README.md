@@ -1,4 +1,12 @@
-# Update 0.3.66.2
+# Update 0.3.66.3
+
+**2026-10-29 · 基于本 fork 的 0.3.66.2 更新。**
+
+- **独立 assets 路径**：新增可选 `ASSETS_BASE_PATH`，例如 `s` 对应 `/s/assets/`，与主页、API、媒体和健康检查分别设置。留空沿用原来的主页前缀，填 `/` 使用根路径 `/assets/`。修改编排后重新创建容器即可，无需重新构建镜像。
+- **静态资源完整迁移**：入口 JS、CSS、预加载、动态加载的图片编辑器和相对资源使用新的 assets 路径；图标、manifest 和 Service Worker 仍跟随主页。资源不存在时返回 404。
+- **升级说明**：补全从 0.3.66 升级时的旧数据目录权限迁移步骤，保留数据库、图片及原环境变量。编排参数注释和推荐 Nginx 反代示例同步补齐 assets。
+
+## Update 0.3.66.2
 
 **2026-10-28 · 基于本 fork 的 0.3.66.1 更新。**
 
@@ -28,12 +36,12 @@
 服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.3
 # 跟随本 fork 的最新发布版本
 docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
 ```
 
-正式部署建议固定 `0.3.66.2`。本次发布镜像为 **Linux amd64**，从 Debian/1Panel 上经过验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
+正式部署建议固定 `0.3.66.3`。本次发布镜像为 **Linux amd64**，从 Debian/1Panel 上经过验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
 
 ### 首次创建持久化目录
 
@@ -51,12 +59,12 @@ chown 1000:1000 /opt/gpt-image-playground-data
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.2 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.3 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.2 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.2) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.3 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.3) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -73,7 +81,7 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 services:
   app:
     # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.3
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -82,9 +90,13 @@ services:
       # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
       - "${APP_PORT:-8788}:8787"
     environment:
-      # 以下四项均可选且互相独立，不会继承主页前缀；可填 web 或 /web/ 这样的形式。
-      # 主页/静态资源前缀：web → /web/；默认留空 → /。
+      # 以下路径参数均可选；可填 web 或 /web/ 这样的形式。
+      # 主页前缀（含图标、manifest、Service Worker）：web → /web/；默认留空 → /。
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
+      # JS/CSS 等构建资源前缀：s → /s/assets/；留空沿用主页前缀以兼容旧版；填 / → /assets/。
+      # 可单独设置，不需要重新构建镜像。assets 末尾段保持不变。
+      ASSETS_BASE_PATH: "${ASSETS_BASE_PATH:-}"
+      # 以下三个后端前缀互相独立，留空均不继承主页前缀。
       # API 前缀：a → /a/api/…；默认留空 → /api/…。
       API_BASE_PATH: "${API_BASE_PATH:-}"
       # 媒体前缀：m → /m/media/…；默认留空 → /media/…。
@@ -168,6 +180,7 @@ APP_SECRET=replace-with-a-long-random-secret-at-least-32-characters
 ADMIN_PASSWORD=replace-with-your-admin-password
 APP_PORT=8788
 APP_BASE_PATH=
+ASSETS_BASE_PATH=
 API_BASE_PATH=
 MEDIA_BASE_PATH=
 HEALTH_BASE_PATH=
@@ -191,8 +204,8 @@ UPLOAD_MAX_TOTAL_MB=128
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.2`。
-4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。四项路径可独立填写或留空。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.3`。
+4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。五项路径按第 6 节分别填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
 
@@ -201,7 +214,7 @@ UPLOAD_MAX_TOTAL_MB=128
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.2
+image: gpt-image-playground-fork:0.3.66.3
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -236,14 +249,15 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.2`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.3`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
-## 6. 四项路径独立设置
+## 6. 五项路径分别设置
 
-所有参数都是**前缀**，不是完整 URL；`/api`、`/media`、`/health` 这三个末尾段仍保留。新版编排显式传入四项参数，各项留空即使用该项的默认路径，互不影响。
+所有参数都是**前缀**，不是完整 URL；`assets`、`api`、`media`、`health` 末尾段仍保留。
 
 ```dotenv
 APP_BASE_PATH=web
+ASSETS_BASE_PATH=s
 API_BASE_PATH=a
 MEDIA_BASE_PATH=m
 HEALTH_BASE_PATH=h
@@ -251,54 +265,66 @@ HEALTH_BASE_PATH=h
 
 假设宿主机端口是 `8788`：
 
-| 用途 | 四项均留空 | 上面的独立配置 |
+| 用途 | 全部留空 | 上面的配置 |
 | --- | --- | --- |
-| 主页与静态资源 | `http://服务器IP:8788/` | `http://服务器IP:8788/web/` |
+| 主页、图标、manifest、Service Worker | `http://服务器IP:8788/` | `http://服务器IP:8788/web/` |
+| JS/CSS 等构建资源 | `/assets/…` | `/s/assets/…` |
 | API 与 SSE | `/api/…` | `/a/api/…` |
 | 媒体 | `/media/…` | `/m/media/…` |
 | 健康检查 | `/health`、`/health/` | `/h/health`、`/h/health/` |
 
-例如只想把主页放在 `/gpt_image_playground/`，后端保持根路径，就填：
+`ASSETS_BASE_PATH` 可选：**不设置或留空时随 `APP_BASE_PATH`**，兼容 0.3.66.2 及更早的部署；填 `/` 表示独立使用根路径 `/assets/`；填 `s` 或 `/s/` 则为 `/s/assets/`。例如主页是 `/web/` 且 assets 留空时，资源仍为 `/web/assets/`。此参数只控制构建资源，不移动图标、manifest 或 Service Worker，也不支持跨域 CDN URL。
+
+例如只把主页放在 `/gpt_image_playground/`，其余各项使用根路径：
 
 ```dotenv
 APP_BASE_PATH=gpt_image_playground
+ASSETS_BASE_PATH=/
 API_BASE_PATH=
 MEDIA_BASE_PATH=
 HEALTH_BASE_PATH=
 ```
 
-如果希望四项共用 `aaa`，则四项都填 `aaa`。也可以直接在 YAML 的 `environment` 中写固定值：
+若希望五项共用 `aaa`，五项都填 `aaa` 即可；也可以在 YAML 的 `environment` 中直接写固定值：
 
 ```yaml
 APP_BASE_PATH: "web"
+ASSETS_BASE_PATH: "s"
 API_BASE_PATH: "a"
 MEDIA_BASE_PATH: "m"
 HEALTH_BASE_PATH: "h"
 ```
 
-每个前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。前端请求、SSE、媒体 DTO、PWA 排除规则和健康检查会分别跟随对应参数。
+前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。三个后端前缀互相独立，未设置或留空都使用各自根路径，不继承主页前缀。
 
-修改后，在 1Panel 重新部署/重建容器；命令行等价操作是：
+修改后，在 1Panel 重新部署/重建容器；命令行等价操作：
 
 ```bash
 docker compose up -d --force-recreate
 ```
 
-**不需要重新构建镜像；只重启旧容器不会读取新的 Compose 环境变量。** 这四项都是应用自身路径，与 1Panel 的安全入口独立。
+**无需重新构建镜像；只重启旧容器不会读取新的 Compose 环境变量。** 这些路径与 1Panel 安全入口独立。
 
-**没有隐式继承：** 每项未声明或留空都会使用自己的默认路径。只设置 `APP_BASE_PATH` 不会改变三个后端路径；若要统一前缀，需要四项显式填写相同值。
+### 其他路径归属
+
+- `sw.js`、`manifest.webmanifest`、`pwa-icon.svg`，以及 PWA 的 `start_url` / `scope` 继续跟随 `APP_BASE_PATH`。
+- 图片编辑器动态 JS、入口 JS/CSS 和构建预加载文件跟随 `ASSETS_BASE_PATH`；不存在或错误的 assets 地址返回 404，不返回主页 HTML。
+- 登录、任务、设置、使用码、公告、备份导入导出、下载接口和两类 SSE 都属于 `/api/`，统一跟随 `API_BASE_PATH`，无需另加下载或 SSE 前缀。
+- 原图、遮罩、生成图片、缩略图、输入/输出视频及视频封面都属于 `/media/`，统一跟随 `MEDIA_BASE_PATH`；`uploads`、`masks`、`outputs` 和 `thumbs` 是媒体目录内部路径。
+- 外部供应商 URL、GitHub 链接、现有外部字体 CDN 和浏览器本地 `blob:` / `data:` 地址不加本应用前缀。
 
 ## 7. 推荐使用 Nginx 反代部署
 
 **我们推荐使用 Nginx（或 OpenResty）反代部署，由反向代理统一提供域名和 HTTPS。**
 
-### 四个独立路径的配置示例
+### 五个分别设置的路径示例
 
 下面假设 Nginx 运行在 Docker 宿主机，应用映射到宿主机 `8788` 端口。先设置：
 
 ```dotenv
 APP_PORT=8788
 APP_BASE_PATH=gpt_image_playground
+ASSETS_BASE_PATH=s
 API_BASE_PATH=a
 MEDIA_BASE_PATH=m
 HEALTH_BASE_PATH=h
@@ -310,14 +336,30 @@ CORS_ORIGIN=https://image.example.com
 ```nginx
 # 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
 # APP_BASE_PATH=gpt_image_playground
+# ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  HEALTH_BASE_PATH=h
 # APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
 location = /gpt_image_playground {
     return 301 /gpt_image_playground/;
 }
 
-# 主页和静态资源
+# 主页、图标、manifest 和 Service Worker
 location ^~ /gpt_image_playground/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+}
+
+# 独立 JS/CSS 构建资源；留空 ASSETS_BASE_PATH 时资源随主页，此段无需单独添加。
+# ASSETS_BASE_PATH=/ 时改为 location ^~ /assets/；不要去掉 assets 末尾段。
+location ^~ /s/assets/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -380,11 +422,11 @@ location /h/health {
 }
 ```
 
-对应的公开地址为：主页 `https://image.example.com/gpt_image_playground/`、API `/a/api/…`、媒体 `/m/media/…`、健康检查 `/h/health` 或 `/h/health/`。
+对应的公开地址为：主页 `https://image.example.com/gpt_image_playground/`、构建资源 `/s/assets/…`、API `/a/api/…`、媒体 `/m/media/…`、健康检查 `/h/health` 或 `/h/health/`。
 
 **每段 `proxy_pass` 末尾都不加 `/`，完整路径原样转发给应用。** 不要剥掉前缀，也不要把三类后端请求全部塞进主页的 `location`；它们分别匹配自己的路径。
 
-如果后端三项留空，保持主页前缀不变，只需把三段后端 `location` 分别改为 `/api/`、`/media/`、`/health`。如果修改任何一个参数，只改对应的 `location` 即可。若主页也留空，则删除补斜线重定向，把主页段改成 `location /`，API/媒体等更具体的段继续保留。
+若 `ASSETS_BASE_PATH` 留空，assets 随主页路径，不需要单独的 assets 段；填 `/` 时将资源段改为 `location ^~ /assets/`。如果后端三项留空，保持主页前缀不变，只需把三段后端 `location` 分别改为 `/api/`、`/media/`、`/health`。如果修改任何一个参数，只改对应的 `location` 即可。若主页也留空，则删除补斜线重定向，把主页段改成 `location /`，API/媒体等更具体的段继续保留。
 
 API 段关闭响应缓冲和缓存，确保 SSE 实时进度及时到达；不强制发送 `Connection: upgrade`。后端是 HTTP，不需要 `proxy_ssl_server_name`、`proxy_ssl_name`。默认 `client_max_body_size 160m` 给 128 MiB 文件累计上限预留 multipart 和字段开销；应用仍检查单文件 32 MiB 和累计 128 MiB，调整应用上限时也要调整代理上限。
 
@@ -413,17 +455,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.2-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `gpt-image-playground-fork-0.3.66.3-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.2-amd64.tar.gz
+docker load -i gpt-image-playground-fork-0.3.66.3-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.2
+image: gpt-image-playground-fork:0.3.66.3
 pull_policy: never
 ```
 
@@ -435,7 +477,7 @@ pull_policy: never
 
 ### 从 0.3.66 升级：先迁移数据目录权限
 
-0.3.66 的容器默认以 root 运行，本 fork 的 0.3.66.1 / 0.3.66.2 镜像以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
+0.3.66 的容器默认以 root 运行，本 fork 自 0.3.66.1 起以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
 
 在**出错服务器**上以 root 身份进入该应用实际的编排目录（包含原 `docker-compose.yml` 和 `.env`），确认仍挂载原数据目录，先停止应用并备份该目录，再执行：
 
@@ -478,7 +520,7 @@ chmod -R u+rwX "$DATA_PATH"
 
 - **1Panel 找不到 Dockerfile**：检查 `APP_SOURCE_DIR` 是否为绝对源码根目录，而不是 `deploy/` 或编排自身目录。
 - **要求设置 APP_SECRET / ADMIN_PASSWORD**：环境变量未保存或 `.env` 不在编排读取位置，填写后重新部署。
-- **改前缀后 404**：分别核对四项参数和对应的 Nginx `location`，确认代理未剥掉前缀；网页入口只跟随 `APP_BASE_PATH`。
+- **改前缀后 404**：分别核对五项参数和对应的 Nginx `location`，确认代理未剥掉前缀；网页入口只跟随 `APP_BASE_PATH`。
 - **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `HEALTH_BASE_PATH`，不要改回固定 `/health`。
 - **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
 - **EACCES / 数据库只读或图片保存失败**：尤其是从 0.3.66 升级时，按第 10 节迁移整个原数据目录的属主和写入权限，仅修改最外层目录或新建空目录不能解决旧文件权限问题。

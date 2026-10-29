@@ -1,4 +1,4 @@
-export type AppRouteKind = 'app' | 'api' | 'media' | 'health'
+export type AppRouteKind = 'app' | 'assets' | 'api' | 'media' | 'health'
 
 /** Runtime prefixes injected by the server; Compose changes need no web rebuild. */
 export function getAppBasePath(kind: AppRouteKind = 'app') {
@@ -9,7 +9,7 @@ export function getAppBasePath(kind: AppRouteKind = 'app') {
 
 export function appUrl(url: string) {
   if (!url.startsWith('/') || url.startsWith('//')) return url
-  const kind = url.match(/^\/(api|media|health)(?:\/|[?#]|$)/)?.[1] as AppRouteKind | undefined
+  const kind = url.match(/^\/(api|media|health|assets)(?:\/|[?#]|$)/)?.[1] as AppRouteKind | undefined
   return `${getAppBasePath(kind ?? 'app')}${url}`
 }
 

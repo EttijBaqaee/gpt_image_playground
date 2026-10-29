@@ -7,22 +7,32 @@ describe('APP_BASE_PATH', () => {
 
 describe('independent runtime route prefixes', () => {
   it('keeps all original routes by default', () => {
-    expect(resolveBasePaths({})).toEqual({ basePath: '', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
+    expect(resolveBasePaths({})).toEqual({ basePath: '', assetsBasePath: '', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
   })
   it('normalizes all four independently', () => {
     expect(resolveBasePaths({ APP_BASE_PATH: 'web', API_BASE_PATH: '/a/', MEDIA_BASE_PATH: 'm', HEALTH_BASE_PATH: 'h/status' }))
-      .toEqual({ basePath: '/web', apiBasePath: '/a', mediaBasePath: '/m', healthBasePath: '/h/status' })
+      .toEqual({ basePath: '/web', assetsBasePath: '/web', apiBasePath: '/a', mediaBasePath: '/m', healthBasePath: '/h/status' })
   })
   it('treats an explicit empty backend prefix independently from the homepage', () => {
     expect(resolveBasePaths({ APP_BASE_PATH: 'web', API_BASE_PATH: '', MEDIA_BASE_PATH: '', HEALTH_BASE_PATH: '' }))
-      .toEqual({ basePath: '/web', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
+      .toEqual({ basePath: '/web', assetsBasePath: '/web', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
   })
   it('does not inherit a homepage prefix when backend variables are omitted', () => {
     expect(resolveBasePaths({ APP_BASE_PATH: 'aaa' }))
-      .toEqual({ basePath: '/aaa', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
+      .toEqual({ basePath: '/aaa', assetsBasePath: '/aaa', apiBasePath: '', mediaBasePath: '', healthBasePath: '' })
   })
-  it.each(['API_BASE_PATH', 'MEDIA_BASE_PATH', 'HEALTH_BASE_PATH'] as const)('validates %s', (name) => {
+  it.each(['ASSETS_BASE_PATH', 'API_BASE_PATH', 'MEDIA_BASE_PATH', 'HEALTH_BASE_PATH'] as const)('validates %s', (name) => {
     expect(() => resolveBasePaths({ [name]: '../invalid' })).toThrow(name)
+  })
+  it('sets assets independently of all other prefixes', () => {
+    expect(resolveBasePaths({ APP_BASE_PATH: 'web', ASSETS_BASE_PATH: '/s/files/', API_BASE_PATH: 'a', MEDIA_BASE_PATH: 'm', HEALTH_BASE_PATH: 'h' }))
+      .toEqual({ basePath: '/web', assetsBasePath: '/s/files', apiBasePath: '/a', mediaBasePath: '/m', healthBasePath: '/h' })
+  })
+  it.each([undefined, '', '  '])('preserves legacy homepage assets when configured as %s', (assets) => {
+    expect(resolveBasePaths({ APP_BASE_PATH: 'web', ASSETS_BASE_PATH: assets }).assetsBasePath).toBe('/web')
+  })
+  it('uses root assets for an explicit slash', () => {
+    expect(resolveBasePaths({ APP_BASE_PATH: 'web', ASSETS_BASE_PATH: '/' }).assetsBasePath).toBe('')
   })
 })
 
