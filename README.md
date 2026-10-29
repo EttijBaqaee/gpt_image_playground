@@ -5,6 +5,7 @@
 - **独立 assets 路径**：新增可选 `ASSETS_BASE_PATH`，例如 `s` 对应 `/s/assets/`，与主页、API、媒体和健康检查分别设置。留空沿用原来的主页前缀，填 `/` 使用根路径 `/assets/`。修改编排后重新创建容器即可，无需重新构建镜像。
 - **静态资源完整迁移**：入口 JS、CSS、预加载、动态加载的图片编辑器和相对资源使用新的 assets 路径；图标、manifest 和 Service Worker 仍跟随主页。资源不存在时返回 404。
 - **升级说明**：补全从 0.3.66 升级时的旧数据目录权限迁移步骤，保留数据库、图片及原环境变量。编排参数注释和推荐 Nginx 反代示例同步补齐 assets。
+- **部署配置排错**：说明 Compose 环境变量的映射/列表写法、Nginx 保留路径前缀的规则，以及五项统一使用 `/gpt_image_playground/` 的完整反代示例；补充资源 404、白屏和变量未生效的检查方法。
 
 ## Update 0.3.66.2
 
@@ -71,6 +72,8 @@ cp .env.example .env
 ## 2. 完整编排文件
 
 仓库内模板为 [`deploy/docker-compose.yml`](deploy/docker-compose.yml)。可以直接用于命令行，也可以粘贴进 1Panel 编排编辑器：
+
+**下面的 `environment` 使用映射格式：`APP_BASE_PATH: "值"`，前面不加 `-`。** 如果已有编排使用列表格式，应写成 `- APP_BASE_PATH=值`。不能写成 `- APP_BASE_PATH:/gpt_image_playground/`；两种正确写法和完整路径示例见第 6 节。
 
 ```yaml
 # 必填变量：APP_SECRET、ADMIN_PASSWORD；其余变量均可选，未填写时使用下方默认值。
@@ -285,15 +288,44 @@ MEDIA_BASE_PATH=
 HEALTH_BASE_PATH=
 ```
 
-若希望五项共用 `aaa`，五项都填 `aaa` 即可；也可以在 YAML 的 `environment` 中直接写固定值：
+### environment 的两种正确写法
+
+若希望五项共用 `/gpt_image_playground/`，五项都填 `gpt_image_playground` 即可；填写 `/gpt_image_playground/` 也会归一化成同样的前缀。下例只展示路径部分，合并到已有服务的 `environment` 中，保留密码、密钥等其他设置。
+
+**映射格式（与第 2 节完整模板一致）：**
 
 ```yaml
-APP_BASE_PATH: "web"
-ASSETS_BASE_PATH: "s"
-API_BASE_PATH: "a"
-MEDIA_BASE_PATH: "m"
-HEALTH_BASE_PATH: "h"
+environment:
+  APP_BASE_PATH: "gpt_image_playground"    # 可选；主页、图标、manifest、Service Worker
+  ASSETS_BASE_PATH: "gpt_image_playground" # 可选；JS/CSS，也可留空以跟随主页
+  API_BASE_PATH: "gpt_image_playground"    # 可选；API 与 SSE
+  MEDIA_BASE_PATH: "gpt_image_playground"  # 可选；图片、视频等媒体
+  HEALTH_BASE_PATH: "gpt_image_playground" # 可选；健康检查
 ```
+
+**列表格式（已有 `environment` 全部采用 `- KEY=value` 时使用）：**
+
+```yaml
+environment:
+  - APP_BASE_PATH=gpt_image_playground    # 可选；主页
+  - ASSETS_BASE_PATH=gpt_image_playground # 可选；JS/CSS，也可写 ASSETS_BASE_PATH= 以跟随主页
+  - API_BASE_PATH=gpt_image_playground    # 可选；API 与 SSE
+  - MEDIA_BASE_PATH=gpt_image_playground  # 可选；媒体
+  - HEALTH_BASE_PATH=gpt_image_playground # 可选；健康检查
+```
+
+一个 `environment` 中只能选择一种格式，其他变量也必须使用相同格式。不要在已有的 `environment` 旁再添加第二个同名块。`- APP_BASE_PATH:/gpt_image_playground/` 不会给 `APP_BASE_PATH` 正确赋值；列表中应使用等号，映射中应使用冒号加空格。
+
+以上两种正确配置得到的公开路径相同：
+
+| 用途 | 路径 |
+| --- | --- |
+| 主页 | `/gpt_image_playground/` |
+| JS/CSS | `/gpt_image_playground/assets/…` |
+| API 与 SSE | `/gpt_image_playground/api/…` |
+| 媒体 | `/gpt_image_playground/media/…` |
+| 健康检查 | `/gpt_image_playground/health`、`/gpt_image_playground/health/` |
+| PWA 配置、图标、Service Worker | `/gpt_image_playground/manifest.webmanifest`、`/gpt_image_playground/pwa-icon.svg`、`/gpt_image_playground/sw.js` |
 
 前缀只允许字母、数字、下划线、短横线和路径分隔符；不能包含 `..`、查询参数、编码斜线或连续空路径段。三个后端前缀互相独立，未设置或留空都使用各自根路径，不继承主页前缀。
 
@@ -316,6 +348,41 @@ docker compose up -d --force-recreate
 ## 7. 推荐使用 Nginx 反代部署
 
 **我们推荐使用 Nginx（或 OpenResty）反代部署，由反向代理统一提供域名和 HTTPS。**
+
+### 五项统一使用 /gpt_image_playground/ 的完整示例
+
+使用第 6 节五项同前缀的编排设置后，主页、assets 和三个后端路径可以共用一个 `location`。下面按宿主机端口 `8787` 编写，即模板中设置 `APP_PORT=8787`，或使用端口映射 `"8787:8787"`。如果继续使用模板默认的宿主机端口 `8788`，把下面的上游端口改为 `8788`；Nginx 连接的是端口映射左侧的宿主机端口。
+
+将下面内容放入域名现有的 `server { ... }` 中，替换旧的同路径 `location`，不要与旧配置重复添加：
+
+```nginx
+location = /gpt_image_playground {
+    return 301 /gpt_image_playground/;
+}
+
+# 五项都设置为 gpt_image_playground；assets 也可留空以跟随主页。
+location ^~ /gpt_image_playground/ {
+    # 末尾不加 /，完整保留 /gpt_image_playground/ 前缀。
+    proxy_pass http://127.0.0.1:8787;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    # 默认累计上传 128 MiB，另留 multipart 和字段开销。
+    client_max_body_size 160m;
+    proxy_request_buffering off;
+    # 保证 SSE 任务进度及时返回，媒体继续由应用鉴权。
+    proxy_buffering off;
+    proxy_cache off;
+}
+```
+
+此配置同时覆盖 `/gpt_image_playground/health` 和 `/gpt_image_playground/health/`，也覆盖 JS/CSS、图标及 PWA 文件。无需再添加三段 API/媒体/健康检查反代。若五项设置为不同前缀，则使用下面的分别配置示例。
 
 ### 五个分别设置的路径示例
 
@@ -424,11 +491,30 @@ location /h/health {
 
 对应的公开地址为：主页 `https://image.example.com/gpt_image_playground/`、构建资源 `/s/assets/…`、API `/a/api/…`、媒体 `/m/media/…`、健康检查 `/h/health` 或 `/h/health/`。
 
-**每段 `proxy_pass` 末尾都不加 `/`，完整路径原样转发给应用。** 不要剥掉前缀，也不要把三类后端请求全部塞进主页的 `location`；它们分别匹配自己的路径。
+**每段 `proxy_pass` 末尾都不加 `/`，完整路径原样转发给应用。** 不同前缀需要匹配各自的 `location`；五项共用同一前缀时，可使用上一例中的单个 `location`。
 
 若 `ASSETS_BASE_PATH` 留空，assets 随主页路径，不需要单独的 assets 段；填 `/` 时将资源段改为 `location ^~ /assets/`。如果后端三项留空，保持主页前缀不变，只需把三段后端 `location` 分别改为 `/api/`、`/media/`、`/health`。如果修改任何一个参数，只改对应的 `location` 即可。若主页也留空，则删除补斜线重定向，把主页段改成 `location /`，API/媒体等更具体的段继续保留。
 
 API 段关闭响应缓冲和缓存，确保 SSE 实时进度及时到达；不强制发送 `Connection: upgrade`。后端是 HTTP，不需要 `proxy_ssl_server_name`、`proxy_ssl_name`。默认 `client_max_body_size 160m` 给 128 MiB 文件累计上限预留 multipart 和字段开销；应用仍检查单文件 32 MiB 和累计 128 MiB，调整应用上限时也要调整代理上限。
+
+### 从旧反代迁移，以及资源 404 / 白屏检查
+
+旧配置中的 `location /gpt_image_playground/` 搭配 `proxy_pass http://127.0.0.1:8787/;` 会剥掉匹配的 `/gpt_image_playground/` 前缀。设置本版路径变量后，应改成 `proxy_pass http://127.0.0.1:8787;`，让应用收到完整路径。只修改 Nginx 的访问路径不会自动设置应用环境变量；浏览器地址栏里的子路径也不会自动填入这些变量。
+
+例如访问 `/gpt_image_playground/`，页面却请求根路径 `/assets/index-….js`、`/manifest.webmanifest` 或 `/pwa-icon.svg` 并返回 404，应按顺序检查：
+
+1. 在浏览器查看页面源码中的 `<base href="…">` 和 `app-base-path`、`assets-base-path` 等 meta。五项统一配置时，base 应为 `/gpt_image_playground/`，五个 meta 的值应为 `/gpt_image_playground`。全部为空说明页面仍按默认根路径运行；只有 assets 为空也可能是显式配置了根路径 `/`，需对照实际设置。
+2. 核对 Compose 写法：映射用 `APP_BASE_PATH: "gpt_image_playground"`，列表用 `- APP_BASE_PATH=gpt_image_playground`，不要使用冒号列表。修改后重新创建容器，单纯重启不能更新环境变量。
+3. 核对 Nginx 的上游端口和路径：请求进入应用前必须保留已配置的前缀。五项共用前缀时可直接使用上面的完整示例；后端三项独立留空时，则仍需代理根路径 `/api/`、`/media/` 和 `/health`。
+4. 在浏览器开发者工具的 Network 中核对入口 JS、CSS、动态加载的编辑器、manifest 和图标。JS/CSS 应返回对应资源，不能返回 404 或主页 HTML。修正后强制刷新页面；安装过旧 PWA 时，如仍加载旧内容，再注销该应用的旧 Service Worker 并重新打开。
+
+使用第 2 节模板时，可在编排目录执行以下命令，只查看五项路径变量，避免把含密钥的全部环境变量贴到公开日志：
+
+```bash
+docker compose exec -T app node -e 'for (const k of ["APP_BASE_PATH","ASSETS_BASE_PATH","API_BASE_PATH","MEDIA_BASE_PATH","HEALTH_BASE_PATH"]) console.log(k + "=" + JSON.stringify(process.env[k] ?? ""))'
+```
+
+其中 `app` 是模板服务名；若自行修改过服务名，应使用实际名称。容器内变量正确但公开页面 meta 仍为空时，还要检查 Nginx 是否转发到了旧容器、错误的端口或其他编排实例。
 
 检查并重载：
 
@@ -520,7 +606,9 @@ chmod -R u+rwX "$DATA_PATH"
 
 - **1Panel 找不到 Dockerfile**：检查 `APP_SOURCE_DIR` 是否为绝对源码根目录，而不是 `deploy/` 或编排自身目录。
 - **要求设置 APP_SECRET / ADMIN_PASSWORD**：环境变量未保存或 `.env` 不在编排读取位置，填写后重新部署。
+- **路径变量填写了却不生效**：检查是否误写成 `- APP_BASE_PATH:/路径/`；列表应使用 `=`，映射应使用 `: ` 且不加 `-`。按第 6 节改正后重新创建容器。
 - **改前缀后 404**：分别核对五项参数和对应的 Nginx `location`，确认代理未剥掉前缀；网页入口只跟随 `APP_BASE_PATH`。
+- **主页白屏，JS/CSS、manifest 或图标请求到了域名根路径**：按第 7 节检查页面 base/meta、容器环境变量和代理路径；确认没有沿用剥离子路径的旧 `proxy_pass`，也没有转发到旧容器。
 - **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `HEALTH_BASE_PATH`，不要改回固定 `/health`。
 - **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
 - **EACCES / 数据库只读或图片保存失败**：尤其是从 0.3.66 升级时，按第 10 节迁移整个原数据目录的属主和写入权限，仅修改最外层目录或新建空目录不能解决旧文件权限问题。
