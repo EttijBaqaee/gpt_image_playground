@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import Fastify, { type FastifyInstance } from 'fastify'
 import multipart from '@fastify/multipart'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -57,6 +58,26 @@ function expectEmpty(db: AppDatabase) {
 }
 
 describe('task creation integration', () => {
+  for (const taskType of ['image', 'video']) {
+    it(`preserves multipart reference order through database, DTO and worker reads for ${taskType}`, async () => {
+      const { app, db, dir, cookie } = await setup()
+      const date = vi.spyOn(Date.prototype, 'toISOString').mockReturnValue('2026-10-31T01:00:00.000Z')
+      let sequence = 100
+      const uuid = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => `00000000-0000-4000-8000-${(sequence--).toString(16).padStart(12, '0')}`)
+      try {
+        const contents = ['third-now-first', 'first-now-second', 'second-now-third']
+        const response = await submit(app, cookie, { taskType, providerProfileId: taskType === 'video' ? 'v' : 'p' }, contents.map((text) => Buffer.from(text)))
+        expect(response.statusCode).toBe(201)
+        const task = response.json().task
+        const rows = db.listTaskImages(task.id)
+        const read = (images: typeof rows) => images.map((image) => fs.readFileSync(path.join(dir, image.filePath), 'utf8'))
+        expect(read(rows)).toEqual(contents)
+        expect(task.inputImageIds).toEqual(rows.map((image) => image.id))
+        expect(read(db.listTaskImagesForTasks([task.id]))).toEqual(contents)
+        expect(app.taskWorker.enqueue).toHaveBeenCalledWith(task.id)
+      } finally { uuid.mockRestore(); date.mockRestore() }
+    })
+  }
   it('rejects excess reference images before reserving quota', async () => {
     const { app, db, cookie } = await setup()
     db.sqlite.prepare('UPDATE provider_profiles SET max_reference_images=1 WHERE id=?').run('p')

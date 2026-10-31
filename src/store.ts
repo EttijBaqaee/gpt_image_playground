@@ -48,6 +48,7 @@ import { markVideoLoadDone, setVideoLoadProgress } from './lib/videoLoadState'
 // 内存缓存，id → dataUrl，避免每次从 IndexedDB 读取
 
 const imageCache = new Map<string, string>()
+let inputImageImportEpoch = 0
 const videoUrlCache = new Map<string, string>()
 const thumbnailCache = new Map<string, { dataUrl: string; width?: number; height?: number; thumbnailVersion?: number }>()
 const thumbnailSubscribers = new Map<string, Set<(thumbnail: { dataUrl: string; width?: number; height?: number }) => void>>()
@@ -375,9 +376,12 @@ interface AppState {
   prompt: string
   setPrompt: (p: string) => void
   inputImages: InputImage[]
+  pendingInputImages: number
+  isSubmittingTask: boolean
   addInputImage: (img: InputImage) => void
   removeInputImage: (idx: number) => void
   moveInputImage: (fromIdx: number, toIdx: number) => void
+  moveInputImageById: (imageId: string, targetId: string) => void
   clearInputImages: () => void
   setInputImages: (imgs: InputImage[], options?: { equivalentImageIds?: Record<string, string> }) => void
   replaceInputImage: (currentId: string, nextImage: InputImage, options?: { equivalentImageIds?: Record<string, string> }) => void
@@ -542,13 +546,17 @@ export const useStore = create<AppState>()(
       prompt: '',
       setPrompt: (prompt) => set({ prompt }),
       inputImages: [],
+      pendingInputImages: 0,
+      isSubmittingTask: false,
       addInputImage: (img) =>
         set((s) => {
+          if (s.isSubmittingTask) return s
           if (s.inputImages.find((i) => i.id === img.id)) return s
           return { inputImages: [...s.inputImages, img] }
         }),
       removeInputImage: (idx) =>
         set((s) => {
+          if (s.isSubmittingTask) return s
           const removed = s.inputImages[idx]
           const nextImages = s.inputImages.filter((_, i) => i !== idx)
           const shouldClearMask = removed?.id === s.maskDraft?.targetImageId
@@ -561,6 +569,7 @@ export const useStore = create<AppState>()(
       moveInputImage: (fromIdx, toIdx) =>
         set((s) => {
           if (
+            s.isSubmittingTask ||
             fromIdx === toIdx ||
             fromIdx < 0 ||
             toIdx < 0 ||
@@ -587,11 +596,24 @@ export const useStore = create<AppState>()(
             prompt: remapImageMentionsForOrder(s.prompt, s.inputImages, nextImages),
           }
         }),
+      // Resolve IDs at commit time: uploading/restoring can change array indices
+      // between touchstart and touchend (or before React commits a render).
+      moveInputImageById: (imageId, targetId) => {
+        const state = get()
+        if (state.maskDraft?.targetImageId === imageId) return
+        state.moveInputImage(
+          state.inputImages.findIndex((image) => image.id === imageId),
+          state.inputImages.findIndex((image) => image.id === targetId),
+        )
+      },
       clearInputImages: () =>
         set((s) => {
+          if (s.isSubmittingTask) return s
+          inputImageImportEpoch++
           for (const img of s.inputImages) imageCache.delete(img.id)
           return {
             inputImages: [],
+            pendingInputImages: 0,
             prompt: remapImageMentionsForOrder(s.prompt, s.inputImages, []),
             maskDraft: null,
             maskEditorImageId: null,
@@ -599,16 +621,20 @@ export const useStore = create<AppState>()(
         }),
       setInputImages: (imgs, options) =>
         set((s) => {
+          if (s.isSubmittingTask) return s
+          inputImageImportEpoch++
           const shouldClearMask =
             Boolean(s.maskDraft) && !imgs.some((img) => img.id === s.maskDraft?.targetImageId)
           return {
             inputImages: imgs,
+            pendingInputImages: 0,
             prompt: remapImageMentionsForOrder(s.prompt, s.inputImages, imgs, options?.equivalentImageIds),
             ...(shouldClearMask ? { maskDraft: null, maskEditorImageId: null } : {}),
           }
         }),
       replaceInputImage: (currentId, nextImage, options) =>
         set((s) => {
+          if (s.isSubmittingTask) return s
           const shouldClearMask = s.maskDraft?.targetImageId === currentId
           const nextImages = s.inputImages.map((img) => (img.id === currentId ? nextImage : img))
           return {
@@ -625,6 +651,7 @@ export const useStore = create<AppState>()(
       maskDraft: null,
       setMaskDraft: (maskDraft) =>
         set((s) => {
+          if (s.isSubmittingTask) return s
           if (!maskDraft) return { maskDraft: null }
           const target = validateMaskTarget(s.inputImages, maskDraft.targetImageId)
           if (s.inputImages[0]?.id === target.id) {
@@ -845,27 +872,26 @@ export function showCodexCliPrompt(force = false, reason = '接口返回的提�
   })
 }
 
-async function restorePersistedInputDrafts() {
-  const state = useStore.getState()
-  const restoredInputImages: InputImage[] = []
-  let inputImagesChanged = false
-
-  for (const image of state.inputImages) {
-    if (image.dataUrl) {
-      restoredInputImages.push(image)
-      continue
-    }
-
-    const dataUrl = await ensureImageCached(image.id)
-    if (dataUrl) {
-      restoredInputImages.push({ ...image, dataUrl })
-    }
-    inputImagesChanged = true
-  }
-
-  if (inputImagesChanged) {
-    state.setInputImages(restoredInputImages)
-  }
+export async function restorePersistedInputDrafts() {
+  const pendingImages = useStore.getState().inputImages.filter((image) => !image.dataUrl)
+  // Never write a captured array back after awaiting storage. The user may
+  // already have reordered, removed, replaced, or added images in the meantime.
+  await Promise.all(pendingImages.map(async (pendingImage) => {
+    const dataUrl = await ensureImageCached(pendingImage.id)
+    useStore.setState((state) => {
+      if (!state.inputImages.includes(pendingImage)) return state
+      const nextImages = state.inputImages.flatMap((image) => {
+        if (image !== pendingImage) return [image]
+        return dataUrl ? [{ ...image, dataUrl }] : []
+      })
+      const removedMask = !dataUrl && state.maskDraft?.targetImageId === pendingImage.id
+      return {
+        inputImages: nextImages,
+        prompt: remapImageMentionsForOrder(state.prompt, state.inputImages, nextImages),
+        ...(removedMask ? { maskDraft: null, maskEditorImageId: null } : {}),
+      }
+    })
+  }))
 
   if (useStore.getState().maskDraft && !useStore.getState().maskDraft?.maskDataUrl) {
     useStore.getState().clearMaskDraft()
@@ -993,6 +1019,21 @@ export async function logout() {
 
 /** 提交新任务 */
 export async function submitTask(options: { allowFullMask?: boolean; usageCodeId?: string | null } = {}) {
+  const state = useStore.getState()
+  if (state.isSubmittingTask) return
+  if (state.pendingInputImages > 0 || state.inputImages.some((image) => !image.dataUrl)) {
+    state.showToast('参考图仍在读取或处理，请等待完成后再提交', 'info')
+    return
+  }
+  useStore.setState({ isSubmittingTask: true })
+  try {
+    await submitTaskSnapshot(options)
+  } finally {
+    useStore.setState({ isSubmittingTask: false })
+  }
+}
+
+async function submitTaskSnapshot(options: { allowFullMask?: boolean; usageCodeId?: string | null }) {
   const { settings, prompt, inputImages, maskDraft, params, taskMode, videoAspectRatio, videoResolution, videoDuration, showToast, setConfirmDialog } =
     useStore.getState()
 
@@ -1093,6 +1134,7 @@ export async function submitTask(options: { allowFullMask?: boolean; usageCodeId
     useStore.getState().setTasks(sortTasksForDisplay([task, ...latestTasks.filter((item) => item.id !== task.id)]))
     useStore.getState().showToast('任务已提交到后端队列', 'success')
     if (settings.clearInputAfterSubmit) {
+      useStore.setState({ isSubmittingTask: false })
       useStore.getState().setPrompt('')
       useStore.getState().clearInputImages()
     } else {
@@ -1346,41 +1388,82 @@ async function storePreparedInputImage(
   return { id, dataUrl: prepared.dataUrl }
 }
 
-/** 添加图片到输入（文件上传）—— 仅放入内存缓存，不写 IndexedDB */
+/** Track the whole batch, including unread files, so submit cannot omit them. */
+export async function addImagesFromFiles(files: File[]): Promise<void> {
+  const images = files.filter((file) => file.type.startsWith('image/'))
+  if (!images.length || useStore.getState().isSubmittingTask) return
+  useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages + images.length }))
+  const epoch = inputImageImportEpoch
+  let remaining = images.length
+  try {
+    for (const file of images) {
+      const dataUrl = await fileToDataUrl(file)
+      const image = await storePreparedInputImage(dataUrl)
+      if (epoch !== inputImageImportEpoch) break
+      useStore.getState().addInputImage(image)
+      remaining--
+      useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages - 1 }))
+    }
+  } finally {
+    if (epoch === inputImageImportEpoch) {
+      useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages - remaining }))
+    }
+  }
+}
+
+/** 添加图片到输入（文件读取、处理并持久化）。 */
 export async function addImageFromFile(file: File): Promise<void> {
-  if (!file.type.startsWith('image/')) return
-  const dataUrl = await fileToDataUrl(file)
-  const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl)
-  useStore.getState().addInputImage({ id, dataUrl: preparedDataUrl })
+  await addImagesFromFiles([file])
 }
 
 export async function replaceInputImageWithDataUrl(currentId: string, dataUrl: string): Promise<string> {
-  const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl, { notifyCompression: false })
-  useStore.getState().replaceInputImage(
-    currentId,
-    { id, dataUrl: preparedDataUrl },
-    { equivalentImageIds: { [currentId]: id } },
-  )
-  return id
+  return trackInputImageOperation(async (epoch) => {
+    const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl, { notifyCompression: false })
+    if (epoch !== inputImageImportEpoch) return id
+    useStore.getState().replaceInputImage(
+      currentId,
+      { id, dataUrl: preparedDataUrl },
+      { equivalentImageIds: { [currentId]: id } },
+    )
+    return id
+  })
 }
 
 export async function addInputImageWithDataUrl(dataUrl: string): Promise<string> {
-  const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl, { notifyCompression: false })
-  const state = useStore.getState()
-  if (!state.inputImages.some((image) => image.id === id)) {
-    state.addInputImage({ id, dataUrl: preparedDataUrl })
-  }
-  return id
+  return trackInputImageOperation(async (epoch) => {
+    const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl, { notifyCompression: false })
+    const state = useStore.getState()
+    if (epoch === inputImageImportEpoch && !state.inputImages.some((image) => image.id === id)) {
+      state.addInputImage({ id, dataUrl: preparedDataUrl })
+    }
+    return id
+  })
 }
 
 /** 添加图片到输入（右键菜单）—— 支持 data/blob/http URL */
 export async function addImageFromUrl(src: string): Promise<void> {
-  const res = await fetch(src)
-  const blob = await res.blob()
-  if (!blob.type.startsWith('image/')) throw new Error('不是有效的图片')
-  const dataUrl = await blobToDataUrl(blob)
-  const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl)
-  useStore.getState().addInputImage({ id, dataUrl: preparedDataUrl })
+  await trackInputImageOperation(async (epoch) => {
+    const res = await fetch(src)
+    if (!res.ok) throw new Error(`图片下载失败：HTTP ${res.status}`)
+    const blob = await res.blob()
+    if (!blob.type.startsWith('image/')) throw new Error('不是有效的图片')
+    const dataUrl = await blobToDataUrl(blob)
+    const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl)
+    if (epoch === inputImageImportEpoch) useStore.getState().addInputImage({ id, dataUrl: preparedDataUrl })
+  })
+}
+
+async function trackInputImageOperation<T>(operation: (epoch: number) => Promise<T>): Promise<T> {
+  if (useStore.getState().isSubmittingTask) throw new Error('参考图正在上传，请等待提交完成')
+  const epoch = inputImageImportEpoch
+  useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages + 1 }))
+  try {
+    return await operation(epoch)
+  } finally {
+    if (epoch === inputImageImportEpoch) {
+      useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages - 1 }))
+    }
+  }
 }
 
 async function loadTaskImageDataUrl(task: TaskRecord, imageId: string): Promise<string | undefined> {

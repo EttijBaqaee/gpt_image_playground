@@ -340,6 +340,7 @@ const fullBackupTaskImageSchema = z.object({
   bytes: z.number().int().nonnegative(),
   sha256: z.string().min(1),
   metadataJson: z.string().nullable(),
+  sortOrder: z.number().int().nonnegative().optional(),
   createdAt: z.string().min(1),
 })
 
@@ -1739,6 +1740,7 @@ function buildFullBackupManifest(app: Parameters<FastifyPluginAsync>[0]) {
     bytes: image.bytes,
     sha256: image.sha256,
     metadataJson: image.metadataJson,
+    sortOrder: image.sortOrder,
     createdAt: image.createdAt,
   })))
   const taskEvents = app.db.listAllTaskEvents()

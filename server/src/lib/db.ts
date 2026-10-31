@@ -117,6 +117,8 @@ export interface TaskImageRecord {
   bytes: number
   sha256: string
   metadataJson: string | null
+  /** Stable attachment order, independent of timestamps and random UUIDs. */
+  sortOrder?: number
   createdAt: string
 }
 
@@ -608,6 +610,7 @@ export class AppDatabase {
         bytes INTEGER NOT NULL,
         sha256 TEXT NOT NULL,
         metadata_json TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
       );
@@ -938,6 +941,24 @@ export class AppDatabase {
     if (!taskImageColumnNames.has('metadata_json')) {
       this.sqlite.exec('ALTER TABLE task_images ADD COLUMN metadata_json TEXT')
     }
+    if (!taskImageColumnNames.has('sort_order')) {
+      this.sqlite.transaction(() => {
+        this.sqlite.exec('ALTER TABLE task_images ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0')
+        // Existing row insertion order is the surviving record of upload order.
+        // Materialize it once, so VACUUM and backup/restore cannot lose it.
+        this.sqlite.exec(`
+          WITH ranked AS (
+            SELECT rowid AS image_rowid,
+              ROW_NUMBER() OVER (PARTITION BY task_id ORDER BY rowid) - 1 AS ordinal
+            FROM task_images
+          )
+          UPDATE task_images SET sort_order = (
+            SELECT ordinal FROM ranked WHERE ranked.image_rowid = task_images.rowid
+          )
+        `)
+      }).immediate()
+    }
+    this.sqlite.exec('CREATE INDEX IF NOT EXISTS idx_task_images_order ON task_images(task_id, sort_order)')
     const usageQuotaEventColumns = this.sqlite.prepare('PRAGMA table_info(usage_quota_events)').all() as Array<{ name: string }>
     const usageQuotaEventColumnNames = new Set(usageQuotaEventColumns.map((column) => column.name))
     if (!usageQuotaEventColumnNames.has('provider_profile_id')) {
@@ -3473,6 +3494,7 @@ ${selectUsageCodeFields()}
     bytes: number
     sha256: string
     metadataJson?: string | null
+    sortOrder?: number
   }) {
     const now = new Date().toISOString()
     try {
@@ -3488,9 +3510,11 @@ ${selectUsageCodeFields()}
           bytes,
           sha256,
           metadata_json,
+          sort_order,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          COALESCE(?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM task_images WHERE task_id = ?)), ?)
       `).run(
         input.id,
         input.taskId,
@@ -3502,6 +3526,8 @@ ${selectUsageCodeFields()}
         input.bytes,
         input.sha256,
         input.metadataJson ?? null,
+        input.sortOrder ?? null,
+        input.taskId,
         now,
         )
       return true
@@ -3550,6 +3576,7 @@ ${selectUsageCodeFields()}
       bytes: number
       sha256: string
       metadataJson?: string | null
+      sortOrder?: number
       createdAt: string
     }>
   }) {
@@ -3617,6 +3644,7 @@ ${selectUsageCodeFields()}
           bytes,
           sha256,
           metadata_json,
+          sort_order,
           created_at
         )
         VALUES (
@@ -3630,6 +3658,7 @@ ${selectUsageCodeFields()}
           @bytes,
           @sha256,
           @metadataJson,
+          COALESCE(@sortOrder, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM task_images WHERE task_id = @taskId)),
           @createdAt
         )
       `)
@@ -3652,6 +3681,7 @@ ${selectUsageCodeFields()}
         insertTaskImage.run({
           ...image,
           metadataJson: image.metadataJson ?? null,
+          sortOrder: image.sortOrder ?? null,
         })
       }
     })
@@ -3698,6 +3728,7 @@ ${selectUsageCodeFields()}
       bytes: number
       sha256: string
       metadataJson?: string | null
+      sortOrder?: number
       createdAt: string
     }>
     taskEvents: TaskEventRowRecord[]
@@ -3895,6 +3926,7 @@ ${selectUsageCodeFields()}
           bytes,
           sha256,
           metadata_json,
+          sort_order,
           created_at
         )
         VALUES (
@@ -3908,6 +3940,7 @@ ${selectUsageCodeFields()}
           @bytes,
           @sha256,
           @metadataJson,
+          COALESCE(@sortOrder, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM task_images WHERE task_id = @taskId)),
           @createdAt
         )
       `)
@@ -4019,6 +4052,7 @@ ${selectUsageCodeFields()}
         insertTaskImage.run({
           ...image,
           metadataJson: image.metadataJson ?? null,
+          sortOrder: image.sortOrder ?? null,
         })
       }
       for (const event of input.taskEvents) {
@@ -4144,10 +4178,11 @@ ${selectUsageCodeFields()}
           bytes,
           sha256,
           metadata_json as metadataJson,
+          sort_order as sortOrder,
           created_at as createdAt
         FROM task_images
         WHERE task_id = ?
-        ORDER BY created_at ASC, id ASC
+        ORDER BY sort_order ASC, created_at ASC, rowid ASC
       `)
       .all(taskId) as TaskImageRecord[]
   }
@@ -4168,10 +4203,11 @@ ${selectUsageCodeFields()}
           bytes,
           sha256,
           metadata_json as metadataJson,
+          sort_order as sortOrder,
           created_at as createdAt
         FROM task_images
         WHERE task_id IN (${placeholders})
-        ORDER BY created_at ASC, id ASC
+        ORDER BY sort_order ASC, created_at ASC, rowid ASC
       `)
       .all(...taskIds) as TaskImageRecord[]
   }
@@ -4203,6 +4239,7 @@ ${selectUsageCodeFields()}
           task_images.bytes,
           task_images.sha256,
           task_images.metadata_json as metadataJson,
+          task_images.sort_order as sortOrder,
           task_images.created_at as createdAt,
           tasks.owner_usage_code_id as ownerUsageCodeId,
           tasks.owner_kind as ownerKind

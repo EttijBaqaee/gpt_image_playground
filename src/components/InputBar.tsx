@@ -1,6 +1,6 @@
 import { readPromptEditor, promptEditorBoundaryOffset, insertPromptPlainText } from '../lib/promptEditorDom'
 import { Fragment, useRef, useEffect, useCallback, useState, useMemo } from 'react'
-import { useStore, submitTask, addImageFromFile, updateTaskInStore, removeMultipleTasks, ensureTaskImageAvailable } from '../store'
+import { useStore, submitTask, addImagesFromFiles, updateTaskInStore, removeMultipleTasks, ensureTaskImageAvailable } from '../store'
 import {
   DEFAULT_PARAMS,
   DEFAULT_VIDEO_PARAMS,
@@ -352,7 +352,9 @@ export default function InputBar() {
   const prompt = useStore((s) => s.prompt)
   const setPrompt = useStore((s) => s.setPrompt)
   const inputImages = useStore((s) => s.inputImages)
-  const moveInputImage = useStore((s) => s.moveInputImage)
+  const moveInputImageById = useStore((s) => s.moveInputImageById)
+  const pendingInputImages = useStore((s) => s.pendingInputImages)
+  const isSubmittingTask = useStore((s) => s.isSubmittingTask)
   const removeInputImage = useStore((s) => s.removeInputImage)
   const clearInputImages = useStore((s) => s.clearInputImages)
   const params = useStore((s) => s.params)
@@ -543,8 +545,8 @@ export default function InputBar() {
   const [attachHover, setAttachHover] = useState(false)
   const [mobileCollapsed, setMobileCollapsed] = useState(false)
   const [selectedInputImageId, setSelectedInputImageId] = useState<string | null>(null)
-  const [dragInputImageIndex, setDragInputImageIndex] = useState<number | null>(null)
-  const [dragOverInputImageIndex, setDragOverInputImageIndex] = useState<number | null>(null)
+  const [dragInputImageId, setDragInputImageId] = useState<string | null>(null)
+  const [dragOverInputImageId, setDragOverInputImageId] = useState<string | null>(null)
   const [imageHintId, setImageHintId] = useState<string | null>(null)
   const [showSizePicker, setShowSizePicker] = useState(false)
   const [showVideoAspectPicker, setShowVideoAspectPicker] = useState(false)
@@ -584,10 +586,13 @@ export default function InputBar() {
   const imageCapabilityError = taskMode === 'image'
     ? getVeniceImageCapability(activeProviderOption, inputImages.length, authStatus?.role === 'admin')
     : null
+  const inputImagesPending = pendingInputImages > 0 || inputImages.some((image) => !image.dataUrl)
   const canSubmit = Boolean(
     prompt.trim()
     && hasConfiguredProvider
     && !isSubmitting
+    && !isSubmittingTask
+    && !inputImagesPending
     && !imageCapabilityError
   )
   const currentUsageCodesForProvider = useMemo(() => (
@@ -1092,8 +1097,10 @@ export default function InputBar() {
   }, [nLimitHint])
 
   const handleFiles = async (files: FileList | File[]) => {
+    if (useStore.getState().isSubmittingTask) return
     try {
-      const currentCount = useStore.getState().inputImages.length
+      const currentState = useStore.getState()
+      const currentCount = currentState.inputImages.length + currentState.pendingInputImages
       const currentProvider = activeProviderOption
       const maxImages = getVeniceImageLimit(currentProvider)
       if (currentCount >= maxImages) {
@@ -1118,9 +1125,7 @@ export default function InputBar() {
         }
       }
 
-      for (const file of toAdd) {
-        await addImageFromFile(file)
-      }
+      await addImagesFromFiles(toAdd)
 
       if (discarded > 0) {
         useStore.getState().showToast(
@@ -1467,8 +1472,8 @@ export default function InputBar() {
   }, [])
 
   const resetInputImageDragState = useCallback(() => {
-    setDragInputImageIndex(null)
-    setDragOverInputImageIndex(null)
+    setDragInputImageId(null)
+    setDragOverInputImageId(null)
   }, [])
 
   const openMaskEditor = useCallback((imageId: string) => {
@@ -1492,7 +1497,7 @@ export default function InputBar() {
   const referenceEditTitle = canEditMask ? '添加遮罩' : '高级编辑'
 
   const handleInputImageDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
-    if (isMobile) {
+    if (isMobile || useStore.getState().isSubmittingTask) {
       event.preventDefault()
       return
     }
@@ -1504,35 +1509,34 @@ export default function InputBar() {
     }
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', inputImages[index]?.id ?? '')
-    setDragInputImageIndex(index)
-    setDragOverInputImageIndex(index)
+    setDragInputImageId(draggingImage?.id ?? null)
+    setDragOverInputImageId(draggingImage?.id ?? null)
   }
 
   const handleInputImageDragOver = (event: React.DragEvent<HTMLDivElement>, index: number) => {
-    if (dragInputImageIndex == null) return
-    if (maskDraft?.targetImageId === inputImages[0]?.id && dragInputImageIndex !== 0 && index === 0) {
+    if (dragInputImageId == null) return
+    if (maskDraft?.targetImageId === inputImages[0]?.id && dragInputImageId !== inputImages[0]?.id && index === 0) {
       event.preventDefault()
       showImageHint(inputImages[0].id)
       return
     }
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
-    if (dragOverInputImageIndex !== index) {
-      setDragOverInputImageIndex(index)
+    if (dragOverInputImageId !== inputImages[index]?.id) {
+      setDragOverInputImageId(inputImages[index]?.id ?? null)
     }
   }
 
   const handleInputImageDrop = (event: React.DragEvent<HTMLDivElement>, index: number) => {
-    if (dragInputImageIndex == null) return
+    if (dragInputImageId == null) return
     event.preventDefault()
-    if (maskDraft?.targetImageId === inputImages[0]?.id && dragInputImageIndex !== 0 && index === 0) {
+    if (maskDraft?.targetImageId === inputImages[0]?.id && dragInputImageId !== inputImages[0]?.id && index === 0) {
       showImageHint(inputImages[0].id)
       resetInputImageDragState()
       return
     }
-    if (dragInputImageIndex !== index) {
-      moveInputImage(dragInputImageIndex, index)
-    }
+    const targetId = inputImages[index]?.id
+    if (targetId) moveInputImageById(dragInputImageId, targetId)
     resetInputImageDragState()
   }
 
@@ -1542,34 +1546,29 @@ export default function InputBar() {
 
   useTouchImageSort(imagesRef, {
     onStart: (imageId) => {
-      const index = inputImages.findIndex((image) => image.id === imageId)
+      const state = useStore.getState()
+      if (state.isSubmittingTask) return false
+      const index = state.inputImages.findIndex((image) => image.id === imageId)
       if (index < 0) return false
-      if (maskDraft?.targetImageId === imageId) {
+      if (state.maskDraft?.targetImageId === imageId) {
         showImageHint(imageId)
         return false
       }
-      setDragInputImageIndex(index)
-      setDragOverInputImageIndex(index)
+      setDragInputImageId(imageId)
+      setDragOverInputImageId(imageId)
       return true
     },
     onTarget: (imageId) => {
-      const index = inputImages.findIndex((image) => image.id === imageId)
-      if (index === 0 && maskDraft?.targetImageId === inputImages[0]?.id) {
-        showImageHint(inputImages[0].id)
-        setDragOverInputImageIndex(null)
+      const state = useStore.getState()
+      if (imageId && state.maskDraft?.targetImageId === imageId) {
+        showImageHint(imageId)
+        setDragOverInputImageId(null)
         return
       }
-      setDragOverInputImageIndex(index < 0 ? null : index)
+      setDragOverInputImageId(imageId)
     },
     onDrop: (imageId, targetId) => {
-      const from = inputImages.findIndex((image) => image.id === imageId)
-      const to = inputImages.findIndex((image) => image.id === targetId)
-      if (from < 0 || to < 0 || maskDraft?.targetImageId === imageId) return
-      if (to === 0 && maskDraft?.targetImageId === inputImages[0]?.id) {
-        showImageHint(inputImages[0].id)
-        return
-      }
-      moveInputImage(from, to)
+      moveInputImageById(imageId, targetId)
     },
     onEnd: resetInputImageDragState,
   })
@@ -1579,8 +1578,8 @@ export default function InputBar() {
     const isMaskTarget = maskDraft?.targetImageId === img.id
     const displaySrc = isMaskTarget && maskPreviewUrl ? maskPreviewUrl : img.dataUrl
     const selected = selectedInputImageId === img.id
-    const isDropTarget = dragInputImageIndex != null && dragOverInputImageIndex === originalIndex
-    const isDraggingThumb = dragInputImageIndex === originalIndex
+    const isDropTarget = dragInputImageId != null && dragOverInputImageId === img.id
+    const isDraggingThumb = dragInputImageId === img.id
     // 超过当前端点上限的后几张参考图置灰，提示用户删除后再提交
     const isOverflowThumb = originalIndex >= veniceImageLimit
     const deleteButtonClass = isMobile
@@ -1599,7 +1598,7 @@ export default function InputBar() {
       <div
         key={img.id}
         data-input-image-id={img.id}
-        draggable={!isMobile}
+        draggable={!isMobile && !isSubmittingTask}
         style={{ WebkitTouchCallout: 'none' }}
         className={`relative group inline-block select-none transition-transform ${isDraggingThumb ? 'scale-95 opacity-60' : ''}`}
         onDragStart={(event) => handleInputImageDragStart(event, originalIndex)}
@@ -1741,11 +1740,13 @@ export default function InputBar() {
 
   const renderImageThumbs = () => {
     return (
-        <div ref={imagesRef}>
-        <div className="mb-3 grid grid-cols-[repeat(auto-fill,52px)] justify-between gap-x-2 gap-y-3">
-          {inputImages.map((img) => renderImageThumb(img))}
-          {renderClearAllButton()}
-        </div>
+      <div ref={imagesRef} aria-busy={isSubmittingTask}>
+        <fieldset disabled={isSubmittingTask} className="m-0 min-w-0 border-0 p-0">
+          <div className="mb-3 grid grid-cols-[repeat(auto-fill,52px)] justify-between gap-x-2 gap-y-3">
+            {inputImages.map((img) => renderImageThumb(img))}
+            {renderClearAllButton()}
+          </div>
+        </fieldset>
       </div>
     )
   }
@@ -2287,6 +2288,14 @@ export default function InputBar() {
             >
               <div className={`h-1 w-10 rounded-full bg-gray-300 transition-transform duration-250 dark:bg-white/[0.10] ${mobileCollapsed ? 'scale-x-75' : 'scale-x-100'}`} />
             </div>
+          )}
+
+          {(inputImagesPending || isSubmittingTask) && (
+            <p role="status" className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              {isSubmittingTask
+                ? '参考图正在上传，本次顺序已锁定，请等待提交完成'
+                : `参考图正在读取或处理${pendingInputImages > 0 ? `（剩余 ${pendingInputImages} 张）` : ''}，完成后可提交`}
+            </p>
           )}
 
           {inputImages.length > 0 && (
