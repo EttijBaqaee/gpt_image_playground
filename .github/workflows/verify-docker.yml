@@ -1,0 +1,91 @@
+name: Verify and build release Docker image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          npm --prefix server ci
+
+      - name: Test and compile
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          npm test 2>&1 | tee artifacts/tests.log
+          npm run build:web
+          npm run build:server
+          node -e "console.log(JSON.stringify({node:process.version,web:require('./package.json').version,server:require('./server/package.json').version},null,2))" > artifacts/versions.json
+
+      - name: Install isolated browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/order-browser" --no-save --package-lock=false playwright@1.62.1
+          "$RUNNER_TEMP/order-browser/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: Verify mobile and desktop ordering with slow uploads
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &
+          vite_pid=$!
+          trap 'kill "$vite_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          export PLAYWRIGHT_MODULE="file://$RUNNER_TEMP/order-browser/node_modules/playwright/index.mjs"
+          export TEST_OUTPUT="$GITHUB_WORKSPACE/artifacts/browser"
+          node scripts/verify-touch-sort-async.mjs 2>&1 | tee artifacts/browser-tests.log
+
+      - name: Build Linux amd64 release image
+        run: |
+          version=$(node -p "require('./package.json').version")
+          printf 'RELEASE_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+          docker build --platform linux/amd64 -f deploy/Dockerfile -t "gpt-image-playground-fork:$version" .
+
+      - name: Verify the built production container and legacy migration
+        run: python3 scripts/verify-docker-smoke.py --image "gpt-image-playground-fork:$RELEASE_VERSION" --output artifacts/docker
+
+      - name: Export the tested image
+        run: |
+          set -euo pipefail
+          archive="gpt-image-playground-fork-$RELEASE_VERSION-amd64.tar.gz"
+          docker save "gpt-image-playground-fork:$RELEASE_VERSION" | gzip -1 > "artifacts/$archive"
+          (cd artifacts && sha256sum "$archive" > SHA256SUMS)
+          cp deploy/docker-compose.yml artifacts/docker-compose.yml
+
+      - name: Save release archive and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-docker-${{ github.sha }}
+          compression-level: 0
+          path: |
+            artifacts/*.tar.gz
+            artifacts/SHA256SUMS
+            artifacts/docker-compose.yml
+            artifacts/versions.json
+            artifacts/tests.log
+            artifacts/browser-tests.log
+            artifacts/browser/report.json
+            artifacts/browser/*.png
+            artifacts/docker/report.json
+          if-no-files-found: error

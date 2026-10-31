@@ -1,24 +1,10 @@
 FROM node:22-bookworm-slim AS web-build
 
 WORKDIR /app
-ARG TARGETARCH
 ENV VITE_DEFAULT_API_URL=__VITE_DEFAULT_API_URL_PLACEHOLDER__
 
 COPY package.json package-lock.json ./
 RUN npm ci
-RUN resolved_arch="${TARGETARCH}"; \
-    if [ -z "$resolved_arch" ]; then \
-      case "$(uname -m)" in \
-        x86_64) resolved_arch="amd64" ;; \
-        aarch64|arm64) resolved_arch="arm64" ;; \
-        *) echo "Unsupported uname -m: $(uname -m)" && exit 1 ;; \
-      esac; \
-    fi; \
-    case "$resolved_arch" in \
-      "amd64") npm install --no-save @rollup/rollup-linux-x64-gnu ;; \
-      "arm64") npm install --no-save @rollup/rollup-linux-arm64-gnu ;; \
-      *) echo "Unsupported TARGETARCH: $resolved_arch" && exit 1 ;; \
-    esac
 
 COPY . .
 RUN npm run build:web
@@ -59,7 +45,7 @@ COPY --from=server-build /app/server/dist /app/server/dist
 COPY --from=server-build /app/server/package.json /app/server/package.json
 COPY --from=web-build /app/dist /app/dist
 COPY LICENSE /app/LICENSE
-LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.version="0.3.66.3" org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.version="0.3.66.5" org.opencontainers.image.licenses="MIT"
 
 RUN mkdir -p /app/data && chown node:node /app/data
 

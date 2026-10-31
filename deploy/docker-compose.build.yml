@@ -2,7 +2,7 @@
 services:
   app:
     # 本地构建镜像名；可按需修改，保持部署时引用的名称一致。
-    image: gpt-image-playground-fork:0.3.66.3
+    image: gpt-image-playground-fork:0.3.66.5
     # 使用本地构建镜像，无需从仓库拉取。
     pull_policy: never
     build:
