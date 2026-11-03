@@ -19,7 +19,7 @@ import {
 const cleanup: Array<() => Promise<void>> = []
 afterEach(async () => { vi.useRealTimers(); for (const fn of cleanup.splice(0).reverse()) await fn() })
 const config = { appSecret: 'public-reference-test-secret', referenceBasePath: '/custom-references' }
-function provider(origin = 'https://mabfx.com'): ProviderProfileRecord {
+function provider(origin = 'https://example.com'): ProviderProfileRecord {
   return { id: 'p', apiMode: 'images', timeoutSeconds: 1500, publicReferenceEnabled: 1,
     publicReferenceBaseUrl: origin, publicReferenceVerification: publicReferenceVerification(config, origin) } as ProviderProfileRecord
 }
@@ -50,11 +50,11 @@ async function expose(app: Awaited<ReturnType<typeof setup>>['app'], transform?:
 
 describe('public reference URLs', () => {
   it('normalizes an origin and rejects paths, credentials, queries and other protocols', () => {
-    expect(normalizePublicReferenceBaseUrl(' https://mabfx.com/ ')).toBe('https://mabfx.com')
-    expect(normalizePublicReferenceBaseUrl('https://mabfx.com:8443')).toBe('https://mabfx.com:8443')
+    expect(normalizePublicReferenceBaseUrl(' https://example.com/ ')).toBe('https://example.com')
+    expect(normalizePublicReferenceBaseUrl('https://example.com:8443')).toBe('https://example.com:8443')
     expect(normalizePublicReferenceBaseUrl('http://203.0.113.10:8787/')).toBe('http://203.0.113.10:8787')
     expect(normalizePublicReferenceBaseUrl('http://[2001:db8::1]:8787/')).toBe('http://[2001:db8::1]:8787')
-    for (const url of ['mabfx.com', 'https://mabfx.com/home/', 'https://a:b@mabfx.com', 'file:///tmp/x', 'https://mabfx.com/?x=y', 'https://mabfx.com/#x']) {
+    for (const url of ['example.com', 'https://example.com/home/', 'https://a:b@example.com', 'file:///tmp/x', 'https://example.com/?x=y', 'https://example.com/#x']) {
       expect(() => normalizePublicReferenceBaseUrl(url)).toThrow()
     }
   })
@@ -113,13 +113,13 @@ describe('public reference URLs', () => {
     const { db } = await setup()
     const saved = db.upsertProviderProfile({ id: 'p', name: 'p', baseUrl: 'https://supplier.example', apiKeyEncrypted: encryptText('dummy', config.appSecret),
       model: 'gpt-image-2', apiMode: 'images', timeoutSeconds: 1500, isDefault: true,
-      publicReferenceEnabled: true, publicReferenceBaseUrl: 'https://mabfx.com', publicReferenceVerification: provider().publicReferenceVerification })!
+      publicReferenceEnabled: true, publicReferenceBaseUrl: 'https://example.com', publicReferenceVerification: provider().publicReferenceVerification })!
     expect(db.getDefaultProviderProfile()?.publicReferenceVerification).toBe(saved.publicReferenceVerification)
     const persisted = new AppDatabase(db.sqlite.name)
     try {
       expect(persisted.getProviderProfile('p')).toMatchObject({
         publicReferenceEnabled: 1,
-        publicReferenceBaseUrl: 'https://mabfx.com',
+        publicReferenceBaseUrl: 'https://example.com',
         publicReferenceVerification: saved.publicReferenceVerification,
       })
     } finally { persisted.sqlite.close() }
@@ -165,12 +165,12 @@ describe('public reference URLs', () => {
     const payload = { prompt: 'ordered references', params: { size: 'auto', quality: 'auto', output_format: 'png', output_compression: null, moderation: 'auto', n: 1 },
       provider: { ...provider(), model: 'gpt-image-2', baseUrl: `http://127.0.0.1:${(server.address() as { port: number }).port}`, maxReferenceImages: 16 },
       inputImages: paths.map(filePath => ({ filePath, mimeType: 'image/png' })), maskImage: { filePath: 'mask.png', mimeType: 'image/png' } } as TaskExecutionPayload
-    await executeImageTask(null as never, payload, 'dummy', { publicReferenceImageUrl: image => 'https://mabfx.com/custom-references/references/uploads/' + image.filePath })
+    await executeImageTask(null as never, payload, 'dummy', { publicReferenceImageUrl: image => 'https://example.com/custom-references/references/uploads/' + image.filePath })
     expect(received).toHaveLength(1)
     expect(received[0].url).toBe('/v1/images/edits')
     expect(received[0].type).toBe('application/json')
-    expect(received[0].body.images).toEqual(paths.map(name => ({ image_url: 'https://mabfx.com/custom-references/references/uploads/' + name })))
-    expect(received[0].body.mask).toEqual({ image_url: 'https://mabfx.com/custom-references/references/uploads/mask.png' })
+    expect(received[0].body.images).toEqual(paths.map(name => ({ image_url: 'https://example.com/custom-references/references/uploads/' + name })))
+    expect(received[0].body.mask).toEqual({ image_url: 'https://example.com/custom-references/references/uploads/mask.png' })
     expect(JSON.stringify(received[0])).not.toContain('data:image')
   })
   it.each(['', '/r/custom'])('serves only signed inputs and masks through reference prefix %s', async referenceBasePath => {

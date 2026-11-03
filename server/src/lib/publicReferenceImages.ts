@@ -20,7 +20,7 @@ function configurationError(message: string) { return Object.assign(new Error(me
 
 export function normalizePublicReferenceBaseUrl(value: string) {
   let url: URL
-  try { url = new URL(value.trim()) } catch { throw configurationError('请填写完整公网地址，例如 https://mabfx.com') }
+  try { url = new URL(value.trim()) } catch { throw configurationError('请填写完整公网地址，例如 https://example.com') }
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') {
     throw configurationError('公网地址只填写协议、域名和可选端口，不包含路径、账号或查询参数')
   }

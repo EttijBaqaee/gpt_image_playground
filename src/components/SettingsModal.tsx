@@ -3483,7 +3483,7 @@ const hasUnreadEndedReminders = useMemo(
                             value={profileDraft.publicReferenceBaseUrl ?? ''}
                             onChange={(event) => updateProfileDraft({ publicReferenceBaseUrl: event.target.value })}
                             onClear={() => updateProfileDraft({ publicReferenceBaseUrl: '' })}
-                            placeholder="https://mabfx.com"
+                            placeholder="https://example.com"
                             className="mt-2 w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                           />
                         </label>
