@@ -6,7 +6,7 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 services:
   app:
     # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.5
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.6
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -21,11 +21,14 @@ services:
       # JS/CSS 等构建资源前缀：s → /s/assets/；留空沿用主页前缀以兼容旧版；填 / → /assets/。
       # 可单独设置，不需要重新构建镜像。assets 末尾段保持不变。
       ASSETS_BASE_PATH: "${ASSETS_BASE_PATH:-}"
-      # 以下三个后端前缀互相独立，留空均不继承主页前缀。
+      # 以下四个后端前缀互相独立，留空均不继承主页前缀。
       # API 前缀：a → /a/api/…；默认留空 → /api/…。
       API_BASE_PATH: "${API_BASE_PATH:-}"
       # 媒体前缀：m → /m/media/…；默认留空 → /media/…。
       MEDIA_BASE_PATH: "${MEDIA_BASE_PATH:-}"
+      # 可选：供应商公网参考图的独立前缀：r → /r/references/…；默认留空 → /references/…。
+      # 仅开启“参考图使用公网 URL”的节点使用；反代保留完整路径和签名参数，修改后需重新检测。
+      REFERENCE_BASE_PATH: "${REFERENCE_BASE_PATH:-}"
       # 健康检查前缀：h → /h/health 和 /h/health/；默认留空 → /health 和 /health/。
       HEALTH_BASE_PATH: "${HEALTH_BASE_PATH:-}"
       # 可选：默认留空，不信任转发 IP；只填实际反向代理 IP 或受限 CIDR，多个值用逗号分隔。
@@ -55,7 +58,8 @@ services:
       UPSTREAM_MODEL: "${UPSTREAM_MODEL:-gpt-image-2}"
       # 可选：接口模式，默认 images；支持 images/responses/videos/venice_images/wavespeed/kie。
       UPSTREAM_API_MODE: "${UPSTREAM_API_MODE:-images}"
-      # 可选：上游请求超时，单位秒，默认 300；填写正整数。
+      # 可选：首次初始化节点的请求超时，单位秒，默认 300；填写正整数。
+      # 已有节点请在网页的供应商/API 配置中修改“请求超时”，此变量不会覆盖已保存节点。
       UPSTREAM_TIMEOUT_SECONDS: "${UPSTREAM_TIMEOUT_SECONDS:-300}"
       # 可选：Codex CLI 兼容开关，默认 false；仅对应供应商要求时设为 true。
       UPSTREAM_CODEX_CLI: "${UPSTREAM_CODEX_CLI:-false}"

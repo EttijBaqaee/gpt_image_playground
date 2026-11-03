@@ -61,16 +61,7 @@ async function readErrorMessage(response: Response) {
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutSeconds: number, provider?: { timeoutSeconds: number; proxyEnabled?: number | boolean | null; proxyUrl?: string | null }) {
-  if (provider) {
-    return fetchWithProviderProxy(provider, url, init, timeoutSeconds)
-  }
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000)
-  try {
-    return await fetch(url, { ...init, signal: controller.signal })
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  return fetchWithProviderProxy(provider ?? { timeoutSeconds }, url, init, timeoutSeconds)
 }
 
 async function fileToDataUrl(filePath: string, mimeType: string) {
@@ -138,8 +129,8 @@ export async function pollVideoGeneration(provider: ProviderProfileRecord, apiKe
   return response.json() as Promise<VideoPollResult>
 }
 
-export async function downloadVideoOutput(outputDir: string, videoUrl: string, duration?: number | null) {
-  const response = await fetch(videoUrl, { headers: { 'Cache-Control': 'no-store' } })
+export async function downloadVideoOutput(outputDir: string, videoUrl: string, duration?: number | null, timeoutSeconds = 300) {
+  const response = await fetchWithProviderProxy({ timeoutSeconds }, videoUrl, { headers: { 'Cache-Control': 'no-store' } })
   if (!response.ok) throw new Error(await readErrorMessage(response))
   const buffer = Buffer.from(await response.arrayBuffer())
   const filename = 'output-1.mp4'

@@ -1,7 +1,7 @@
 # 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
 # APP_BASE_PATH=gpt_image_playground
 # ASSETS_BASE_PATH=s
-# API_BASE_PATH=a  MEDIA_BASE_PATH=m  HEALTH_BASE_PATH=h
+# API_BASE_PATH=a  MEDIA_BASE_PATH=m  REFERENCE_BASE_PATH=r  HEALTH_BASE_PATH=h
 # APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
 location = /gpt_image_playground {
     return 301 /gpt_image_playground/;
@@ -57,6 +57,22 @@ location ^~ /a/api/ {
 
 # 媒体仍由应用鉴权，不在代理层建立公共缓存。
 location ^~ /m/media/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_cache off;
+}
+
+# 独立公网参考图：应用验证临时签名；保留查询参数，不额外添加登录认证。
+# REFERENCE_BASE_PATH 留空时改为 location ^~ /references/。
+location ^~ /r/references/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_http_version 1.1;
     proxy_set_header Host $host;

@@ -1,4 +1,4 @@
-import { ProxyAgent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from 'undici'
+import { Agent, Pool, ProxyAgent, FormData as UndiciFormData, fetch as undiciFetch, type Dispatcher, type RequestInit as UndiciRequestInit } from 'undici'
 import { SocksProxyAgent } from 'socks-proxy-agent'
 import http from 'node:http'
 import https from 'node:https'
@@ -38,21 +38,33 @@ export function validateProxyUrl(raw: string | null | undefined) {
   return parsed.toString()
 }
 
+// The per-request deadline below covers both headers and the complete body.
+// Disable Undici's independent 300-second limits so a longer configured
+// deadline is not cut short. Use the matching Undici fetch/dispatcher pair.
+// HTTP forward proxies create another internal client. Set request options
+// as well, so that client's defaults cannot reintroduce the 300-second cap.
+const useDeadlineOnly: Dispatcher.DispatcherComposeInterceptor = (dispatch) => (options, handler) =>
+  dispatch({ ...options, headersTimeout: 0, bodyTimeout: 0 }, handler)
+const directDispatcher = new Agent({ headersTimeout: 0, bodyTimeout: 0 }).compose(useDeadlineOnly)
+
 function createAbortSignal(timeoutSeconds: number, external?: AbortSignal | null) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), Math.max(1, timeoutSeconds) * 1000)
-  const onExternalAbort = () => controller.abort()
-  if (external) {
-    if (external.aborted) controller.abort()
-    else external.addEventListener('abort', onExternalAbort, { once: true })
+  const deadline = AbortSignal.timeout(Math.max(1, timeoutSeconds) * 1000)
+  return external ? AbortSignal.any([external, deadline]) : deadline
+}
+
+function toUndiciRequestInit(init: RequestInit): UndiciRequestInit {
+  const options = { ...init } as UndiciRequestInit
+  // Undici 8 does not recognize Node's built-in FormData class. Convert its
+  // entries without buffering or changing file names, MIME types or order.
+  if (init.body instanceof FormData) {
+    const form = new UndiciFormData()
+    for (const [name, value] of init.body) {
+      if (typeof value === 'string') form.append(name, value)
+      else form.append(name, value, value.name)
+    }
+    options.body = form
   }
-  return {
-    signal: controller.signal,
-    cleanup: () => {
-      clearTimeout(timeoutId)
-      if (external) external.removeEventListener('abort', onExternalAbort)
-    },
-  }
+  return options
 }
 
 async function fetchWithSocks(
@@ -107,6 +119,7 @@ async function fetchWithSocks(
       },
       (res) => {
         const chunks: Buffer[] = []
+        res.on('error', reject)
         res.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
         res.on('end', () => {
           const buffer = Buffer.concat(chunks)
@@ -126,13 +139,14 @@ async function fetchWithSocks(
     )
     req.on('error', reject)
     const onAbort = () => {
-      req.destroy(new Error('请求超时或已取消'))
+      req.destroy(signal.reason instanceof Error ? signal.reason : new Error('请求超时或已取消'))
     }
+    req.once('close', () => signal.removeEventListener('abort', onAbort))
     if (signal.aborted) onAbort()
     else signal.addEventListener('abort', onAbort, { once: true })
     if (body) req.write(body)
     req.end()
-  })
+  }).finally(() => agent.destroy())
 }
 
 export async function fetchWithProviderProxy(
@@ -142,33 +156,40 @@ export async function fetchWithProviderProxy(
   timeoutSeconds?: number,
 ): Promise<Response> {
   const timeout = Math.max(1, timeoutSeconds ?? provider.timeoutSeconds ?? 30)
-  const { signal, cleanup } = createAbortSignal(timeout, init.signal)
-  try {
-    if (!isProxyEnabled(provider)) {
-      return await fetch(url, { ...init, signal })
-    }
-
-    const proxyUrl = validateProxyUrl(provider.proxyUrl)
-    if (!proxyUrl) {
-      return await fetch(url, { ...init, signal })
-    }
-
-    const protocol = new URL(proxyUrl).protocol.replace(':', '').toLowerCase()
-    if (protocol === 'http' || protocol === 'https') {
-      const dispatcher = new ProxyAgent(proxyUrl)
-      return await undiciFetch(url, {
-        ...(init as UndiciRequestInit),
-        signal,
-        dispatcher,
-      }) as unknown as Response
-    }
-
-    if (protocol.startsWith('socks')) {
-      return await fetchWithSocks(url, { ...init, signal }, proxyUrl, signal)
-    }
-
-    throw new Error('代理仅支持 http、https、socks4、socks5')
-  } finally {
-    cleanup()
+  const signal = createAbortSignal(timeout, init.signal)
+  const proxyUrl = isProxyEnabled(provider) ? validateProxyUrl(provider.proxyUrl) : null
+  if (!proxyUrl) {
+    return await undiciFetch(url, {
+      ...toUndiciRequestInit(init),
+      signal,
+      dispatcher: directDispatcher,
+    }) as unknown as Response
   }
+
+  const protocol = new URL(proxyUrl).protocol.replace(':', '').toLowerCase()
+  if (protocol === 'http' || protocol === 'https') {
+    const dispatcher = new ProxyAgent({
+      uri: proxyUrl,
+      headersTimeout: 0,
+      bodyTimeout: 0,
+      clientFactory: (origin, options) => new Pool(origin, { ...options, headersTimeout: 0, bodyTimeout: 0 }),
+    })
+    try {
+      return await undiciFetch(url, {
+        ...toUndiciRequestInit(init),
+        signal,
+        dispatcher: dispatcher.compose(useDeadlineOnly),
+      }) as unknown as Response
+    } finally {
+      // close() waits for the response body; do not destroy its socket when
+      // fetch resolves at the headers. Retire this request's proxy afterward.
+      void dispatcher.close().catch(() => dispatcher.destroy()).catch(() => {})
+    }
+  }
+
+  if (protocol.startsWith('socks')) {
+    return await fetchWithSocks(url, { ...init, signal }, proxyUrl, signal)
+  }
+
+  throw new Error('代理仅支持 http、https、socks4、socks5')
 }

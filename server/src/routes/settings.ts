@@ -44,6 +44,7 @@ import type {
   UsageQuotaEventRowRecord,
 } from '../lib/db.js'
 import { validateProxyUrl } from '../lib/upstreamFetch.js'
+import { assertPublicReferenceSettings, isPublicReferenceVerified, normalizePublicReferenceBaseUrl } from '../lib/publicReferenceImages.js'
 import { fetchWaveSpeedBalance } from '../lib/wavespeedApi.js'
 import { fetchKieBalance } from '../lib/kieApi.js'
 import { fetchVeniceBalance } from '../lib/imageApi.js'
@@ -94,6 +95,18 @@ const videoDurationOptionsSchema = z.array(videoDurationOptionSchema)
   .transform((value) => Array.from(new Set(value)).sort((a, b) => a - b) as Array<6 | 10 | 15>)
 
 
+function validatePublicReferenceProfile(app: Parameters<FastifyPluginAsync>[0], payload: {
+  publicReferenceEnabled?: boolean; publicReferenceBaseUrl?: string | null; publicReferenceVerification?: string | null
+  apiMode: string; codexCli?: boolean; grokApiCompat?: boolean
+}, current?: ProviderProfileRecord) {
+  payload.publicReferenceEnabled ??= Boolean(current?.publicReferenceEnabled)
+  payload.publicReferenceBaseUrl ??= current?.publicReferenceBaseUrl ?? ''
+  payload.publicReferenceVerification ??= current?.publicReferenceVerification ?? ''
+  if (payload.apiMode !== 'images' || payload.codexCli || payload.grokApiCompat) payload.publicReferenceEnabled = false
+  assertPublicReferenceSettings(app.config, payload)
+  if (payload.publicReferenceEnabled) payload.publicReferenceBaseUrl = normalizePublicReferenceBaseUrl(payload.publicReferenceBaseUrl || '')
+}
+
 function normalizeProviderProxyFields<T extends { proxyEnabled?: boolean; proxyUrl?: string | null }>(payload: T): T {
   const enabled = Boolean(payload.proxyEnabled)
   const proxyUrl = enabled ? (validateProxyUrl(payload.proxyUrl) ?? '') : (String(payload.proxyUrl ?? '').trim() || '')
@@ -131,6 +144,9 @@ const providerProfileSchema = z.object({
   grokApiCompat: z.boolean().default(false),
   xaiImage2kEnabled: z.boolean().default(false),
   responseFormatB64Json: z.boolean().default(false),
+  publicReferenceEnabled: z.boolean().optional(),
+  publicReferenceBaseUrl: z.string().trim().max(2048).nullable().optional(),
+  publicReferenceVerification: z.string().max(128).nullable().optional(),
   videoMaxResolution: videoResolutionOptionSchema.default('480p'),
   videoResolutionOptions: videoResolutionOptionsSchema.default(['480p']),
   videoMaxDuration: videoDurationOptionSchema.default(6),
@@ -152,6 +168,9 @@ const runtimeSettingsSchemaBase = z.object({
   grokApiCompat: z.boolean().default(false),
   xaiImage2kEnabled: z.boolean().default(false),
   responseFormatB64Json: z.boolean().default(false),
+  publicReferenceEnabled: z.boolean().optional(),
+  publicReferenceBaseUrl: z.string().trim().max(2048).nullable().optional(),
+  publicReferenceVerification: z.string().max(128).nullable().optional(),
   veniceGenerateEnabled: z.boolean().default(true),
   veniceEditEnabled: z.boolean().default(true),
   veniceMultiEditEnabled: z.boolean().default(true),
@@ -258,6 +277,9 @@ const fullBackupProviderProfileSchema = z.object({
   grokApiCompat: z.boolean(),
   xaiImage2kEnabled: z.boolean(),
   responseFormatB64Json: z.boolean(),
+  publicReferenceEnabled: z.boolean().optional(),
+  publicReferenceBaseUrl: z.string().trim().max(2048).nullable().optional(),
+  publicReferenceVerification: z.string().max(128).nullable().optional(),
   veniceGenerateEnabled: z.boolean().default(true),
   veniceEditEnabled: z.boolean().default(true),
   veniceMultiEditEnabled: z.boolean().default(true),
@@ -1064,6 +1086,9 @@ function serializeProfile(app: Parameters<FastifyPluginAsync>[0], profile: Provi
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
+    publicReferenceEnabled: Boolean(profile.publicReferenceEnabled),
+    publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
+    publicReferenceVerification: isPublicReferenceVerified(app.config, profile) ? profile.publicReferenceVerification : '',
     videoMaxResolution: profile.videoMaxResolution,
     videoResolutionOptions: profile.videoResolutionOptions ?? [profile.videoMaxResolution],
     videoMaxDuration: profile.videoMaxDuration,
@@ -1103,6 +1128,8 @@ function serializeProviderOption(profile: ProviderProfileRecord) {
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
+    publicReferenceEnabled: Boolean(profile.publicReferenceEnabled),
+    publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
     videoMaxResolution: profile.videoMaxResolution,
     videoResolutionOptions: profile.videoResolutionOptions ?? [profile.videoMaxResolution],
     videoMaxDuration: profile.videoMaxDuration,
@@ -1662,6 +1689,9 @@ function buildFullBackupManifest(app: Parameters<FastifyPluginAsync>[0]) {
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
+    publicReferenceEnabled: Boolean(profile.publicReferenceEnabled),
+    publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
+    publicReferenceVerification: isPublicReferenceVerified(app.config, profile) ? profile.publicReferenceVerification : '',
     videoMaxResolution: profile.videoMaxResolution,
     videoResolutionOptions: profile.videoResolutionOptions ?? [profile.videoMaxResolution],
     videoMaxDuration: profile.videoMaxDuration,
@@ -2967,6 +2997,9 @@ function buildLegacyImportPayload(app: Parameters<FastifyPluginAsync>[0], payloa
     grokApiCompat: payload.runtimeSettings.grokApiCompat ? 1 : 0,
     xaiImage2kEnabled: payload.runtimeSettings.xaiImage2kEnabled ? 1 : 0,
     responseFormatB64Json: payload.runtimeSettings.responseFormatB64Json ? 1 : 0,
+    publicReferenceEnabled: payload.runtimeSettings.publicReferenceEnabled ? 1 : 0,
+    publicReferenceBaseUrl: payload.runtimeSettings.publicReferenceBaseUrl ?? null,
+    publicReferenceVerification: payload.runtimeSettings.publicReferenceVerification ?? null,
     veniceGenerateEnabled: payload.runtimeSettings.veniceGenerateEnabled === false ? 0 : 1,
     veniceEditEnabled: payload.runtimeSettings.veniceEditEnabled === false ? 0 : 1,
     veniceMultiEditEnabled: payload.runtimeSettings.veniceMultiEditEnabled === false ? 0 : 1,
@@ -3138,6 +3171,9 @@ function buildParsedPayloadFromFullManifest(
       grokApiCompat: profile.grokApiCompat ? 1 : 0,
       xaiImage2kEnabled: profile.xaiImage2kEnabled ? 1 : 0,
       responseFormatB64Json: profile.responseFormatB64Json ? 1 : 0,
+      publicReferenceEnabled: profile.publicReferenceEnabled ? 1 : 0,
+      publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? null,
+      publicReferenceVerification: profile.publicReferenceVerification ?? null,
       veniceGenerateEnabled: profile.veniceGenerateEnabled === false ? 0 : 1,
       veniceEditEnabled: profile.veniceEditEnabled === false ? 0 : 1,
       veniceMultiEditEnabled: profile.veniceMultiEditEnabled === false ? 0 : 1,
@@ -3685,6 +3721,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       grokApiCompat: Boolean(profile.grokApiCompat),
       xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
       responseFormatB64Json: Boolean(profile.responseFormatB64Json),
+      publicReferenceEnabled: Boolean(profile.publicReferenceEnabled),
+      publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
+      publicReferenceVerification: isPublicReferenceVerified(app.config, profile) ? profile.publicReferenceVerification : '',
       videoMaxResolution: profile.videoMaxResolution,
       videoResolutionOptions: profile.videoResolutionOptions ?? [profile.videoMaxResolution],
       videoMaxDuration: profile.videoMaxDuration,
@@ -3703,6 +3742,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     await requireAdmin(app, request, reply)
     const payload = normalizeProviderProxyFields(runtimeSettingsSchema.parse(request.body))
     const currentDefaultProfile = app.db.getDefaultProviderProfile()
+    validatePublicReferenceProfile(app, payload, currentDefaultProfile)
     const profile = app.db.upsertProviderProfile({
       id: currentDefaultProfile?.id ?? 'default',
       name: currentDefaultProfile?.name ?? '默认节点',
@@ -3715,6 +3755,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
+      publicReferenceEnabled: payload.publicReferenceEnabled,
+      publicReferenceBaseUrl: payload.publicReferenceBaseUrl,
+      publicReferenceVerification: payload.publicReferenceVerification,
       veniceGenerateEnabled: payload.veniceGenerateEnabled,
       veniceEditEnabled: payload.veniceEditEnabled,
       veniceMultiEditEnabled: payload.veniceMultiEditEnabled,
@@ -3756,6 +3799,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: profile.apiMode,
       timeoutSeconds: profile.timeoutSeconds,
       responseFormatB64Json: Boolean(profile.responseFormatB64Json),
+      publicReferenceEnabled: Boolean(profile.publicReferenceEnabled),
+      publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
+      publicReferenceVerification: isPublicReferenceVerified(app.config, profile) ? profile.publicReferenceVerification : '',
       codexCli: Boolean(profile.codexCli),
       grokApiCompat: Boolean(profile.grokApiCompat),
       xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
@@ -3850,6 +3896,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     const payload = normalizeProviderProxyFields(providerProfileSchema.parse(request.body))
     const currentDefaultProfile = app.db.getDefaultProviderProfile()
     const currentProfile = payload.id ? app.db.getProviderProfile(payload.id) : currentDefaultProfile
+    validatePublicReferenceProfile(app, payload, currentProfile)
     const apiKey = payload.apiKey?.trim()
     if (!apiKey && !currentProfile) {
       throw new Error('新建 API 配置需要填写 API Key')
@@ -3870,6 +3917,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
+      publicReferenceEnabled: payload.publicReferenceEnabled,
+      publicReferenceBaseUrl: payload.publicReferenceBaseUrl,
+      publicReferenceVerification: payload.publicReferenceVerification,
       veniceGenerateEnabled: payload.veniceGenerateEnabled,
       veniceEditEnabled: payload.veniceEditEnabled,
       veniceMultiEditEnabled: payload.veniceMultiEditEnabled,
@@ -3898,6 +3948,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/admin/provider-profiles', async (request, reply) => {
     await requireAdmin(app, request, reply)
     const payload = normalizeProviderProxyFields(providerProfileSchema.parse(request.body))
+    validatePublicReferenceProfile(app, payload)
     const apiKey = payload.apiKey?.trim()
     if (!apiKey) throw new Error('新建 API 配置需要填写 API Key')
     const existingProviderProfileIds = app.db.listProviderProfiles().map((item) => item.id)
@@ -3916,6 +3967,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
+      publicReferenceEnabled: payload.publicReferenceEnabled,
+      publicReferenceBaseUrl: payload.publicReferenceBaseUrl,
+      publicReferenceVerification: payload.publicReferenceVerification,
       veniceGenerateEnabled: payload.veniceGenerateEnabled,
       veniceEditEnabled: payload.veniceEditEnabled,
       veniceMultiEditEnabled: payload.veniceMultiEditEnabled,
@@ -3962,6 +4016,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       reply.code(404)
       return { message: 'API 配置不存在' }
     }
+    validatePublicReferenceProfile(app, payload, currentProfile)
     const apiKey = payload.apiKey?.trim()
     const profile = app.db.upsertProviderProfile({
       id: params.profileId,
@@ -3979,6 +4034,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
+      publicReferenceEnabled: payload.publicReferenceEnabled,
+      publicReferenceBaseUrl: payload.publicReferenceBaseUrl,
+      publicReferenceVerification: payload.publicReferenceVerification,
       veniceGenerateEnabled: payload.veniceGenerateEnabled,
       veniceEditEnabled: payload.veniceEditEnabled,
       veniceMultiEditEnabled: payload.veniceMultiEditEnabled,

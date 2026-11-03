@@ -20,6 +20,9 @@ export interface ProviderProfileRecord {
   grokApiCompat: number
   xaiImage2kEnabled: number
   responseFormatB64Json: number
+  publicReferenceEnabled?: number
+  publicReferenceBaseUrl?: string | null
+  publicReferenceVerification?: string | null
   veniceGenerateEnabled: number
   veniceEditEnabled: number
   veniceMultiEditEnabled: number
@@ -549,6 +552,9 @@ export class AppDatabase {
         grok_api_compat INTEGER NOT NULL DEFAULT 0,
         xai_image_2k_enabled INTEGER NOT NULL DEFAULT 0,
         response_format_b64_json INTEGER NOT NULL DEFAULT 0,
+        public_reference_enabled INTEGER NOT NULL DEFAULT 0,
+        public_reference_base_url TEXT,
+        public_reference_verification TEXT,
         venice_generate_enabled INTEGER NOT NULL DEFAULT 1,
         venice_edit_enabled INTEGER NOT NULL DEFAULT 1,
         venice_multi_edit_enabled INTEGER NOT NULL DEFAULT 1,
@@ -746,6 +752,9 @@ export class AppDatabase {
     }
     if (!profileColumnNames.has('grok_api_compat')) {
       this.sqlite.exec('ALTER TABLE provider_profiles ADD COLUMN grok_api_compat INTEGER NOT NULL DEFAULT 0')
+    }
+    for (const [name, type] of [['public_reference_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['public_reference_base_url', 'TEXT'], ['public_reference_verification', 'TEXT']]) {
+      if (!profileColumnNames.has(name)) this.sqlite.exec(`ALTER TABLE provider_profiles ADD COLUMN ${name} ${type}`)
     }
     if (!profileColumnNames.has('response_format_b64_json')) {
       this.sqlite.exec('ALTER TABLE provider_profiles ADD COLUMN response_format_b64_json INTEGER NOT NULL DEFAULT 0')
@@ -1059,6 +1068,9 @@ export class AppDatabase {
           grok_api_compat as grokApiCompat,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
+          public_reference_enabled as publicReferenceEnabled,
+          public_reference_base_url as publicReferenceBaseUrl,
+          public_reference_verification as publicReferenceVerification,
           venice_generate_enabled as veniceGenerateEnabled,
           venice_edit_enabled as veniceEditEnabled,
           venice_multi_edit_enabled as veniceMultiEditEnabled,
@@ -1110,6 +1122,9 @@ export class AppDatabase {
           grok_api_compat as grokApiCompat,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
+          public_reference_enabled as publicReferenceEnabled,
+          public_reference_base_url as publicReferenceBaseUrl,
+          public_reference_verification as publicReferenceVerification,
           venice_generate_enabled as veniceGenerateEnabled,
           venice_edit_enabled as veniceEditEnabled,
           venice_multi_edit_enabled as veniceMultiEditEnabled,
@@ -1159,6 +1174,9 @@ export class AppDatabase {
           grok_api_compat as grokApiCompat,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
+          public_reference_enabled as publicReferenceEnabled,
+          public_reference_base_url as publicReferenceBaseUrl,
+          public_reference_verification as publicReferenceVerification,
           venice_generate_enabled as veniceGenerateEnabled,
           venice_edit_enabled as veniceEditEnabled,
           venice_multi_edit_enabled as veniceMultiEditEnabled,
@@ -1206,6 +1224,9 @@ export class AppDatabase {
     grokApiCompat?: boolean
     xaiImage2kEnabled?: boolean
     responseFormatB64Json?: boolean
+    publicReferenceEnabled?: boolean
+    publicReferenceBaseUrl?: string | null
+    publicReferenceVerification?: string | null
     veniceGenerateEnabled?: boolean
     veniceEditEnabled?: boolean
     veniceMultiEditEnabled?: boolean
@@ -1224,6 +1245,9 @@ export class AppDatabase {
     isDefault: boolean
   }) {
     const now = new Date().toISOString()
+    const current = this.getProviderProfile(input.id)
+    const publicReferenceEnabled = (input.publicReferenceEnabled ?? Boolean(current?.publicReferenceEnabled))
+      && input.apiMode === 'images' && !input.codexCli && !input.grokApiCompat
     const videoResolutionOptions = normalizeVideoResolutionOptions(input.videoResolutionOptions ?? [input.videoMaxResolution ?? '480p'])
     const videoMaxResolution = videoResolutionOptions[videoResolutionOptions.length - 1] ?? '480p'
     const videoDurationOptions = normalizeVideoDurationOptions(input.videoDurationOptions ?? [input.videoMaxDuration ?? 6])
@@ -1249,6 +1273,9 @@ export class AppDatabase {
           grok_api_compat,
           xai_image_2k_enabled,
           response_format_b64_json,
+          public_reference_enabled,
+          public_reference_base_url,
+          public_reference_verification,
           venice_generate_enabled,
           venice_edit_enabled,
           venice_multi_edit_enabled,
@@ -1283,6 +1310,9 @@ export class AppDatabase {
           @grokApiCompat,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
+          @publicReferenceEnabled,
+          @publicReferenceBaseUrl,
+          @publicReferenceVerification,
           @veniceGenerateEnabled,
           @veniceEditEnabled,
           @veniceMultiEditEnabled,
@@ -1316,6 +1346,9 @@ export class AppDatabase {
           grok_api_compat = excluded.grok_api_compat,
           xai_image_2k_enabled = excluded.xai_image_2k_enabled,
           response_format_b64_json = excluded.response_format_b64_json,
+          public_reference_enabled = excluded.public_reference_enabled,
+          public_reference_base_url = excluded.public_reference_base_url,
+          public_reference_verification = excluded.public_reference_verification,
           venice_generate_enabled = excluded.venice_generate_enabled,
           venice_edit_enabled = excluded.venice_edit_enabled,
           venice_multi_edit_enabled = excluded.venice_multi_edit_enabled,
@@ -1342,6 +1375,9 @@ export class AppDatabase {
         grokApiCompat: input.grokApiCompat ? 1 : 0,
         xaiImage2kEnabled: input.xaiImage2kEnabled ? 1 : 0,
         responseFormatB64Json: input.responseFormatB64Json ? 1 : 0,
+        publicReferenceEnabled: publicReferenceEnabled ? 1 : 0,
+        publicReferenceBaseUrl: input.publicReferenceBaseUrl ?? current?.publicReferenceBaseUrl ?? null,
+        publicReferenceVerification: publicReferenceEnabled ? (input.publicReferenceVerification ?? current?.publicReferenceVerification ?? null) : null,
         veniceGenerateEnabled: input.veniceGenerateEnabled === false ? 0 : 1,
         veniceEditEnabled: input.veniceEditEnabled === false ? 0 : 1,
         veniceMultiEditEnabled: input.veniceMultiEditEnabled === false ? 0 : 1,
@@ -3760,6 +3796,9 @@ ${selectUsageCodeFields()}
           grok_api_compat,
           xai_image_2k_enabled,
           response_format_b64_json,
+          public_reference_enabled,
+          public_reference_base_url,
+          public_reference_verification,
           venice_generate_enabled,
           venice_edit_enabled,
           venice_multi_edit_enabled,
@@ -3794,6 +3833,9 @@ ${selectUsageCodeFields()}
           @grokApiCompat,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
+          @publicReferenceEnabled,
+          @publicReferenceBaseUrl,
+          @publicReferenceVerification,
           @veniceGenerateEnabled,
           @veniceEditEnabled,
           @veniceMultiEditEnabled,
@@ -4014,6 +4056,9 @@ ${selectUsageCodeFields()}
         insertProviderProfile.run({
           ...profile,
           remarkName: profile.remarkName ?? null,
+          publicReferenceEnabled: profile.publicReferenceEnabled ?? 0,
+          publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? null,
+          publicReferenceVerification: profile.publicReferenceVerification ?? null,
           modelOptionsJson: JSON.stringify(profile.modelOptions ?? [profile.model]),
           videoResolutionOptionsJson: JSON.stringify(normalizeVideoResolutionOptions(profile.videoResolutionOptions ?? [profile.videoMaxResolution])),
           videoDurationOptionsJson: JSON.stringify(normalizeVideoDurationOptions(profile.videoDurationOptions ?? [profile.videoMaxDuration])),

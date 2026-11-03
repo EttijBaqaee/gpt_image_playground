@@ -72,8 +72,7 @@ jobs:
           (cd artifacts && sha256sum "$archive" > SHA256SUMS)
           cp deploy/docker-compose.yml artifacts/docker-compose.yml
 
-      - name: Save release archive and verification evidence
-        if: always()
+      - name: Save release archive and deployment template
         uses: actions/upload-artifact@v4
         with:
           name: verified-docker-${{ github.sha }}
@@ -82,10 +81,4 @@ jobs:
             artifacts/*.tar.gz
             artifacts/SHA256SUMS
             artifacts/docker-compose.yml
-            artifacts/versions.json
-            artifacts/tests.log
-            artifacts/browser-tests.log
-            artifacts/browser/report.json
-            artifacts/browser/*.png
-            artifacts/docker/report.json
           if-no-files-found: error

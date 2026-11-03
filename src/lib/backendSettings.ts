@@ -17,6 +17,9 @@ export interface BackendRuntimeSettings {
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
+  publicReferenceEnabled?: boolean
+  publicReferenceBaseUrl?: string | null
+  publicReferenceVerification?: string | null
   nsfwChecker?: boolean
   enableSyncMode?: boolean
   enableBase64Output?: boolean
@@ -75,6 +78,9 @@ export interface BackendProviderProfile {
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
+  publicReferenceEnabled?: boolean
+  publicReferenceBaseUrl?: string | null
+  publicReferenceVerification?: string | null
   nsfwChecker?: boolean
   enableSyncMode?: boolean
   enableBase64Output?: boolean
@@ -111,6 +117,9 @@ export interface BackendProviderOption {
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
+  publicReferenceEnabled?: boolean
+  publicReferenceBaseUrl?: string | null
+  publicReferenceVerification?: string | null
   nsfwChecker?: boolean
   enableSyncMode?: boolean
   enableBase64Output?: boolean
@@ -374,6 +383,9 @@ export async function saveBackendRuntimeSettings(settings: {
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
+  publicReferenceEnabled?: boolean
+  publicReferenceBaseUrl?: string | null
+  publicReferenceVerification?: string | null
   nsfwChecker?: boolean
   enableSyncMode?: boolean
   enableBase64Output?: boolean
@@ -426,6 +438,14 @@ export async function saveBackendRuntimePreferences(settings: {
     body: JSON.stringify(settings),
   })
 
+  return readResponseJson(response)
+}
+
+export async function checkBackendPublicReference(publicReferenceBaseUrl: string): Promise<{ publicReferenceBaseUrl: string; publicReferenceVerification: string; message: string }> {
+  const response = await appFetch('/api/admin/public-reference/check', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ publicReferenceBaseUrl }),
+  })
   return readResponseJson(response)
 }
 

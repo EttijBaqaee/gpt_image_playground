@@ -45,6 +45,8 @@ export interface GeneratedImageResult {
 }
 
 export interface ExecuteImageTaskOptions {
+  publicReferenceImageUrl?: (image: TaskImageInput) => string
+
   onImageComplete?: (completed: number, total: number) => void
   onImagesReady?: (
     images: GeneratedImageResult[],
@@ -443,8 +445,7 @@ async function readLocalImageSize(filePath: string): Promise<{ width: number; he
 }
 
 function resolveImageTimeoutSeconds(payload: TaskExecutionPayload) {
-  // 反代生图体积 2–3MB，建议至少 180 秒
-  return Math.max(180, Number(payload.provider.timeoutSeconds) || 0)
+  return Math.max(1, Number(payload.provider.timeoutSeconds) || 300)
 }
 
 async function fetchWithTimeout(
@@ -453,19 +454,7 @@ async function fetchWithTimeout(
   timeoutSeconds: number,
   provider?: ProviderProfileRecord,
 ) {
-  if (provider) {
-    return fetchWithProviderProxy(provider, url, init, timeoutSeconds)
-  }
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000)
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  return fetchWithProviderProxy(provider ?? { timeoutSeconds }, url, init, timeoutSeconds)
 }
 
 async function extractImageResults(result: Array<{ b64_json?: string; url?: string }> | undefined) {
@@ -526,6 +515,30 @@ async function callImagesApi(
   )
 
   const runSingleEdit = async () => {
+    if (payload.provider.publicReferenceEnabled) {
+      if (payload.provider.apiMode !== 'images' || payload.provider.codexCli || payload.provider.grokApiCompat) {
+        throw new Error('公网参考图仅支持标准 Images 模式')
+      }
+      if (!options.publicReferenceImageUrl) throw new Error('公网参考图链接生成器不可用')
+      const response = await fetchWithTimeout(buildApiUrl(payload.provider.baseUrl, 'images/edits'), {
+        method: 'POST',
+        headers: { ...buildHeaders(apiKey), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: payload.provider.model, prompt,
+          images: payload.inputImages.map(image => ({ image_url: options.publicReferenceImageUrl!(image) })),
+          ...(payload.maskImage ? { mask: { image_url: options.publicReferenceImageUrl(payload.maskImage) } } : {}),
+          size: payload.params.size, quality: payload.params.quality,
+          output_format: payload.params.output_format, moderation: payload.params.moderation,
+          n: 1,
+          ...(payload.provider.responseFormatB64Json ? { response_format: 'b64_json' } : {}),
+          ...(payload.params.output_format !== 'png' && payload.params.output_compression != null
+            ? { output_compression: payload.params.output_compression } : {}),
+        }),
+      }, resolveImageTimeoutSeconds(payload), payload.provider)
+      if (!response.ok) throw new Error(await readErrorMessage(response))
+      return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
+    }
+
     if (shouldUseVeniceCompat(payload) && isVeniceProvider(payload)) {
       if (payload.maskImage) {
         throw new Error('Venice 兼容模式暂不支持遮罩编辑')
@@ -615,7 +628,7 @@ async function callImagesApi(
         throw new Error(await readErrorMessage(response))
       }
 
-      return parseProviderImageJsonResponse(response, 'Images API')
+      return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
     }
 
     const formData = new FormData()
@@ -665,7 +678,7 @@ async function callImagesApi(
       throw new Error(await readErrorMessage(response))
     }
 
-    return parseProviderImageJsonResponse(response, 'Images API')
+    return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
   }
 
   const runSingleGeneration = async () => {
@@ -694,7 +707,7 @@ async function callImagesApi(
         throw new Error(await readErrorMessage(response))
       }
 
-      return parseProviderImageJsonResponse(response, 'Images API')
+      return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
     }
 
     if (payload.provider.grokApiCompat) {
@@ -723,7 +736,7 @@ async function callImagesApi(
         throw new Error(await readErrorMessage(response))
       }
 
-      return parseProviderImageJsonResponse(response, 'Images API')
+      return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
     }
 
     const response = await fetchWithTimeout(
@@ -759,7 +772,7 @@ async function callImagesApi(
       throw new Error(await readErrorMessage(response))
     }
 
-    return parseProviderImageJsonResponse(response, 'Images API')
+    return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
   }
 
   if (payload.inputImages.length > 0) {
@@ -791,8 +804,7 @@ async function callResponsesApi(
     ? await fileToDataUrl(payload.maskImage.filePath, payload.maskImage.mimeType)
     : null
 
-  // 超时至少 180s：Responses + image_generation 实测常需 40–70s，反代更大
-  const timeoutSeconds = Math.max(180, Number(payload.provider.timeoutSeconds) || 0)
+  const timeoutSeconds = resolveImageTimeoutSeconds(payload)
 
   const body = {
     model: payload.provider.model,
@@ -832,7 +844,7 @@ async function callResponsesApi(
       throw new Error(await readErrorMessage(response))
     }
 
-    return parseProviderImageJsonResponse(response, 'Responses API')
+    return parseProviderImageJsonResponse(response, 'Responses API', timeoutSeconds)
   }
 
   if (payload.params.n === 1) {

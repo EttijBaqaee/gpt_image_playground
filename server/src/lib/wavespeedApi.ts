@@ -52,16 +52,7 @@ function joinUrl(baseUrl: string, pathPart: string) {
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutSeconds: number, provider?: ProviderProfileRecord) {
-  if (provider) {
-    return fetchWithProviderProxy(provider, url, init, timeoutSeconds)
-  }
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), Math.max(10, timeoutSeconds) * 1000)
-  try {
-    return await fetch(url, { ...init, signal: controller.signal })
-  } finally {
-    clearTimeout(timeoutId)
-  }
+  return fetchWithProviderProxy(provider ?? { timeoutSeconds }, url, init, timeoutSeconds)
 }
 
 function isTransientHttpStatus(status: number) {

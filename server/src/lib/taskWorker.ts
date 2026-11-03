@@ -1,6 +1,7 @@
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { decryptText } from './crypto.js'
+import { createPublicReferenceImageUrl } from './publicReferenceImages.js'
 import type { AppDatabase } from './db.js'
 import { executeImageTask, writeOutputImage, writeOutputImageThumbnail, type GeneratedImageResult } from './imageApi.js'
 import { recoverKieTaskOutputs } from './kieApi.js'
@@ -22,6 +23,7 @@ export class TaskWorker {
     private readonly config: {
       appSecret: string
       mediaDir: string
+      referenceBasePath?: string
       outputsDir: string
       thumbsDir: string
       maxConcurrentTasks: number
@@ -258,6 +260,10 @@ export class TaskWorker {
         },
         apiKey,
         {
+          publicReferenceImageUrl: (image) => createPublicReferenceImageUrl(
+            { appSecret: this.config.appSecret, referenceBasePath: this.config.referenceBasePath ?? '' }, runtimeProvider,
+            path.relative(this.config.mediaDir, image.filePath).split(path.sep).join('/'),
+          ),
           onUpstreamRequestId: (requestId) => {
             this.db.updateTaskProgress({
               id: taskId,
@@ -543,7 +549,7 @@ export class TaskWorker {
       if (!this.emit(taskId, { status: 'downloading', step: 'downloading', percent: 96, message: '正在保存视频' })) return
 
       const outputDir = path.join(this.config.outputsDir, taskId)
-      const written = await downloadVideoOutput(outputDir, finalVideoUrl, finalDuration)
+      const written = await downloadVideoOutput(outputDir, finalVideoUrl, finalDuration, provider.timeoutSeconds)
       const outputVideoId = crypto.randomUUID()
       const saved = this.db.addTaskImage({
         id: outputVideoId,

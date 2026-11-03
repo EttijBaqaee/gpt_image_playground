@@ -10,6 +10,7 @@ import { encryptText } from './lib/crypto.js'
 import { TaskEventBus } from './lib/eventBus.js'
 import { getBackupJobState, getMaintenanceMessage } from './lib/maintenance.js'
 import { TaskWorker } from './lib/taskWorker.js'
+import { publicReferenceRoutes } from './lib/publicReferenceImages.js'
 import { recoverKieNetworkFailedTasks } from './lib/kieFailedTaskRecover.js'
 import { canAccessTask, getAuthContext } from './lib/auth.js'
 import { authRoutes } from './routes/auth.js'
@@ -52,6 +53,7 @@ app.decorate('taskEvents', new TaskEventBus())
 app.decorate('taskWorker', new TaskWorker(app.db, app.taskEvents, {
   appSecret: appConfig.appSecret,
   mediaDir: appConfig.mediaDir,
+  referenceBasePath: appConfig.referenceBasePath,
   outputsDir: appConfig.outputsDir,
   thumbsDir: appConfig.thumbsDir,
   maxConcurrentTasks: app.db.getDistributionSettings().maxConcurrentTasks,
@@ -59,7 +61,8 @@ app.decorate('taskWorker', new TaskWorker(app.db, app.taskEvents, {
 
 if (appConfig.accessLogVerbose) {
   app.addHook('onRequest', async (request) => {
-    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.mediaBasePath}/media/`)) return
+    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.mediaBasePath}/media/`)
+      && !request.url.startsWith(`${appConfig.referenceBasePath}/references/`)) return
 
     request.log.info({
       type: 'access-request',
@@ -79,7 +82,8 @@ if (appConfig.accessLogVerbose) {
   })
 
   app.addHook('onResponse', async (request, reply) => {
-    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.mediaBasePath}/media/`)) return
+    if (appConfig.accessLogMediaOnly && !request.url.startsWith(`${appConfig.mediaBasePath}/media/`)
+      && !request.url.startsWith(`${appConfig.referenceBasePath}/references/`)) return
 
     request.log.info({
       type: 'access-response',
@@ -214,6 +218,7 @@ app.get(`${appConfig.healthBasePath}/health`, async () => ({
   now: new Date().toISOString(),
 }))
 
+await app.register(publicReferenceRoutes)
 await app.register(authRoutes, { prefix: appConfig.apiBasePath })
 await app.register(settingsRoutes, { prefix: appConfig.apiBasePath })
 await app.register(taskRoutes, { prefix: appConfig.apiBasePath })
@@ -227,11 +232,12 @@ if (webIndexHtml) {
     const backendRoots = [
       `${appConfig.apiBasePath}/api`,
       `${appConfig.mediaBasePath}/media`,
+      `${appConfig.referenceBasePath}/references`,
       `${appConfig.healthBasePath}/health`,
       `${appConfig.assetsBasePath}/assets`,
     ]
     const isBackendPath = backendRoots.some((root) => requestPath === root || requestPath.startsWith(`${root}/`))
-    if (isBackendPath || /^\/(api|media|health)(\/|$)/.test(localPath) || /(?:^|\/)assets(?:\/|$)/.test(requestPath) || !accept.includes('text/html')) {
+    if (isBackendPath || /^\/(api|media|references|health)(\/|$)/.test(localPath) || /(?:^|\/)assets(?:\/|$)/.test(requestPath) || !accept.includes('text/html')) {
       return reply.code(404).send({ message: '未找到资源' })
     }
     reply.header('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')

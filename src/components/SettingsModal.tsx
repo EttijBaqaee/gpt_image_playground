@@ -5,6 +5,7 @@ import {
   fetchAdminBackendReminders,
   fetchBackendReminders,
   createBackendProviderProfile,
+  checkBackendPublicReference,
   createBackendUsageCode,
   deleteBackendProviderProfile,
   deleteBackendUsageCode,
@@ -207,6 +208,9 @@ function createEmptyProfile(): BackendProviderProfile {
     grokApiCompat: false,
     xaiImage2kEnabled: false,
     responseFormatB64Json: false,
+    publicReferenceEnabled: false,
+    publicReferenceBaseUrl: '',
+    publicReferenceVerification: '',
     nsfwChecker: true,
     enableSyncMode: false,
     enableBase64Output: false,
@@ -549,6 +553,15 @@ export default function SettingsModal() {
   const [profiles, setProfiles] = useState<BackendProviderProfile[]>([])
   const [providerOptions, setProviderOptions] = useState<BackendProviderOption[]>([])
   const [profileDraft, setProfileDraft] = useState<BackendProviderProfile>(createEmptyProfile())
+  const [isCheckingPublicReference, setIsCheckingPublicReference] = useState(false)
+  const [publicReferenceCheckError, setPublicReferenceCheckError] = useState('')
+  const publicReferenceCheckEpoch = useRef(0)
+  useEffect(() => {
+    publicReferenceCheckEpoch.current += 1
+    setIsCheckingPublicReference(false)
+    setPublicReferenceCheckError('')
+  }, [profileDraft.id, profileDraft.publicReferenceEnabled, profileDraft.publicReferenceBaseUrl])
+  const publicReferenceNeedsCheck = authStatus?.role === 'admin' && profileDraft.publicReferenceEnabled === true && !profileDraft.publicReferenceVerification
   const [distribution, setDistribution] = useState<BackendDistributionSettings>({ enabled: false, maxConcurrentTasks: 2 })
   const [reminderDrafts, setReminderDrafts] = useState<BackendReminderItem[]>([])
   const [reminderImageUrlDrafts, setReminderImageUrlDrafts] = useState<Record<string, string>>({})
@@ -1656,7 +1669,35 @@ const hasUnreadEndedReminders = useMemo(
   }
 
   const updateProfileDraft = (patch: Partial<BackendProviderProfile>) => {
-    setProfileDraft((prev) => ({ ...prev, ...patch }))
+    setProfileDraft((prev) => {
+      const next = { ...prev, ...patch }
+      if (next.publicReferenceBaseUrl !== prev.publicReferenceBaseUrl || next.publicReferenceEnabled !== prev.publicReferenceEnabled) {
+        next.publicReferenceVerification = ''
+      }
+      if (next.apiMode !== 'images' || next.grokApiCompat || next.codexCli) {
+        next.publicReferenceEnabled = false
+        next.publicReferenceVerification = ''
+      }
+      return next
+    })
+  }
+
+  const handleCheckPublicReference = async () => {
+    const epoch = ++publicReferenceCheckEpoch.current
+    const id = profileDraft.id, origin = profileDraft.publicReferenceBaseUrl?.trim() || ''
+    setIsCheckingPublicReference(true)
+    setPublicReferenceCheckError('')
+    setProfileDraft(prev => ({ ...prev, publicReferenceVerification: '' }))
+    try {
+      const result = await checkBackendPublicReference(origin)
+      if (epoch !== publicReferenceCheckEpoch.current) return
+      setProfileDraft(prev => prev.id === id && prev.publicReferenceEnabled && prev.publicReferenceBaseUrl?.trim() === origin
+        ? { ...prev, ...result } : prev)
+    } catch (error) {
+      if (epoch === publicReferenceCheckEpoch.current) setPublicReferenceCheckError(error instanceof Error ? error.message : '检测失败')
+    } finally {
+      if (epoch === publicReferenceCheckEpoch.current) setIsCheckingPublicReference(false)
+    }
   }
 
   const saveCurrentModelToDraft = () => {
@@ -1790,6 +1831,10 @@ const hasUnreadEndedReminders = useMemo(
       return
     }
 
+    if (publicReferenceNeedsCheck || isCheckingPublicReference) {
+      useStore.getState().showToast('请先检测公网参考图地址，检测通过后才能保存', 'error')
+      return
+    }
     const normalizedProfile: BackendProviderProfile = {
       ...profileDraft,
       name: profileDraft.name.trim() || '默认节点',
@@ -3418,6 +3463,45 @@ const hasUnreadEndedReminders = useMemo(
                     />
                   </>
                 )}
+                {profileDraft.apiMode === 'images' && (
+                  <>
+                    <PreferenceRow
+                      title="参考图使用公网 URL"
+                      description="按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。"
+                      checked={profileDraft.publicReferenceEnabled === true}
+                      onChange={(checked) => updateProfileDraft({
+                        publicReferenceEnabled: checked,
+                        ...(checked ? { grokApiCompat: false, codexCli: false, xaiImage2kEnabled: false } : {}),
+                      })}
+                    />
+                    {profileDraft.publicReferenceEnabled && (
+                      <div className="space-y-3 py-3">
+                        <label className="block text-sm text-gray-700 dark:text-gray-200">
+                          公网访问地址
+                          <ClearableInput
+                            aria-label="公网访问地址"
+                            value={profileDraft.publicReferenceBaseUrl ?? ''}
+                            onChange={(event) => updateProfileDraft({ publicReferenceBaseUrl: event.target.value })}
+                            onClear={() => updateProfileDraft({ publicReferenceBaseUrl: '' })}
+                            placeholder="https://mabfx.com"
+                            className="mt-2 w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
+                          />
+                        </label>
+                        <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
+                          支持 https://域名 或 http://公网IP:端口，无需证书。只填公网地址，不填路径；参考图独立使用编排中的 REFERENCE_BASE_PATH，默认 /references/。临时链接至少有效 1 小时，长请求按两倍请求超时加 60 秒延长；过期后需重新提交任务。
+                        </p>
+                        <button type="button" onClick={handleCheckPublicReference}
+                          disabled={isCheckingPublicReference || isSaving || !profileDraft.publicReferenceBaseUrl?.trim()}
+                          className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
+                          {isCheckingPublicReference ? '检测中...' : '检测公网访问'}
+                        </button>
+                        <p role="status" className={`text-xs leading-5 ${publicReferenceCheckError ? 'text-red-500' : profileDraft.publicReferenceVerification ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {publicReferenceCheckError || (profileDraft.publicReferenceVerification ? '检测通过，可以保存配置。' : '保存前需检测通过。检测最多等待 10 秒，不会调用供应商 API。')}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
                 {profileDraft.apiMode === 'wavespeed' && (
                   <>
                     <PreferenceRow
@@ -3469,7 +3553,7 @@ const hasUnreadEndedReminders = useMemo(
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSaving || isCheckingPublicReference || publicReferenceNeedsCheck}
                   className="rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSaving ? '保存中...' : '保存'}
@@ -4946,7 +5030,7 @@ const hasUnreadEndedReminders = useMemo(
             <button
               type="button"
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isCheckingPublicReference || publicReferenceNeedsCheck}
               className="rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? '保存中...' : '保存'}

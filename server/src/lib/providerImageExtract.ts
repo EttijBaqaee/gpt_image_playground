@@ -1,3 +1,5 @@
+import { fetchWithProviderProxy } from './upstreamFetch.js'
+
 export type GeneratedImageResult = {
   buffer: Buffer
   mimeType: string
@@ -135,8 +137,8 @@ export function summarizeResponseForError(json: unknown) {
   return parts.join('; ') || '无法识别响应结构'
 }
 
-async function fetchRemoteImage(url: string): Promise<GeneratedImageResult> {
-  const response = await fetch(url, { cache: 'no-store' })
+async function fetchRemoteImage(url: string, timeoutSeconds: number): Promise<GeneratedImageResult> {
+  const response = await fetchWithProviderProxy({ timeoutSeconds }, url, { cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`图片下载失败：HTTP ${response.status}`)
   }
@@ -151,7 +153,7 @@ async function fetchRemoteImage(url: string): Promise<GeneratedImageResult> {
  * 统一从 Images / Responses / 反代变体响应中提取图片。
  * 成功条件：至少解析出一张可解码图片。
  */
-export async function extractImagesFromProviderResponse(json: unknown): Promise<ExtractedProviderImage[]> {
+export async function extractImagesFromProviderResponse(json: unknown, timeoutSeconds = 300): Promise<ExtractedProviderImage[]> {
   const images: ExtractedProviderImage[] = []
 
   if (json && typeof json === 'object') {
@@ -168,7 +170,7 @@ export async function extractImagesFromProviderResponse(json: unknown): Promise<
         }
         const url = row.url ?? row.image_url
         if (typeof url === 'string' && isHttpUrl(url)) {
-          pushUniqueImage(images, { ...(await fetchRemoteImage(url)), source: 'images' })
+          pushUniqueImage(images, { ...(await fetchRemoteImage(url, timeoutSeconds)), source: 'images' })
         }
       }
     }
@@ -187,7 +189,7 @@ export async function extractImagesFromProviderResponse(json: unknown): Promise<
           }
           const url = row.url ?? row.image_url
           if (typeof url === 'string' && isHttpUrl(url)) {
-            pushUniqueImage(images, { ...(await fetchRemoteImage(url)), source: 'responses' })
+            pushUniqueImage(images, { ...(await fetchRemoteImage(url, timeoutSeconds)), source: 'responses' })
           }
         }
 
@@ -204,11 +206,11 @@ export async function extractImagesFromProviderResponse(json: unknown): Promise<
               }
               const imageUrl = content.image_url
               if (typeof imageUrl === 'string' && isHttpUrl(imageUrl)) {
-                pushUniqueImage(images, { ...(await fetchRemoteImage(imageUrl)), source: 'responses' })
+                pushUniqueImage(images, { ...(await fetchRemoteImage(imageUrl, timeoutSeconds)), source: 'responses' })
               } else if (imageUrl && typeof imageUrl === 'object') {
                 const nestedUrl = (imageUrl as { url?: string }).url
                 if (typeof nestedUrl === 'string' && isHttpUrl(nestedUrl)) {
-                  pushUniqueImage(images, { ...(await fetchRemoteImage(nestedUrl)), source: 'responses' })
+                  pushUniqueImage(images, { ...(await fetchRemoteImage(nestedUrl, timeoutSeconds)), source: 'responses' })
                 }
               }
             }
@@ -236,7 +238,7 @@ export async function extractImagesFromProviderResponse(json: unknown): Promise<
   collectUrlCandidates(json, urlList)
   for (const url of Array.from(new Set(urlList))) {
     try {
-      pushUniqueImage(images, { ...(await fetchRemoteImage(url)), source: 'fallback' })
+      pushUniqueImage(images, { ...(await fetchRemoteImage(url, timeoutSeconds)), source: 'fallback' })
     } catch {
       // 忽略下载失败的 URL
     }
@@ -302,7 +304,7 @@ export function normalizeProviderErrorMessage(error: unknown, fallback = '生成
   return clean(error) || fallbackText
 }
 
-export async function parseProviderImageJsonResponse(response: Response, context: string) {
+export async function parseProviderImageJsonResponse(response: Response, context: string, timeoutSeconds = 300) {
   const rawText = await response.text()
   if (!rawText.trim()) {
     throw new Error(`${context}：接口返回空响应体`)
@@ -332,7 +334,7 @@ export async function parseProviderImageJsonResponse(response: Response, context
     throw new Error(message || `${context}：上游返回 error 字段`)
   }
 
-  const images = await extractImagesFromProviderResponse(json)
+  const images = await extractImagesFromProviderResponse(json, timeoutSeconds)
   if (!images.length) {
     throw new Error(`接口未返回图片数据：响应中缺少 b64_json/result（${context}；${summarizeResponseForError(json)}）`)
   }
