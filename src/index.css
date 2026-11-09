@@ -5,6 +5,23 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes theme-fade-out { to { opacity: 0; } }
+@keyframes theme-fade-in { from { opacity: 0; } }
+::view-transition-old(root) { animation: theme-fade-out 360ms ease-in-out both; }
+::view-transition-new(root) { animation: theme-fade-in 360ms ease-in-out both; }
+::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; }
+.theme-transition, .theme-transition *, .theme-transition *::before, .theme-transition *::after {
+  transition-property: background-color, color, border-color, box-shadow, fill, stroke !important;
+  transition-duration: 360ms !important;
+  transition-timing-function: ease-in-out !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+  .theme-transition, .theme-transition *, .theme-transition *::before, .theme-transition *::after {
+    transition-duration: 0s !important;
+  }
+}
+
 :root {
   --font-ui-sans: 'HarmonyOS Sans SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   --font-mono: 'Maple Mono', 'Cascadia Code', 'SF Mono', Menlo, Consolas, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', monospace;

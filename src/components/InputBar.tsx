@@ -1,3 +1,7 @@
+import MarkupEditorModal from './MarkupEditorModal'
+import AdvancedImageParameters from './AdvancedImageParameters'
+import { compatibleImageDraft, resolveImageCapabilities } from '../../server/src/lib/imageCapabilities'
+import { t, getLocale } from '../lib/i18n'
 import { readPromptEditor, promptEditorBoundaryOffset, insertPromptPlainText } from '../lib/promptEditorDom'
 import { Fragment, useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useStore, submitTask, addImagesFromFiles, updateTaskInStore, removeMultipleTasks, ensureTaskImageAvailable } from '../store'
@@ -22,7 +26,7 @@ import {
 } from '../lib/promptImageMentions'
 import { normalizeImageSize } from '../lib/size'
 import { matchesTaskFilters } from '../lib/taskSearch'
-import { createMaskPreviewDataUrl } from '../lib/canvasImage'
+import { createMaskPreviewDataUrl, createMarkupPreviewDataUrl } from '../lib/canvasImage'
 import { fetchBackendProviderOptions, type BackendProviderOption } from '../lib/backendSettings'
 import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
 import { useHintTooltip } from '../hooks/useHintTooltip'
@@ -269,12 +273,12 @@ function getProviderLabel(apiMode: BackendProviderOption['apiMode']) {
   if (apiMode === 'wavespeed') return 'WaveSpeed'
   if (apiMode === 'kie') return 'Kie'
   if (apiMode === 'venice_images') return 'Venice'
-  return '当前接口'
+  return t("当前接口")
 }
 
 /** 优先显示端点名称/备注名，不显示协议类型 */
 function getProviderOptionDisplayName(option: BackendProviderOption | null | undefined, preferRemarkName = false) {
-  if (!option) return '当前端点'
+  if (!option) return t("当前端点")
   return getProviderProfileDisplayName({
     name: option.name,
     remarkName: option.remarkName,
@@ -313,15 +317,15 @@ function getVeniceImageCapability(
   const label = getProviderOptionDisplayName(option, preferRemarkName)
   const limit = resolveEffectiveMaxReferenceImages(option)
   if (imageCount <= 0) {
-    return option.veniceGenerateEnabled === false ? `当前 ${label} 配置已禁用文生图` : null
+    return option.veniceGenerateEnabled === false ? t("当前 {0} 配置已禁用文生图", label) : null
   }
   if (imageCount === 1) {
-    return option.veniceEditEnabled === false ? `当前 ${label} 配置已禁用单图编辑` : null
+    return option.veniceEditEnabled === false ? t("当前 {0} 配置已禁用单图编辑", label) : null
   }
   if (imageCount <= limit) {
-    return option.veniceMultiEditEnabled === false ? `当前 ${label} 配置已禁用多图编辑` : null
+    return option.veniceMultiEditEnabled === false ? t("当前 {0} 配置已禁用多图编辑", label) : null
   }
-  return `当前 ${label} 最多支持 ${limit} 张参考图`
+  return t("当前 {0} 最多支持 {1} 张参考图", label, limit)
 }
 
 function getVeniceImageLimit(option: BackendProviderOption | null) {
@@ -400,17 +404,17 @@ export default function InputBar() {
         tagMode: searchTagMode,
       }),
     )
-  }, [authStatus?.role, tasks, searchTags, searchTagMode, filterStatus, filterTaskType, filterFavorite, filterArchived, showUsageCodeTasksForAdmin])
+  }, [authStatus?.role, tasks, searchTags, searchTagMode, filterStatus, filterTaskType, filterFavorite, filterArchived, showUsageCodeTasksForAdmin, getLocale()])
   const visibleTasks = useMemo(
     () => filteredTasks.filter((task) => visibleTaskIds.includes(task.id)),
-    [filteredTasks, visibleTaskIds],
+    [filteredTasks, visibleTaskIds, getLocale()],
   )
 
   const isIOS = useMemo(() => {
     const ua = navigator.userAgent || ''
     const platform = navigator.platform || ''
     return /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  }, [])
+  }, [getLocale()])
 
   const handleSelectAllToggle = useCallback(() => {
     if (selectedTaskIds.length === visibleTasks.length && visibleTasks.length > 0) {
@@ -425,11 +429,11 @@ export default function InputBar() {
     const allFavorite = selectedTasks.length > 0 && selectedTasks.every((t) => t.isFavorite)
     const newFavoriteState = !allFavorite
     setConfirmDialog({
-      title: newFavoriteState ? '批量收藏' : '批量取消收藏',
+      title: newFavoriteState ? t("批量收藏") : t("批量取消收藏"),
       message: newFavoriteState
-        ? `确定要收藏选中的 ${selectedTaskIds.length} 条记录吗？`
-        : `确定要取消收藏选中的 ${selectedTaskIds.length} 条记录吗？`,
-      confirmText: newFavoriteState ? '确认收藏' : '确认取消',
+        ? t("确定要收藏选中的 {0} 条记录吗？", selectedTaskIds.length)
+        : t("确定要取消收藏选中的 {0} 条记录吗？", selectedTaskIds.length),
+      confirmText: newFavoriteState ? t("确认收藏") : t("确认取消"),
       action: () => {
         selectedTaskIds.forEach((id) => {
           updateTaskInStore(id, { isFavorite: newFavoriteState })
@@ -444,11 +448,11 @@ export default function InputBar() {
     const allArchived = selectedTasks.length > 0 && selectedTasks.every((t) => t.isArchived)
     const newArchivedState = !allArchived
     setConfirmDialog({
-      title: newArchivedState ? '批量归档' : '批量取消归档',
+      title: newArchivedState ? t("批量归档") : t("批量取消归档"),
       message: newArchivedState
-        ? `确定要归档选中的 ${selectedTaskIds.length} 条记录吗？归档后默认列表不再显示。`
-        : `确定要取消归档选中的 ${selectedTaskIds.length} 条记录吗？`,
-      confirmText: newArchivedState ? '确认归档' : '确认取消',
+        ? t("确定要归档选中的 {0} 条记录吗？归档后默认列表不再显示。", selectedTaskIds.length)
+        : t("确定要取消归档选中的 {0} 条记录吗？", selectedTaskIds.length),
+      confirmText: newArchivedState ? t("确认归档") : t("确认取消"),
       action: () => {
         selectedTaskIds.forEach((id) => {
           updateTaskInStore(id, { isArchived: newArchivedState })
@@ -460,8 +464,8 @@ export default function InputBar() {
 
   const handleDeleteSelected = useCallback(() => {
     setConfirmDialog({
-      title: '批量删除',
-      message: `确定要删除选中的 ${selectedTaskIds.length} 条记录吗？`,
+      title: t("批量删除"),
+      message: t("确定要删除选中的 {0} 条记录吗？", selectedTaskIds.length),
       action: () => {
         removeMultipleTasks(selectedTaskIds)
       },
@@ -470,7 +474,7 @@ export default function InputBar() {
 
   const handleBatchDownload = useCallback(async () => {
     if (isIOS) {
-      useStore.getState().showToast('iOS 暂不支持批量下载，请长按单张图片保存', 'info')
+      useStore.getState().showToast(t("iOS 暂不支持批量下载，请长按单张图片保存"), 'info')
       return
     }
 
@@ -509,7 +513,7 @@ export default function InputBar() {
     }
 
     if (targets.length === 0) {
-      useStore.getState().showToast('选中的记录里没有可下载媒体', 'error')
+      useStore.getState().showToast(t("选中的记录里没有可下载媒体"), 'error')
       return
     }
 
@@ -524,7 +528,7 @@ export default function InputBar() {
       await new Promise((resolve) => window.setTimeout(resolve, 120))
     }
 
-    useStore.getState().showToast(`已开始下载 ${targets.length} 个文件`, 'success')
+    useStore.getState().showToast(t("已开始下载 {0} 个文件", targets.length), 'success')
   }, [isIOS, selectedTaskIds, tasks])
   const maskDraft = useStore((s) => s.maskDraft)
   const clearMaskDraft = useStore((s) => s.clearMaskDraft)
@@ -551,6 +555,7 @@ export default function InputBar() {
   const [showSizePicker, setShowSizePicker] = useState(false)
   const [showVideoAspectPicker, setShowVideoAspectPicker] = useState(false)
   const [showParamsModal, setShowParamsModal] = useState(false)
+  const [markupEditorImageId, setMarkupEditorImageId] = useState<string | null>(null)
   const [mobileParamSheet, setMobileParamSheet] = useState<MobileParamSheet | null>(null)
   const [showUsageCodePicker, setShowUsageCodePicker] = useState(false)
   const [maskPreviewUrl, setMaskPreviewUrl] = useState('')
@@ -572,7 +577,7 @@ export default function InputBar() {
 
   const modeProviderOptions = useMemo(
     () => providerOptions.filter((option) => taskMode === 'video' ? option.apiMode === 'videos' : option.apiMode !== 'videos'),
-    [providerOptions, taskMode],
+    [providerOptions, taskMode, getLocale()],
   )
   const hasConfiguredProvider = modeProviderOptions.length > 0
   const quotaCost = taskMode === 'video' ? 1 : params.n
@@ -583,6 +588,13 @@ export default function InputBar() {
       ?? modeProviderOptions[0]?.id
       ?? null
   const activeProviderOption = modeProviderOptions.find((option) => option.id === activeProviderProfileId) ?? null
+  const imageCaps = resolveImageCapabilities(settings)
+  const capsKey = JSON.stringify(imageCaps)
+  useEffect(() => {
+    if (!activeProviderOption || settings.providerProfileId !== activeProviderOption.id || settings.model !== activeProviderOption.model) return
+    const compatible = compatibleImageDraft(useStore.getState().params, imageCaps, inputImages.length > 0)
+    if (JSON.stringify(compatible) !== JSON.stringify(useStore.getState().params)) useStore.setState({ params: compatible })
+  }, [capsKey, inputImages.length, params.output_format, settings.providerProfileId, settings.model, activeProviderOption?.id, activeProviderOption?.model])
   const imageCapabilityError = taskMode === 'image'
     ? getVeniceImageCapability(activeProviderOption, inputImages.length, authStatus?.role === 'admin')
     : null
@@ -604,7 +616,7 @@ export default function InputBar() {
             : code.providerRemainingImageCredits?.[activeProviderProfileId]) ?? 0) > 0,
         )
       : []
-  ), [activeProviderProfileId, authStatus?.role, taskMode, userUsageCodes])
+  ), [activeProviderProfileId, authStatus?.role, taskMode, userUsageCodes, getLocale()])
   const canShowVideoAdvancedControls = Boolean(
     taskMode === 'video'
     && activeProviderOption?.grokApiCompat
@@ -637,7 +649,7 @@ export default function InputBar() {
     if (availableCodes.length === 0) {
       return {
         kind: 'unavailable' as const,
-        text: '当前使用码不可调用该端点',
+        text: t("当前使用码不可调用该端点"),
       }
     }
     const hasSplitQuota = availableCodes.some((code) => (
@@ -672,7 +684,7 @@ export default function InputBar() {
           }, 0)
       return {
         kind: 'provider' as const,
-        text: remaining == null ? '端点剩余不限' : `端点剩余 ${remaining}`,
+        text: remaining == null ? t("端点剩余不限") : t("端点剩余 {0}", remaining),
       }
     }
     const hasUnlimited = availableCodes.some((code) => (
@@ -685,7 +697,7 @@ export default function InputBar() {
         ), 0)
     return {
       kind: 'total' as const,
-      text: remaining == null ? '剩余不限' : `剩余 ${remaining}`,
+      text: remaining == null ? t("剩余不限") : t("剩余 {0}", remaining),
     }
   }, [authStatus?.role, taskMode, userUsageCodes])
   const codeHasQuota = useCallback((code: {
@@ -731,23 +743,23 @@ export default function InputBar() {
       && code.allowedProviderProfileIds?.length
       && !code.allowedProviderProfileIds.includes(activeProviderProfileId)
     ) {
-      return `当前使用码无权调用 ${activeProviderOption?.name ?? '当前端点'}`
+      return t("当前使用码无权调用 {0}", activeProviderOption?.name ?? t("当前端点"))
     }
-    const unit = taskMode === 'video' ? '次' : '张'
+    const unit = taskMode === 'video' ? t("次") : t("张")
     const remainingTotal = taskMode === 'video' ? code.remainingVideoCredits : code.remainingImageCredits
     if (remainingTotal != null && remainingTotal < quotaCost) {
-      return `当前使用码额度不足，剩余 ${remainingTotal} ${unit}`
+      return t("当前使用码额度不足，剩余 {0} {1}", remainingTotal, unit)
     }
     if (!activeProviderProfileId) {
-      return '当前使用码额度不足'
+      return t("当前使用码额度不足")
     }
     const providerRemaining = taskMode === 'video'
       ? code.providerVideoQuotas ? code.providerRemainingVideoCredits?.[activeProviderProfileId] ?? 0 : code.providerRemainingVideoCredits?.[activeProviderProfileId]
       : code.providerImageQuotas ? code.providerRemainingImageCredits?.[activeProviderProfileId] ?? 0 : code.providerRemainingImageCredits?.[activeProviderProfileId]
     if (providerRemaining != null && providerRemaining < quotaCost) {
-      return `${activeProviderOption?.name ?? '当前端点'}额度不足，剩余 ${providerRemaining} ${unit}`
+      return t("{0}额度不足，剩余 {1} {2}", activeProviderOption?.name ?? t("当前端点"), providerRemaining, unit)
     }
-    return '当前使用码额度不足'
+    return t("当前使用码额度不足")
   }, [activeProviderOption?.name, activeProviderProfileId, quotaCost, taskMode])
 
   const applyProviderOption = useCallback((option: BackendProviderOption | null) => {
@@ -760,6 +772,7 @@ export default function InputBar() {
       model: option.model,
       timeout: option.timeoutSeconds,
       codexCli: option.codexCli,
+      imageExtensions: option.imageExtensions,
       grokApiCompat: option.grokApiCompat,
       xaiImage2kEnabled: option.xaiImage2kEnabled,
       responseFormatB64Json: option.responseFormatB64Json,
@@ -777,7 +790,7 @@ export default function InputBar() {
         // 管理员优先显示备注名
         const label = getProviderOptionDisplayNameForRole(option, useStore.getState().authStatus?.role)
         useStore.getState().showToast(
-          `${label} 最多支持 ${nextLimit} 张参考图，已有 ${overflowCount} 张超出并置灰，请删除后再提交`,
+          t("{0} 最多支持 {1} 张参考图，已有 {2} 张超出并置灰，请删除后再提交", label, nextLimit, overflowCount),
           'error',
         )
       }
@@ -805,7 +818,7 @@ export default function InputBar() {
       return
     }
     if (!activeProviderOption) {
-      useStore.getState().showToast(taskMode === 'video' ? '请先配置视频 API' : '请先配置图片 API', 'error')
+      useStore.getState().showToast(taskMode === 'video' ? t("请先配置视频 API") : t("请先配置图片 API"), 'error')
       setShowSettings(true)
       return
     }
@@ -819,7 +832,7 @@ export default function InputBar() {
     if (!canSubmit) return
     if (authStatus?.role === 'user') {
       if (userUsageCodes.length === 0) {
-        useStore.getState().showToast('当前没有可用使用码', 'error')
+        useStore.getState().showToast(t("当前没有可用使用码"), 'error')
         return
       }
       if (userUsageCodes.length > 1) {
@@ -845,7 +858,7 @@ export default function InputBar() {
     if (!showUsageCodePicker || authStatus?.role !== 'user' || userUsageCodes.length <= 1) return null
     return (
       <div className="dropdown-glass-surface absolute bottom-full right-0 z-30 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200/70 p-2 text-sm shadow-xl ring-1 ring-black/5 dark:border-white/[0.08] dark:ring-white/10">
-        <div className="px-2 pb-2 text-xs text-gray-500 dark:text-gray-400">选择本次使用码</div>
+        <div className="px-2 pb-2 text-xs text-gray-500 dark:text-gray-400">{t("选择本次使用码")}</div>
         <div className="space-y-1">
           {userUsageCodes.map((code) => {
             const enabled = codeHasQuota(code)
@@ -869,9 +882,9 @@ export default function InputBar() {
                         ? code.providerRemainingVideoCredits?.[activeProviderProfileId]
                         : code.providerRemainingImageCredits?.[activeProviderProfileId]
                       : null
-                    if (providerRemaining != null) return `端点剩余 ${providerRemaining}`
+                    if (providerRemaining != null) return t("端点剩余 {0}", providerRemaining)
                     const remainingTotal = taskMode === 'video' ? code.remainingVideoCredits : code.remainingImageCredits
-                    return remainingTotal == null ? '不限' : `剩余 ${remainingTotal}`
+                    return remainingTotal == null ? t("不限") : t("剩余 {0}", remainingTotal)
                   })()}
                 </span>
               </button>
@@ -972,6 +985,7 @@ export default function InputBar() {
       || settings.timeout !== target.timeoutSeconds
       || settings.codexCli !== target.codexCli
       || settings.grokApiCompat !== target.grokApiCompat
+      || JSON.stringify(settings.imageExtensions) !== JSON.stringify(target.imageExtensions)
       || settings.responseFormatB64Json !== target.responseFormatB64Json
     ) {
       applyProviderOption(target)
@@ -982,6 +996,7 @@ export default function InputBar() {
     settings.apiMode,
     settings.codexCli,
     settings.grokApiCompat,
+    settings.imageExtensions,
     settings.model,
     settings.providerProfileId,
     settings.responseFormatB64Json,
@@ -1031,7 +1046,7 @@ export default function InputBar() {
       return
     }
 
-    createMaskPreviewDataUrl(maskTargetImage.dataUrl, maskDraft.maskDataUrl)
+    (maskDraft.kind === 'markup' ? createMarkupPreviewDataUrl : createMaskPreviewDataUrl)(maskTargetImage.dataUrl, maskDraft.maskDataUrl)
       .then((url) => {
         if (!cancelled) setMaskPreviewUrl(url)
       })
@@ -1105,7 +1120,7 @@ export default function InputBar() {
       const maxImages = getVeniceImageLimit(currentProvider)
       if (currentCount >= maxImages) {
         useStore.getState().showToast(
-          `参考图数量已达上限（${maxImages} 张），无法继续添加`,
+          t("参考图数量已达上限（{0} 张），无法继续添加", maxImages),
           'error',
         )
         return
@@ -1129,13 +1144,13 @@ export default function InputBar() {
 
       if (discarded > 0) {
         useStore.getState().showToast(
-          `已达上限 ${maxImages} 张，${discarded} 张图片被丢弃`,
+          t("已达上限 {0} 张，{1} 张图片被丢弃", maxImages, discarded),
           'error',
         )
       }
     } catch (err) {
       useStore.getState().showToast(
-        `图片添加失败：${err instanceof Error ? err.message : String(err)}`,
+        t("图片添加失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -1486,15 +1501,20 @@ export default function InputBar() {
   }, [inputImages, setLightboxImageId, setLightboxStartEditor])
 
   const openReferenceImageEditor = useCallback((imageId: string) => {
+    if (maskDraft?.kind === 'markup' && maskDraft.targetImageId === imageId) {
+      if (!imageCaps.markup) { useStore.getState().showToast(t('当前模型不支持标注编辑，或缺少原图与标注层'), 'error'); return }
+      setMarkupEditorImageId(imageId)
+      return
+    }
     if (supportsMaskEditing(activeProviderOption)) {
       openMaskEditor(imageId)
       return
     }
     openAdvancedEditor(imageId)
-  }, [activeProviderOption, openAdvancedEditor, openMaskEditor])
+  }, [activeProviderOption, openAdvancedEditor, openMaskEditor, maskDraft, imageCaps.markup])
 
   const canEditMask = supportsMaskEditing(activeProviderOption)
-  const referenceEditTitle = canEditMask ? '添加遮罩' : '高级编辑'
+  const referenceEditTitle = canEditMask ? t("添加遮罩") : t("高级编辑")
 
   const handleInputImageDragStart = (event: React.DragEvent<HTMLDivElement>, index: number) => {
     if (isMobile || useStore.getState().isSubmittingTask) {
@@ -1606,10 +1626,10 @@ export default function InputBar() {
         onDrop={(event) => handleInputImageDrop(event, originalIndex)}
         onDragEnd={handleInputImageDragEnd}
       >
-        <ButtonTooltip visible={imageHintId === img.id && isMaskTarget} text="遮罩图必须为第一张" />
+        <ButtonTooltip visible={imageHintId === img.id && isMaskTarget} text={maskDraft?.kind === 'markup' ? t("标注图必须为第一张") : t("遮罩图必须为第一张")} />
         <ButtonTooltip
           visible={imageHintId === img.id && isOverflowThumb}
-          text={`${getProviderOptionDisplayNameForRole(activeProviderOption, authStatus?.role)} 最多 ${veniceImageLimit} 张，该图超出上限`}
+          text={t("{0} 最多 {1} 张，该图超出上限", getProviderOptionDisplayNameForRole(activeProviderOption, authStatus?.role), veniceImageLimit)}
         />
         <button
           type="button"
@@ -1628,7 +1648,7 @@ export default function InputBar() {
             handleInputImageClick(img.id)
           }}
           aria-pressed={selected}
-          aria-label={selected ? '取消选择参考图' : '选择参考图'}
+          aria-label={selected ? t("取消选择参考图") : t("选择参考图")}
         >
           <img
             src={displaySrc}
@@ -1641,13 +1661,12 @@ export default function InputBar() {
           </span>
           {isMaskTarget && (
             <span className="absolute left-1 top-1 rounded bg-blue-500/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
-              MASK
+              {maskDraft?.kind === 'markup' ? 'MARKUP' : 'MASK'}
             </span>
           )}
           {isOverflowThumb && (
             <span className="absolute inset-x-0 top-0 z-10 bg-black/55 px-1 py-0.5 text-center text-[8px] leading-none text-white pointer-events-none">
-              超出
-            </span>
+              {t("超出")}</span>
           )}
           {isMobile ? (
             <button
@@ -1667,7 +1686,7 @@ export default function InputBar() {
                 }
                 openReferenceImageEditor(img.id)
               }}
-              title={isMaskTarget ? '编辑遮罩' : referenceEditTitle}
+              title={isMaskTarget ? (maskDraft?.kind === 'markup' ? t("修改标注层") : t("编辑遮罩")) : referenceEditTitle}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -1685,7 +1704,7 @@ export default function InputBar() {
                 }
                 openReferenceImageEditor(img.id)
               }}
-              title={isMaskTarget ? '编辑遮罩' : referenceEditTitle}
+              title={isMaskTarget ? (maskDraft?.kind === 'markup' ? t("修改标注层") : t("编辑遮罩")) : referenceEditTitle}
             >
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -1706,7 +1725,7 @@ export default function InputBar() {
             e.stopPropagation()
             if (originalIndex >= 0) handleRemoveInputImage(originalIndex, img.id)
           }}
-          aria-label="删除参考图"
+          aria-label={t("删除参考图")}
           data-input-image-action="delete"
         >
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1721,20 +1740,20 @@ export default function InputBar() {
     <button
       onClick={() =>
         setConfirmDialog({
-          title: maskTargetImage ? '清空全部输入图' : '清空参考图',
+          title: maskTargetImage ? t("清空全部输入图") : t("清空参考图"),
           message: maskTargetImage
-            ? `确定要清空遮罩主图、${referenceImages.length} 张参考图和当前遮罩吗？`
-            : `确定要清空全部 ${inputImages.length} 张参考图吗？`,
+            ? (maskDraft?.kind === 'markup' ? t("确定要清空标注主图、{0} 张参考图和当前标注吗？", referenceImages.length) : t("确定要清空遮罩主图、{0} 张参考图和当前遮罩吗？", referenceImages.length))
+            : t("确定要清空全部 {0} 张参考图吗？", inputImages.length),
           action: () => clearInputImages(),
         })
       }
       className="w-[52px] h-[52px] rounded-xl border border-dashed border-gray-300 dark:border-white/[0.08] flex flex-col items-center justify-center gap-0.5 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:border-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/30 transition-all cursor-pointer flex-shrink-0"
-      title={maskTargetImage ? '清空遮罩主图、参考图和遮罩' : '清空全部参考图'}
+      title={maskTargetImage ? (maskDraft?.kind === 'markup' ? t("清空标注主图、参考图和标注") : t("清空遮罩主图、参考图和遮罩")) : t("清空全部参考图")}
     >
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
       </svg>
-      <span className="text-[8px] leading-none">{maskTargetImage ? '清空全部' : '清空'}</span>
+      <span className="text-[8px] leading-none">{maskTargetImage ? t("清空全部") : t("清空")}</span>
     </button>
   )
 
@@ -1762,7 +1781,7 @@ export default function InputBar() {
         onTouchCancel={qualityHint.hide}
         onClick={qualityHint.show}
       >
-        <span className="text-gray-400 dark:text-gray-500 ml-1">质量</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">{t("质量")}</span>
         <Select
           value={settings.codexCli ? 'auto' : params.quality}
           onChange={(val) => {
@@ -1773,6 +1792,7 @@ export default function InputBar() {
             { label: 'low', value: 'low' },
             { label: 'medium', value: 'medium' },
             { label: 'high', value: 'high' },
+            ...(imageCaps.extendedQuality ? [{ label: 'xhigh', value: 'xhigh' }, { label: 'max', value: 'max' }] : []),
           ]}
           disabled={settings.codexCli}
           className={settings.codexCli
@@ -1781,11 +1801,11 @@ export default function InputBar() {
         />
         <ButtonTooltip
           visible={settings.codexCli && qualityHint.visible}
-          text="Codex CLI 不支持质量参数"
+          text={t("Codex CLI 不支持质量参数")}
         />
       </label>
       <label className="flex flex-col gap-0.5">
-        <span className="text-gray-400 dark:text-gray-500 ml-1">格式</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">{t("格式")}</span>
         <Select
           value={params.output_format}
           onChange={(val) => setParams({ output_format: val as any })}
@@ -1793,6 +1813,8 @@ export default function InputBar() {
             { label: 'PNG', value: 'png' },
             { label: 'JPEG', value: 'jpeg' },
             { label: 'WebP', value: 'webp' },
+            ...(imageCaps.svg && !inputImages.length ? [{ label: 'SVG', value: 'svg' }] : []),
+            ...(imageCaps.gif && !inputImages.length ? [{ label: 'GIF', value: 'gif' }] : []),
           ]}
           className={selectClass}
         />
@@ -1806,25 +1828,25 @@ export default function InputBar() {
         onTouchCancel={compressionHint.hide}
         onClick={compressionHint.show}
       >
-        <span className="text-gray-400 dark:text-gray-500 ml-1">压缩率</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">{t("压缩率")}</span>
         <input
           value={outputCompressionInput}
           onChange={(e) => setOutputCompressionInput(e.target.value)}
           onBlur={commitOutputCompression}
-          disabled={params.output_format === 'png'}
+          disabled={!['jpeg', 'webp'].includes(params.output_format)}
           type="number"
           min={0}
           max={100}
           placeholder="0-100"
           className={`px-3 py-1.5 rounded-xl border border-gray-200/60 dark:border-white/[0.08] focus:outline-none text-xs transition-all duration-200 shadow-sm ${
-            params.output_format === 'png'
+            !['jpeg', 'webp'].includes(params.output_format)
               ? 'bg-gray-100/50 dark:bg-white/[0.05] opacity-50 cursor-not-allowed'
               : 'bg-white/50 dark:bg-white/[0.03]'
             }`}
         />
         <ButtonTooltip
           visible={compressionHint.visible}
-          text="仅 JPEG 和 WebP 支持压缩率"
+          text={t("仅 JPEG 和 WebP 支持压缩率")}
         />
       </label>
       <label
@@ -1836,7 +1858,7 @@ export default function InputBar() {
         onTouchCancel={moderationHint.hide}
         onClick={moderationHint.show}
       >
-        <span className="text-gray-400 dark:text-gray-500 ml-1">审核</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">{t("审核")}</span>
         <Select
           value={moderationIgnored ? 'auto' : params.moderation}
           onChange={(val) => {
@@ -1853,11 +1875,11 @@ export default function InputBar() {
         />
         <ButtonTooltip
           visible={moderationIgnored && moderationHint.visible}
-          text="Responses API 不支持审核参数"
+          text={t("Responses API 不支持审核参数")}
         />
       </label>
       <label className="flex flex-col gap-0.5">
-        <span className="text-gray-400 dark:text-gray-500 ml-1">数量</span>
+        <span className="text-gray-400 dark:text-gray-500 ml-1">{t("数量")}</span>
         <input
           value={nInput}
           onChange={(e) => handleNInputChange(e.target.value)}
@@ -1871,7 +1893,7 @@ export default function InputBar() {
           max={API_MAX_OUTPUT_COUNT}
           className="px-3 py-1.5 rounded-xl border border-gray-200/60 dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.03] focus:outline-none text-xs transition-all duration-200 shadow-sm"
         />
-        <ButtonTooltip visible={nLimitHint.visible} text={`当前最多支持 ${API_MAX_OUTPUT_COUNT} 张`} />
+        <ButtonTooltip visible={nLimitHint.visible} text={t("当前最多支持 {0} 张", API_MAX_OUTPUT_COUNT)} />
       </label>
     </div>
   )
@@ -1884,24 +1906,24 @@ export default function InputBar() {
       {taskMode === 'video' ? (
         <>
           <button type="button" onClick={() => setTaskMode('image')} className={mobileChipClass}>
-            <span className="text-gray-400 dark:text-gray-500">模式</span>
-            <span>视频</span>
+            <span className="text-gray-400 dark:text-gray-500">{t("模式")}</span>
+            <span>{t("视频")}</span>
           </button>
           <button type="button" onClick={() => setShowVideoAspectPicker(true)} className={mobileChipClass}>
-            <span className="text-gray-400 dark:text-gray-500">比例</span>
+            <span className="text-gray-400 dark:text-gray-500">{t("比例")}</span>
             <span>{hasVideoReferenceImage ? 'auto' : videoAspectRatio}</span>
           </button>
           {(canShowVideoResolutionControl || canShowVideoDurationControl) && (
             <>
               {canShowVideoResolutionControl && (
               <button type="button" onClick={() => setMobileParamSheet('videoResolution')} className={mobileChipClass}>
-                <span className="text-gray-400 dark:text-gray-500">分辨率</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("分辨率")}</span>
                 <span>{videoResolution}</span>
               </button>
               )}
               {canShowVideoDurationControl && (
               <button type="button" onClick={() => setMobileParamSheet('videoDuration')} className={mobileChipClass}>
-                <span className="text-gray-400 dark:text-gray-500">时长</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("时长")}</span>
                 <span>{videoDuration}s</span>
               </button>
               )}
@@ -1910,30 +1932,31 @@ export default function InputBar() {
         </>
       ) : (
         <button type="button" onClick={() => setTaskMode('video')} className={mobileChipClass}>
-          <span className="text-gray-400 dark:text-gray-500">模式</span>
-          <span>图片</span>
+          <span className="text-gray-400 dark:text-gray-500">{t("模式")}</span>
+          <span>{t("图片")}</span>
         </button>
       )}
       {taskMode === 'video' ? null : (
         <>
       <button type="button" onClick={() => setShowSizePicker(true)} className={mobileChipClass}>
-        <span className="text-gray-400 dark:text-gray-500">尺寸</span>
+        <span className="text-gray-400 dark:text-gray-500">{t("尺寸")}</span>
         <span>{normalizeImageSize(params.size) || DEFAULT_PARAMS.size}</span>
       </button>
       <button type="button" onClick={() => !settings.codexCli && setMobileParamSheet('quality')} className={`${mobileChipClass} ${settings.codexCli ? 'opacity-50' : ''}`}>
-        <span className="text-gray-400 dark:text-gray-500">质量</span>
+        <span className="text-gray-400 dark:text-gray-500">{t("质量")}</span>
         <span>{settings.codexCli ? 'auto' : params.quality}</span>
       </button>
+      {Object.keys(imageCaps).length > 0 && <button type="button" onClick={() => setShowParamsModal(true)} className={mobileChipClass}>{t('扩展参数')}</button>}
       <button type="button" onClick={() => setMobileParamSheet('format')} className={mobileChipClass}>
-        <span className="text-gray-400 dark:text-gray-500">格式</span>
+        <span className="text-gray-400 dark:text-gray-500">{t("格式")}</span>
         <span>{params.output_format.toUpperCase()}</span>
       </button>
       <button type="button" onClick={() => setMobileParamSheet('count')} className={mobileChipClass}>
-        <span className="text-gray-400 dark:text-gray-500">张数</span>
+        <span className="text-gray-400 dark:text-gray-500">{t("张数")}</span>
         <span>{params.n}</span>
       </button>
       <button type="button" onClick={() => !moderationIgnored && setMobileParamSheet('moderation')} className={`${mobileChipClass} ${moderationIgnored ? 'opacity-50' : ''}`}>
-        <span className="text-gray-400 dark:text-gray-500">审核</span>
+        <span className="text-gray-400 dark:text-gray-500">{t("审核")}</span>
         <span>{moderationIgnored ? 'auto' : params.moderation}</span>
       </button>
         </>
@@ -1946,7 +1969,7 @@ export default function InputBar() {
     if (mobileParamSheet === 'videoResolution' || mobileParamSheet === 'videoDuration') {
       const isResolution = mobileParamSheet === 'videoResolution'
       if ((isResolution && !canShowVideoResolutionControl) || (!isResolution && !canShowVideoDurationControl)) return null
-      const title = isResolution ? '视频分辨率' : '视频时长'
+      const title = isResolution ? t("视频分辨率") : t("视频时长")
       const labels = isResolution ? allowedVideoResolutions : allowedVideoDurationLabels
       const value = isResolution ? videoResolution : String(videoDuration)
       const suffix = isResolution ? '' : 's'
@@ -1979,7 +2002,7 @@ export default function InputBar() {
         <div className="fixed inset-0 z-[70]" onClick={() => setMobileParamSheet(null)}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm animate-overlay-in" />
           <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-white dark:bg-gray-900 border-t border-gray-200/50 dark:border-white/[0.08] p-5 pb-safe animate-slide-up" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">生成张数</div>
+            <div className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">{t("生成张数")}</div>
             <div className="mb-3 flex flex-wrap gap-2">
               {quickOptions.map((option) => (
                 <button
@@ -1996,12 +2019,11 @@ export default function InputBar() {
                       : 'bg-gray-100 dark:bg-white/[0.06] text-gray-700 dark:text-gray-300 active:scale-95'
                   }`}
                 >
-                  {option} 张
-                </button>
+                  {option} {t(" 张")}</button>
               ))}
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">自定义数量</span>
+              <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("自定义数量")}</span>
               <input
                 value={nInput}
                 onChange={(e) => handleNInputChange(e.target.value)}
@@ -2013,7 +2035,7 @@ export default function InputBar() {
                 className="w-full rounded-2xl border border-gray-200/60 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-gray-100"
               />
             </label>
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">当前范围 1 - {API_MAX_OUTPUT_COUNT} 张</div>
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t("当前范围 1 - ")}{API_MAX_OUTPUT_COUNT} {t(" 张")}</div>
           </div>
         </div>
       )
@@ -2026,28 +2048,31 @@ export default function InputBar() {
       onChange: (value: string) => void
     }> = {
       quality: {
-        title: '质量',
+        title: t("质量"),
         options: [
           { label: 'auto', value: 'auto' },
           { label: 'low', value: 'low' },
           { label: 'medium', value: 'medium' },
           { label: 'high', value: 'high' },
+            ...(imageCaps.extendedQuality ? [{ label: 'xhigh', value: 'xhigh' }, { label: 'max', value: 'max' }] : []),
         ],
         value: params.quality,
         onChange: (value: string) => setParams({ quality: value as any }),
       },
       format: {
-        title: '格式',
+        title: t("格式"),
         options: [
           { label: 'PNG', value: 'png' },
           { label: 'JPEG', value: 'jpeg' },
           { label: 'WebP', value: 'webp' },
+            ...(imageCaps.svg && !inputImages.length ? [{ label: 'SVG', value: 'svg' }] : []),
+            ...(imageCaps.gif && !inputImages.length ? [{ label: 'GIF', value: 'gif' }] : []),
         ],
         value: params.output_format,
         onChange: (value: string) => setParams({ output_format: value as any }),
       },
       moderation: {
-        title: '审核',
+        title: t("审核"),
         options: [
           { label: 'auto', value: 'auto' },
           { label: 'low', value: 'low' },
@@ -2109,13 +2134,13 @@ export default function InputBar() {
             <div className="text-center">
               {atEffectiveImageLimit ? (
                 <>
-                  <p className="text-lg font-semibold text-red-500">已达上限 {veniceImageLimit} 张</p>
-                  <p className="text-sm text-gray-400 mt-1">请先移除部分参考图后再添加</p>
+                  <p className="text-lg font-semibold text-red-500">{t("已达上限 ")}{veniceImageLimit} {t(" 张")}</p>
+                  <p className="text-sm text-gray-400 mt-1">{t("请先移除部分参考图后再添加")}</p>
                 </>
               ) : (
                 <>
-                  <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">释放以添加参考图</p>
-                  <p className="text-sm text-gray-400 mt-1">支持 JPG、PNG、WebP 等格式</p>
+                  <p className="text-lg font-semibold text-gray-700 dark:text-gray-200">{t("释放以添加参考图")}</p>
+                  <p className="text-sm text-gray-400 mt-1">{t("支持 JPG、PNG、WebP 等格式")}</p>
                 </>
               )}
             </div>
@@ -2144,16 +2169,16 @@ export default function InputBar() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onMouseDown={() => setShowParamsModal(false)}>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-overlay-in" />
           <div
-            className="relative z-10 w-full max-w-sm rounded-3xl border border-white/50 bg-white/95 p-5 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:bg-gray-900/95 dark:ring-white/10"
+            className="relative z-10 max-h-[90dvh] overflow-y-auto w-full max-w-sm rounded-3xl border border-white/50 bg-white/95 p-5 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:bg-gray-900/95 dark:ring-white/10"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">参数设置</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{t("参数设置")}</h3>
               <button
                 type="button"
                 onClick={() => setShowParamsModal(false)}
                 className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-300"
-                aria-label="关闭参数设置"
+                aria-label={t("关闭参数设置")}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2161,10 +2186,12 @@ export default function InputBar() {
               </button>
             </div>
             {renderParams('grid-cols-2')}
+            <AdvancedImageParameters />
           </div>
         </div>
       )}
 
+      {markupEditorImageId && inputImages.some(image => image.id === markupEditorImageId) && <MarkupEditorModal source={inputImages.find(image => image.id === markupEditorImageId)!.dataUrl} initial={maskDraft?.kind === 'markup' && maskDraft.targetImageId === markupEditorImageId ? maskDraft.maskDataUrl : undefined} onClose={() => setMarkupEditorImageId(null)} onSave={maskDataUrl => useStore.getState().setMaskDraft({ kind: 'markup', targetImageId: markupEditorImageId, maskDataUrl, updatedAt: Date.now() })} />}
       {renderMobileActionSheet()}
 
       <div data-input-bar className={`safe-bottom-floating sm:safe-bottom-floating-sm fixed left-1/2 -translate-x-1/2 z-30 w-full max-w-4xl px-3 sm:px-4 transition-all duration-300 ${detailTaskId ? 'max-md:hidden' : ''}`}>
@@ -2174,7 +2201,7 @@ export default function InputBar() {
               <button
                 onClick={clearSelection}
                 className="p-2 text-gray-300 hover:text-white transition-colors"
-                title="取消选择"
+                title={t("取消选择")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2183,7 +2210,7 @@ export default function InputBar() {
               <div className="w-px h-5 bg-white/20 mx-1"></div>
               <div
                 className="min-w-[2.25rem] px-2 py-1 text-center text-sm font-semibold tabular-nums text-white/90"
-                title={`已选中 ${selectedTaskIds.length} 条记录`}
+                title={t("已选中 {0} 条记录", selectedTaskIds.length)}
               >
                 {selectedTaskIds.length}
               </div>
@@ -2191,7 +2218,7 @@ export default function InputBar() {
               <button
                 onClick={handleSelectAllToggle}
                 className="p-2 text-blue-400 hover:text-blue-300 transition-colors"
-                title={selectedTaskIds.length === visibleTasks.length && visibleTasks.length > 0 ? "取消全选" : "全选当前可见"}
+                title={selectedTaskIds.length === visibleTasks.length && visibleTasks.length > 0 ? t("取消全选") : t("全选当前可见")}
               >
                 {selectedTaskIds.length === visibleTasks.length && visibleTasks.length > 0 ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -2208,7 +2235,7 @@ export default function InputBar() {
               <button
                 onClick={handleToggleFavorite}
                 className="p-2 text-yellow-400 hover:text-yellow-300 transition-colors"
-                title="收藏/取消收藏"
+                title={t("收藏/取消收藏")}
               >
                 {selectedTaskIds.length > 0 && selectedTaskIds.every((id) => tasks.find((t) => t.id === id)?.isFavorite) ? (
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -2224,7 +2251,7 @@ export default function InputBar() {
               <button
                 onClick={handleToggleArchived}
                 className="p-2 text-slate-300 hover:text-white transition-colors"
-                title="归档/取消归档"
+                title={t("归档/取消归档")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <rect x="4" y="4" width="16" height="5" rx="1" />
@@ -2236,7 +2263,7 @@ export default function InputBar() {
               <button
                 onClick={handleBatchDownload}
                 className="p-2 text-emerald-400 hover:text-emerald-300 transition-colors"
-                title={isIOS ? 'iOS 暂不支持批量下载' : '批量下载'}
+                title={isIOS ? t("iOS 暂不支持批量下载") : t("批量下载")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v11m0 0l4-4m-4 4l-4-4M4 17v1a2 2 0 002 2h12a2 2 0 002-2v-1" />
@@ -2246,7 +2273,7 @@ export default function InputBar() {
               <button
                 onClick={handleDeleteSelected}
                 className="p-2 text-red-400 hover:text-red-300 transition-colors"
-                title="删除选中"
+                title={t("删除选中")}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2284,7 +2311,7 @@ export default function InputBar() {
                 suppressHandleClickRef.current = false
               }}
               role="button"
-              aria-label={mobileCollapsed ? '展开配置区域' : '收起配置区域'}
+              aria-label={mobileCollapsed ? t("展开配置区域") : t("收起配置区域")}
             >
               <div className={`h-1 w-10 rounded-full bg-gray-300 transition-transform duration-250 dark:bg-white/[0.10] ${mobileCollapsed ? 'scale-x-75' : 'scale-x-100'}`} />
             </div>
@@ -2293,8 +2320,8 @@ export default function InputBar() {
           {(inputImagesPending || isSubmittingTask) && (
             <p role="status" className="mb-2 text-xs text-gray-500 dark:text-gray-400">
               {isSubmittingTask
-                ? '参考图正在上传，本次顺序已锁定，请等待提交完成'
-                : `参考图正在读取或处理${pendingInputImages > 0 ? `（剩余 ${pendingInputImages} 张）` : ''}，完成后可提交`}
+                ? t("参考图正在上传，本次顺序已锁定，请等待提交完成")
+                : t("参考图正在读取或处理{0}，完成后可提交", pendingInputImages > 0 ? t("（剩余 {0} 张）", pendingInputImages) : '')}
             </p>
           )}
 
@@ -2312,7 +2339,7 @@ export default function InputBar() {
                     </div>
                     {mobileCollapsed && (
                       <div className="mb-2 ml-1 text-xs text-gray-400 dark:text-gray-500">
-                        {maskDraft ? `1 张遮罩主图 · ${referenceImages.length} 张参考图` : `${inputImages.length} 张参考图`}
+                        {maskDraft ? (maskDraft.kind === 'markup' ? t('1 张标注主图 · {0} 张参考图', referenceImages.length) : t("1 张遮罩主图 · {0} 张参考图", referenceImages.length)) : t("{0} 张参考图", inputImages.length)}
                       </div>
                     )}
                   </>
@@ -2332,7 +2359,7 @@ export default function InputBar() {
             <div className="relative">
             {showAtImageMenu && (
               <div className="dropdown-glass-surface absolute bottom-full left-0 z-[90] mb-2 w-64 overflow-hidden rounded-2xl border border-gray-200/70 p-1.5 shadow-xl ring-1 ring-black/5 dark:border-white/[0.08] dark:ring-white/10">
-                <div className="px-2 pb-1 pt-0.5 text-[11px] text-gray-400 dark:text-gray-500">选择当前参考图</div>
+                <div className="px-2 pb-1 pt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{t("选择当前参考图")}</div>
                 <div className="tiny-scrollbar max-h-56 overflow-y-auto">
                   {atImageOptions.map(({ img, index }, optionIndex) => (
                     <button
@@ -2409,10 +2436,10 @@ export default function InputBar() {
                 syncMentionTagSelection(el)
               }}
               data-placeholder={taskMode === 'video'
-                ? '描述你想生成的视频。可添加参考图。'
+                ? t("描述你想生成的视频。可添加参考图。")
                 : (activeProviderOption?.apiMode === 'venice_images' || activeProviderOption?.apiMode === 'wavespeed' || activeProviderOption?.apiMode === 'kie') && activeProviderOption.veniceGenerateEnabled === false
-                  ? `当前 ${getProviderOptionDisplayNameForRole(activeProviderOption, authStatus?.role)} 已禁用文生图。请先添加参考图。`
-                  : '描述你想生成的图片。输入 @ 可引用当前参考图。'}
+                  ? t("当前 {0} 已禁用文生图。请先添加参考图。", getProviderOptionDisplayNameForRole(activeProviderOption, authStatus?.role))
+                  : t("描述你想生成的图片。输入 @ 可引用当前参考图。")}
               className="w-full min-h-[42px] px-4 py-3 pr-11 rounded-2xl border border-gray-200/60 dark:border-white/[0.08] bg-white/50 dark:bg-white/[0.03] text-sm focus:outline-none leading-relaxed shadow-sm transition-[border-color,box-shadow] duration-200 whitespace-pre-wrap break-words empty:before:pointer-events-none empty:before:text-gray-400 empty:before:content-[attr(data-placeholder)] dark:text-gray-100 dark:empty:before:text-gray-500"
             />
             {prompt.trim() && (
@@ -2420,8 +2447,8 @@ export default function InputBar() {
                 type="button"
                 onClick={clearPromptText}
                 className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-white/[0.08] dark:hover:text-gray-300"
-                aria-label="清空提示词"
-                title="清空提示词"
+                aria-label={t("清空提示词")}
+                title={t("清空提示词")}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />
@@ -2439,15 +2466,13 @@ export default function InputBar() {
                     onClick={() => setTaskMode('image')}
                     className={`inline-flex min-w-12 items-center justify-center rounded-lg px-3 leading-none transition ${taskMode === 'image' ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'text-gray-500 dark:text-gray-300'}`}
                   >
-                    图片
-                  </button>
+                    {t("图片")}</button>
                   <button
                     type="button"
                     onClick={() => setTaskMode('video')}
                     className={`inline-flex min-w-12 items-center justify-center rounded-lg px-3 leading-none transition ${taskMode === 'video' ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'text-gray-500 dark:text-gray-300'}`}
                   >
-                    视频
-                  </button>
+                    {t("视频")}</button>
                 </div>
                 {taskMode === 'video' ? (
                   <>
@@ -2456,12 +2481,12 @@ export default function InputBar() {
                       onClick={() => setShowVideoAspectPicker(true)}
                       className="flex h-10 min-w-[88px] shrink-0 items-center justify-between rounded-xl border border-gray-200/60 bg-white/70 px-2.5 text-sm text-gray-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"
                     >
-                      <span className="text-gray-400 dark:text-gray-500">比例</span>
+                      <span className="text-gray-400 dark:text-gray-500">{t("比例")}</span>
                       <span>{hasVideoReferenceImage ? 'auto' : videoAspectRatio}</span>
                     </button>
                     {canShowVideoResolutionControl && (
                       <CompactSegmentedSlider
-                        label="分辨率"
+                        label={t("分辨率")}
                         value={videoResolution}
                         labels={allowedVideoResolutions}
                         onChange={(value) => setVideoResolution(value as VideoTaskParams['resolution'])}
@@ -2469,7 +2494,7 @@ export default function InputBar() {
                     )}
                     {canShowVideoDurationControl && (
                       <CompactSegmentedSlider
-                        label="时长"
+                        label={t("时长")}
                         value={String(videoDuration)}
                         labels={allowedVideoDurationLabels}
                         suffix="s"
@@ -2483,13 +2508,13 @@ export default function InputBar() {
                     onMouseEnter={sizeHint.show}
                     onMouseLeave={sizeHint.hide}
                   >
-                    <ButtonTooltip visible={sizeHint.visible} text="设置输出尺寸" />
+                    <ButtonTooltip visible={sizeHint.visible} text={t("设置输出尺寸")} />
                     <button
                       type="button"
                       onClick={() => setShowSizePicker(true)}
                       className="flex h-10 w-[132px] items-center justify-between rounded-xl border border-gray-200/60 bg-white/70 px-3 text-sm text-gray-700 shadow-sm transition-all hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"
                     >
-                      <span className="text-gray-400 dark:text-gray-500">尺寸</span>
+                      <span className="text-gray-400 dark:text-gray-500">{t("尺寸")}</span>
                       <span>{normalizeImageSize(params.size) || DEFAULT_PARAMS.size}</span>
                     </button>
                   </div>
@@ -2499,7 +2524,7 @@ export default function InputBar() {
                   onMouseEnter={() => setAttachHover(true)}
                   onMouseLeave={() => setAttachHover(false)}
                 >
-                  <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={`参考图数量已达上限（${veniceImageLimit} 张），无法继续添加`} />
+                  <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={t("参考图数量已达上限（{0} 张），无法继续添加", veniceImageLimit)} />
                   <button
                     type="button"
                     onClick={() => !atEffectiveImageLimit && fileInputRef.current?.click()}
@@ -2508,7 +2533,7 @@ export default function InputBar() {
                         ? 'cursor-not-allowed bg-gray-200 text-gray-300 dark:bg-white/[0.04] dark:text-gray-500'
                         : 'bg-gray-200 text-gray-500 hover:bg-gray-300 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]'
                     }`}
-                    title={atEffectiveImageLimit ? `已达上限 ${veniceImageLimit} 张` : '添加参考图'}
+                    title={atEffectiveImageLimit ? t("已达上限 {0} 张", veniceImageLimit) : t("添加参考图")}
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -2520,7 +2545,7 @@ export default function InputBar() {
                     type="button"
                     onClick={() => setShowParamsModal(true)}
                     className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-200 text-gray-500 shadow-sm transition-all hover:bg-gray-300 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]"
-                    title="打开参数设置"
+                    title={t("打开参数设置")}
                   >
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.427 1.756 2.925 0 3.352a1.724 1.724 0 00-1.066 2.572c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.427 1.756-2.925 1.756-3.352 0a1.724 1.724 0 00-2.572-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.427-1.756-2.925 0-3.352A1.724 1.724 0 005.38 7.753c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.066z" />
@@ -2538,7 +2563,7 @@ export default function InputBar() {
                   onMouseLeave={() => setSubmitHover(false)}
                 >
                   {renderUsageCodePicker()}
-                  <ButtonTooltip visible={!hasConfiguredProvider && submitHover} text="尚未完成后端 API 配置，请在右上角设置中进行" />
+                  <ButtonTooltip visible={!hasConfiguredProvider && submitHover} text={t("尚未完成后端 API 配置，请在右上角设置中进行")} />
                   <button
                     type="button"
                     onClick={handleSubmit}
@@ -2548,7 +2573,7 @@ export default function InputBar() {
                         ? 'cursor-pointer bg-gray-300 text-white dark:bg-white/[0.06]'
                         : 'bg-blue-500 text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:opacity-50 dark:disabled:bg-white/[0.04]'
                     }`}
-                    title={hasConfiguredProvider ? (taskMode === 'image' && maskDraft ? '遮罩编辑 (Ctrl+Enter)' : '生成 (Ctrl+Enter)') : '请先配置后端 API'}
+                    title={hasConfiguredProvider ? (taskMode === 'image' && maskDraft ? (maskDraft.kind === 'markup' ? t("标注编辑 (Ctrl+Enter)") : t("遮罩编辑 (Ctrl+Enter)")) : t("生成 (Ctrl+Enter)")) : t("请先配置后端 API")}
                   >
                     {isSubmitting ? (
                       <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2560,7 +2585,7 @@ export default function InputBar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     )}
-                    <span>{isSubmitting ? '提交中' : taskMode === 'video' ? '生成视频' : maskDraft ? '遮罩编辑' : '生成图像'}</span>
+                    <span>{isSubmitting ? t("提交中") : taskMode === 'video' ? t("生成视频") : maskDraft ? (maskDraft.kind === 'markup' ? t("标注编辑") : t("遮罩编辑")) : t("生成图像")}</span>
                   </button>
                 </div>
               </div>
@@ -2574,7 +2599,7 @@ export default function InputBar() {
                     onMouseEnter={() => setAttachHover(true)}
                     onMouseLeave={() => setAttachHover(false)}
                   >
-                    <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={`参考图数量已达上限（${veniceImageLimit} 张），无法继续添加`} />
+                    <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={t("参考图数量已达上限（{0} 张），无法继续添加", veniceImageLimit)} />
                     <button
                       type="button"
                       onClick={() => !atEffectiveImageLimit && fileInputRef.current?.click()}
@@ -2583,7 +2608,7 @@ export default function InputBar() {
                           ? 'cursor-not-allowed bg-gray-200 text-gray-300 dark:bg-white/[0.04] dark:text-gray-500'
                           : 'bg-gray-200 text-gray-500 hover:bg-gray-300 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]'
                       }`}
-                      title={atEffectiveImageLimit ? `已达上限 ${veniceImageLimit} 张` : '从相册选择'}
+                      title={atEffectiveImageLimit ? t("已达上限 {0} 张", veniceImageLimit) : t("从相册选择")}
                     >
                       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7a2 2 0 012-2h2l1.2 1.4A2 2 0 0010.7 7H18a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7z" />
@@ -2596,7 +2621,7 @@ export default function InputBar() {
                     onMouseEnter={() => setAttachHover(true)}
                     onMouseLeave={() => setAttachHover(false)}
                   >
-                    <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={`参考图数量已达上限（${veniceImageLimit} 张），无法继续添加`} />
+                    <ButtonTooltip visible={atEffectiveImageLimit && attachHover} text={t("参考图数量已达上限（{0} 张），无法继续添加", veniceImageLimit)} />
                     <button
                       type="button"
                       onClick={() => !atEffectiveImageLimit && cameraInputRef.current?.click()}
@@ -2605,7 +2630,7 @@ export default function InputBar() {
                           ? 'cursor-not-allowed bg-gray-200 text-gray-300 dark:bg-white/[0.04] dark:text-gray-500'
                           : 'bg-gray-200 text-gray-500 hover:bg-gray-300 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]'
                       }`}
-                      title={atEffectiveImageLimit ? `已达上限 ${veniceImageLimit} 张` : '拍照添加'}
+                      title={atEffectiveImageLimit ? t("已达上限 {0} 张", veniceImageLimit) : t("拍照添加")}
                     >
                       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8.5A2.5 2.5 0 015.5 6H7l1.1-1.3A2 2 0 019.6 4h4.8a2 2 0 011.5.7L17 6h1.5A2.5 2.5 0 0121 8.5v8A2.5 2.5 0 0118.5 19h-13A2.5 2.5 0 013 16.5v-8z" />
@@ -2624,7 +2649,7 @@ export default function InputBar() {
                   onMouseLeave={() => setSubmitHover(false)}
                 >
                   {renderUsageCodePicker()}
-                  <ButtonTooltip visible={!hasConfiguredProvider && submitHover} text="尚未完成后端 API 配置，请在右上角设置中进行" />
+                  <ButtonTooltip visible={!hasConfiguredProvider && submitHover} text={t("尚未完成后端 API 配置，请在右上角设置中进行")} />
                   <button
                     type="button"
                     onClick={handleSubmit}
@@ -2645,7 +2670,7 @@ export default function InputBar() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
                     )}
-                    <span className="whitespace-nowrap">{isSubmitting ? '提交中' : taskMode === 'video' ? '生成视频' : maskDraft ? '遮罩编辑' : '生成图像'}</span>
+                    <span className="whitespace-nowrap">{isSubmitting ? t("提交中") : taskMode === 'video' ? t("生成视频") : maskDraft ? t("遮罩编辑") : t("生成图像")}</span>
                   </button>
                 </div>
               </div>

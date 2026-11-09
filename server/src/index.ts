@@ -18,6 +18,8 @@ import { metaRoutes } from './routes/meta.js'
 import { settingsRoutes } from './routes/settings.js'
 import { taskRoutes } from './routes/tasks.js'
 import { renderWebIndexHtml } from './lib/webAssets.js'
+import { cleanupDeletedTaskMediaDirectories } from './lib/mediaCleanup.js'
+import { deduplicateStoredInputImages } from './lib/inputImageStorage.js'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -49,6 +51,16 @@ for (const dir of [
 
 app.decorate('config', appConfig)
 app.decorate('db', new AppDatabase(appConfig.dbPath))
+const inputStorage = await deduplicateStoredInputImages(app.db, appConfig.mediaDir)
+if (inputStorage.scanned || inputStorage.missing || inputStorage.skipped || inputStorage.recoveredTemporaryLinks) {
+  app.log.info(inputStorage, '已检查历史输入图并合并重复文件')
+}
+try {
+  const removed = await cleanupDeletedTaskMediaDirectories(appConfig.mediaDir, (taskId) => app.db.taskExists(taskId))
+  if (removed) app.log.info({ removed }, '已清理已删除任务遗留的空目录')
+} catch (error) {
+  app.log.warn({ err: error }, '清理历史任务空目录失败')
+}
 app.decorate('taskEvents', new TaskEventBus())
 app.decorate('taskWorker', new TaskWorker(app.db, app.taskEvents, {
   appSecret: appConfig.appSecret,
@@ -118,6 +130,10 @@ app.addHook('preHandler', async (request, reply) => {
     return reply.send({ message: '图片不存在' })
   }
 
+  if (image.mimeType === 'image/svg+xml') {
+    reply.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    reply.header('X-Content-Type-Options', 'nosniff')
+  }
   const auth = await getAuthContext(app, request)
   if (!auth) {
     reply.code(401)

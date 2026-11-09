@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { formatByteSize } from './imageLoadProgress'
 import { canvasToBlob, loadImage } from './canvasImage'
 
@@ -106,7 +107,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('图片读取失败'))
+    reader.onerror = () => reject(reader.error ?? new Error(t("图片读取失败")))
     reader.readAsDataURL(blob)
   })
 }
@@ -142,7 +143,7 @@ async function encodeImageAtSize(
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('当前浏览器不支持 Canvas')
+  if (!ctx) throw new Error(t("当前浏览器不支持 Canvas"))
   ctx.drawImage(image, 0, 0, width, height)
   return encodeCanvasDataUrl(canvas, maxBytes)
 }
@@ -158,7 +159,7 @@ export async function prepareInputImageDataUrl(
   const originalBytes = estimateDataUrlBytes(dataUrl)
   const overPixelLimit = exceedsInputImagePixelLimit(originalWidth, originalHeight)
 
-  if (!overPixelLimit && originalBytes <= maxBytes) {
+  if (!overPixelLimit && originalBytes <= maxBytes && !/^data:image\/(svg\+xml|gif)[;,]/i.test(dataUrl)) {
     return {
       dataUrl,
       originalWidth,
@@ -224,8 +225,8 @@ export function formatInputImageCompressionMessage(prepared: PreparedInputImage)
 
   const sizePart = `${formatByteSize(prepared.originalBytes)} → ${formatByteSize(prepared.outputBytes)}`
   if (!prepared.wasResized) {
-    return `参考图体积已自动压缩（${sizePart}）`
+    return t("参考图体积已自动压缩（{0}）", sizePart)
   }
 
-  return `参考图已自动压缩（${prepared.originalWidth}×${prepared.originalHeight} → ${prepared.width}×${prepared.height}，${sizePart}）`
+  return t("参考图已自动压缩（{0}×{1} → {2}×{3}，{4}）", prepared.originalWidth, prepared.originalHeight, prepared.width, prepared.height, sizePart)
 }

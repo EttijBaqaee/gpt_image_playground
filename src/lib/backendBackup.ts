@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { appFetch } from './appUrl'
 import type { MaintenanceStatus } from './backendAuth'
 
@@ -133,7 +134,7 @@ export async function downloadUsageCodeMediaExportFile(
   const totalBytes = Number(response.headers.get('content-length') ?? '')
   const expectedBytes = Number.isFinite(totalBytes) && totalBytes > 0 ? totalBytes : null
   const reader = response.body?.getReader()
-  if (!reader) throw new Error('浏览器不支持下载流')
+  if (!reader) throw new Error(t("浏览器不支持下载流"))
 
   const chunks: ArrayBuffer[] = []
   let loadedBytes = 0

@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BackendReminderItem } from '../lib/backendSettings'
 import { renderTextWithLinks } from '../lib/linkify'
@@ -45,16 +46,16 @@ export default function AnnouncementModal({
       <div className="glass-surface-strong relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-white/50 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:ring-white/10">
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-white/[0.08]">
           <div>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">{announcement.title || '公告'}</h3>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">{announcement.title || t("公告")}</h3>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              每日最多弹出 {announcement.maxDailyShows} 次 · {announcement.startTime} - {announcement.endTime}
+              {t("每日最多弹出 ")}{announcement.maxDailyShows} {t(" 次 · ")}{announcement.startTime} - {announcement.endTime}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-            aria-label="关闭公告"
+            aria-label={t("关闭公告")}
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -80,7 +81,7 @@ export default function AnnouncementModal({
                   <img
                     key={`${announcement.id}-image-${currentIndex}`}
                     src={resolvedImageSources[imageDataUrl] ?? imageDataUrl}
-                    alt={announcement.title || '公告配图'}
+                    alt={announcement.title || t("公告配图")}
                     className={`max-h-80 w-full select-none object-contain ${currentIndex === imageIndex ? 'block' : 'hidden'}`}
                     draggable={false}
                   />
@@ -158,14 +159,13 @@ export default function AnnouncementModal({
             onClick={onClose}
             className="w-full rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600"
           >
-            我知道了
-          </button>
+            {t("我知道了")}</button>
         </div>
       </div>
       {showImagePreview && imageDataUrls.length > 0 && (
         <AnnouncementImagePreview
           announcementId={announcement.id}
-          title={announcement.title || '公告配图'}
+          title={announcement.title || t("公告配图")}
           imageDataUrls={imageDataUrls}
           resolvedImageSources={resolvedImageSources}
           imageIndex={imageIndex}
@@ -512,7 +512,7 @@ function AnnouncementImagePreview({
         data-announcement-preview-control
         onClick={onClose}
         className="absolute right-5 top-5 z-20 rounded-full bg-black/40 p-2 text-white transition hover:bg-black/60"
-        aria-label="关闭图片预览"
+        aria-label={t("关闭图片预览")}
       >
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

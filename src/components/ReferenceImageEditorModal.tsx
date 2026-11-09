@@ -1,3 +1,4 @@
+import { t, getLocale } from '../lib/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, Ellipse, FabricImage, IText, PencilBrush, Rect, Triangle, type FabricObject } from 'fabric'
 import { addInputImageWithDataUrl, replaceInputImageWithDataUrl, useStore } from '../store'
@@ -29,7 +30,7 @@ type BaseImageData = {
 }
 
 const DEFAULT_TEXT_STYLE: TextStyleState = {
-  text: '输入文字',
+  text: "输入文字",
   fill: '#ffffff',
   fontSize: 48,
   fontWeight: 'bold',
@@ -122,9 +123,9 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
   const [maskHue, setMaskHue] = useState(DEFAULT_MASK_HUE)
   const [maskShapeType, setMaskShapeType] = useState<MaskShapeType>('rect')
   const [activeObject, setActiveObject] = useState<FabricObject | null>(null)
-  const [textStyle, setTextStyle] = useState<TextStyleState>(DEFAULT_TEXT_STYLE)
+  const [textStyle, setTextStyle] = useState<TextStyleState>(() => ({ ...DEFAULT_TEXT_STYLE, text: t(DEFAULT_TEXT_STYLE.text) }))
   const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false })
-  const currentImageList = useMemo(() => lightboxImageList.length ? lightboxImageList : inputImages.map((item) => item.id), [inputImages, lightboxImageList])
+  const currentImageList = useMemo(() => lightboxImageList.length ? lightboxImageList : inputImages.map((item) => item.id), [inputImages, lightboxImageList, getLocale()])
   const isOpen = true
   const isMobileDevice = useIsMobileDevice()
 
@@ -173,7 +174,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
     }
 
     setTextStyle({
-      text: object.text ?? DEFAULT_TEXT_STYLE.text,
+      text: object.text ?? t(DEFAULT_TEXT_STYLE.text),
       fill: typeof object.fill === 'string' ? object.fill : DEFAULT_TEXT_STYLE.fill,
       fontSize: typeof object.fontSize === 'number' ? object.fontSize : DEFAULT_TEXT_STYLE.fontSize,
       fontWeight: object.fontWeight === 'bold' ? 'bold' : 'normal',
@@ -770,7 +771,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const text = new IText(textStyle.text || DEFAULT_TEXT_STYLE.text, {
+    const text = new IText(textStyle.text || t(DEFAULT_TEXT_STYLE.text), {
       left: canvas.getWidth() / 2,
       top: canvas.getHeight() / 2,
       originX: 'center',
@@ -1007,13 +1008,13 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
       const nextId = await replaceInputImageWithDataUrl(imageId, editedDataUrl)
       setLightboxImageId(nextId, currentImageList.map((id) => (id === imageId ? nextId : id)))
       onSaved?.(nextId, editedDataUrl)
-      showToast('参考图已更新', 'success')
+      showToast(t("参考图已更新"), 'success')
     } else {
       const nextId = await addInputImageWithDataUrl(editedDataUrl)
       const nextList = currentImageList.includes(nextId) ? currentImageList : [...currentImageList, nextId]
       setLightboxImageId(nextId, nextList)
       onSaved?.(nextId, editedDataUrl)
-      showToast('编辑结果已加入参考图', 'success')
+      showToast(t("编辑结果已加入参考图"), 'success')
     }
     onClose()
   }
@@ -1036,8 +1037,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
         >
           {!ready && (
             <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-white/65">
-              正在加载编辑器...
-            </div>
+              {t("正在加载编辑器...")}</div>
           )}
           <canvas
             ref={backgroundCanvasRef}
@@ -1051,16 +1051,15 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
         <aside className="glass-surface-dark safe-editor-panel absolute inset-x-2 z-20 max-h-[282px] overflow-y-auto rounded-2xl border border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white shadow-2xl sm:inset-x-3 sm:max-h-[306px] sm:p-4 md:bottom-4 md:left-auto md:right-4 md:top-4 md:max-h-none md:w-[360px] md:p-5">
           <div className="mb-3 flex items-center justify-between md:mb-5">
               <div>
-                <h3 className="text-base font-semibold md:text-lg">高级编辑</h3>
+                <h3 className="text-base font-semibold md:text-lg">{t("高级编辑")}</h3>
                 <p className="mt-1 hidden text-xs text-white/45 sm:block">
-                文字、涂抹、区域填色、贴图。
-                {saveMode === 'replace-input' ? ' 保存后替换当前参考图。' : ' 保存后加入参考图。'}
+                {t("文字、涂抹、区域填色、贴图。")}{saveMode === 'replace-input' ? t(" 保存后替换当前参考图。") : t(" 保存后加入参考图。")}
               </p>
             </div>
             <button
               onClick={onClose}
               className="rounded-full p-2 text-white/45 transition hover:bg-white/10 hover:text-white"
-              aria-label="关闭编辑器"
+              aria-label={t("关闭编辑器")}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1070,88 +1069,77 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
 
           <div className="space-y-3 md:space-y-5">
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 md:rounded-2xl md:p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">历史</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">{t("历史")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => void handleUndo()}
                   disabled={!historyState.canUndo}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-40 md:rounded-xl"
                 >
-                  撤销
-                </button>
+                  {t("撤销")}</button>
                 <button
                   onClick={() => void handleRedo()}
                   disabled={!historyState.canRedo}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-40 md:rounded-xl"
                 >
-                  重做
-                </button>
+                  {t("重做")}</button>
               </div>
             </section>
 
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 md:rounded-2xl md:p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">工具</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">{t("工具")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <div className={canDeleteActiveObject && isMobileDevice ? 'grid grid-cols-2 gap-2' : ''}>
                   <button
                   onClick={() => handleToolModeChange('select')}
                     className={`w-full rounded-lg px-3 py-2 text-sm transition md:rounded-xl ${toolMode === 'select' ? 'bg-blue-500 text-white' : 'bg-white/8 text-white hover:bg-white/12'}`}
                   >
-                    选择
-                  </button>
+                    {t("选择")}</button>
                   {canDeleteActiveObject && isMobileDevice && (
                     <button
                       onClick={handleDeleteActiveObject}
                       className="w-full rounded-lg bg-red-500/90 px-3 py-2 text-sm text-white transition hover:bg-red-500"
                     >
-                      删除
-                    </button>
+                      {t("删除")}</button>
                   )}
                 </div>
                 <button
                   onClick={() => handleToolModeChange('mask-brush')}
                   className={`rounded-lg px-3 py-2 text-sm transition md:rounded-xl ${toolMode === 'mask-brush' ? 'bg-blue-500 text-white' : 'bg-white/8 text-white hover:bg-white/12'}`}
                 >
-                  涂抹
-                </button>
+                  {t("涂抹")}</button>
                 <button
                   onClick={() => handleFlipActiveObject('x')}
                   disabled={!activeObject}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-40 md:rounded-xl"
                 >
-                  水平翻转
-                </button>
+                  {t("水平翻转")}</button>
                 <button
                   onClick={() => handleFlipActiveObject('y')}
                   disabled={!activeObject}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-40 md:rounded-xl"
                 >
-                  垂直翻转
-                </button>
+                  {t("垂直翻转")}</button>
                 <button
                   onClick={handleAddMaskRegion}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 md:rounded-xl"
                 >
-                  区域填色
-                </button>
+                  {t("区域填色")}</button>
                 <button
                   onClick={handleAddText}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 md:rounded-xl"
                 >
-                  添加文字
-                </button>
+                  {t("添加文字")}</button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 md:rounded-xl"
                 >
-                  从文件贴图
-                </button>
+                  {t("从文件贴图")}</button>
                 <button
-                  onClick={() => showToast('直接粘贴图片即可加入画布', 'info')}
+                  onClick={() => showToast(t("直接粘贴图片即可加入画布"), 'info')}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 md:rounded-xl"
                 >
-                  从剪贴板贴图
-                </button>
+                  {t("从剪贴板贴图")}</button>
               </div>
               <input
                 ref={fileInputRef}
@@ -1164,21 +1152,21 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
 
             {showTextSettings && (
               <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 md:rounded-2xl md:p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">文字样式</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">{t("文字样式")}</div>
               <div className="space-y-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs text-white/55">文字内容</span>
+                  <span className="mb-1 block text-xs text-white/55">{t("文字内容")}</span>
                   <textarea
                     value={textStyle.text}
                     onChange={(e) => handleObjectStyleChange({ text: e.target.value })}
                     rows={2}
                     className="w-full rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none focus:border-blue-400 md:rounded-xl"
-                    placeholder="输入要添加到画布的文字"
+                    placeholder={t("输入要添加到画布的文字")}
                   />
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="mb-1 block text-xs text-white/55">颜色</span>
+                    <span className="mb-1 block text-xs text-white/55">{t("颜色")}</span>
                     <input
                       type="color"
                       value={normalizeColorValue(textStyle.fill)}
@@ -1187,7 +1175,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs text-white/55">字号</span>
+                    <span className="mb-1 block text-xs text-white/55">{t("字号")}</span>
                     <input
                       type="number"
                       min={12}
@@ -1203,17 +1191,15 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                     onClick={() => handleObjectStyleChange({ fontWeight: textStyle.fontWeight === 'bold' ? 'normal' : 'bold' })}
                     className={`rounded-lg px-3 py-2 text-sm transition md:rounded-xl ${textStyle.fontWeight === 'bold' ? 'bg-blue-500 text-white' : 'bg-white/8 text-white hover:bg-white/12'}`}
                   >
-                    粗体
-                  </button>
+                    {t("粗体")}</button>
                   <button
                     onClick={() => handleObjectStyleChange({ fontStyle: textStyle.fontStyle === 'italic' ? 'normal' : 'italic' })}
                     className={`rounded-lg px-3 py-2 text-sm transition md:rounded-xl ${textStyle.fontStyle === 'italic' ? 'bg-blue-500 text-white' : 'bg-white/8 text-white hover:bg-white/12'}`}
                   >
-                    斜体
-                  </button>
+                    {t("斜体")}</button>
                 </div>
                 {!isTextSelected && (
-                  <div className="text-xs text-white/45">当前没有选中文字对象，样式会用于下一个新建文字。</div>
+                  <div className="text-xs text-white/45">{t("当前没有选中文字对象，样式会用于下一个新建文字。")}</div>
                 )}
               </div>
               </section>
@@ -1221,10 +1207,10 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
 
             {showLocalMaskSettings && (
               <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 md:rounded-2xl md:p-4">
-                <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">填色样式</div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">{t("填色样式")}</div>
                 <div className="space-y-3">
                   <label className="block">
-                    <span className="mb-1 block text-xs text-white/55">透明度</span>
+                    <span className="mb-1 block text-xs text-white/55">{t("透明度")}</span>
                     <input
                       type="range"
                       min={0.05}
@@ -1237,7 +1223,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                     <span className="mt-1 block text-xs text-white/45">{Math.round(maskOpacity * 100)}%</span>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs text-white/55">笔刷大小</span>
+                    <span className="mb-1 block text-xs text-white/55">{t("笔刷大小")}</span>
                     <input
                       type="range"
                       min={4}
@@ -1250,7 +1236,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                     <span className="mt-1 block text-xs text-white/45">{maskWidth}px</span>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs text-white/55">颜色</span>
+                    <span className="mb-1 block text-xs text-white/55">{t("颜色")}</span>
                     <input
                       type="range"
                       min={0}
@@ -1267,7 +1253,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                     />
                   </label>
                   <div>
-                    <div className="mb-1 text-xs text-white/55">区域形状</div>
+                    <div className="mb-1 text-xs text-white/55">{t("区域形状")}</div>
                     <div className="grid grid-cols-3 gap-2">
                       {(['rect', 'ellipse', 'triangle'] as const).map((shapeType) => (
                         <button
@@ -1275,7 +1261,7 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
                           onClick={() => handleChangeMaskShapeType(shapeType)}
                           className={`rounded-lg px-3 py-2 text-sm transition md:rounded-xl ${maskShapeType === shapeType ? 'bg-blue-500 text-white' : 'bg-white/8 text-white hover:bg-white/12'}`}
                         >
-                          {shapeType === 'rect' ? '矩形' : shapeType === 'ellipse' ? '圆形' : '三角'}
+                          {shapeType === 'rect' ? t("矩形") : shapeType === 'ellipse' ? t("圆形") : t("三角")}
                         </button>
                       ))}
                     </div>
@@ -1285,19 +1271,18 @@ export default function ReferenceImageEditorModal({ imageId, src, saveMode, onCl
             )}
 
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-3 md:rounded-2xl md:p-4">
-              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">完成</div>
+              <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/45 md:mb-3">{t("完成")}</div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={onClose}
                   className="rounded-lg bg-white/8 px-3 py-2 text-sm text-white transition hover:bg-white/12 md:rounded-xl"
                 >
-                  放弃修改
-                </button>
+                  {t("放弃修改")}</button>
                 <button
                   onClick={() => void handleSave()}
                   className="rounded-lg bg-blue-500 px-3 py-2 text-sm text-white transition hover:bg-blue-600 md:rounded-xl"
                 >
-                  {saveMode === 'replace-input' ? '保存替换' : '保存并加入'}
+                  {saveMode === 'replace-input' ? t("保存替换") : t("保存并加入")}
                 </button>
               </div>
             </section>
@@ -1312,7 +1297,7 @@ async function loadHtmlImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('图片加载失败'))
+    image.onerror = () => reject(new Error(t("图片加载失败")))
     image.src = src
   })
 }
@@ -1321,7 +1306,7 @@ async function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('文件读取失败'))
+    reader.onerror = () => reject(reader.error ?? new Error(t("文件读取失败")))
     reader.readAsDataURL(file)
   })
 }

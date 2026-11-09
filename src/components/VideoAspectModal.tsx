@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import type { VideoTaskParams } from '../types'
 
 const ASPECTS: Array<{ label: string; value: VideoTaskParams['aspect_ratio'] }> = [
@@ -37,15 +38,15 @@ export default function VideoAspectModal({ currentAspect, hasReferenceImage, onS
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">设置视频比例</h3>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t("设置视频比例")}</h3>
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-              当前：{currentAspect}
+              {t("当前：")}{currentAspect}
             </p>
           </div>
           <button
             onClick={onClose}
             className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-            aria-label="关闭"
+            aria-label={t("关闭")}
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -56,11 +57,10 @@ export default function VideoAspectModal({ currentAspect, hasReferenceImage, onS
         <div className="space-y-4">
           {hasReferenceImage && (
             <div className="rounded-2xl bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
-              已添加参考图，视频比例将使用 auto，不向远端传比例。
-            </div>
+              {t("已添加参考图，视频比例将使用 auto，不向远端传比例。")}</div>
           )}
           <div>
-            <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">视频比例</span>
+            <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("视频比例")}</span>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {ASPECTS.map((aspect) => {
                 const disabled = hasReferenceImage && aspect.value !== 'auto'

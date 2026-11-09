@@ -1,3 +1,5 @@
+import { imageExtensionError, imageExtensionFields, resolveImageCapabilities, type ImageRequestParams } from './imageCapabilities.js'
+import { prepareImageOutput } from './imageOutput.js'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -15,6 +17,8 @@ const MIME_MAP: Record<string, string> = {
   jpeg: 'image/jpeg',
   jpg: 'image/jpeg',
   webp: 'image/webp',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
 }
 
 const PROMPT_REWRITE_GUARD_PREFIX = 'Use the following text as the complete prompt. Do not rewrite it:'
@@ -26,14 +30,7 @@ export interface TaskImageInput {
 
 export interface TaskExecutionPayload {
   prompt: string
-  params: {
-    size: string
-    quality: 'auto' | 'low' | 'medium' | 'high'
-    output_format: 'png' | 'jpeg' | 'webp'
-    output_compression: number | null
-    moderation: 'auto' | 'low'
-    n: number
-  }
+  params: ImageRequestParams
   provider: ProviderProfileRecord
   inputImages: TaskImageInput[]
   maskImage?: TaskImageInput | null
@@ -176,7 +173,7 @@ function createResponsesImageTool(payload: TaskExecutionPayload): Record<string,
     if (payload.params.output_format) {
       tool.output_format = payload.params.output_format
     }
-    if (payload.params.output_format !== 'png' && payload.params.output_compression != null) {
+    if (['jpeg', 'webp'].includes(payload.params.output_format) && payload.params.output_compression != null) {
       tool.output_compression = payload.params.output_compression
     }
   }
@@ -526,12 +523,13 @@ async function callImagesApi(
         body: JSON.stringify({
           model: payload.provider.model, prompt,
           images: payload.inputImages.map(image => ({ image_url: options.publicReferenceImageUrl!(image) })),
-          ...(payload.maskImage ? { mask: { image_url: options.publicReferenceImageUrl(payload.maskImage) } } : {}),
+          ...(payload.maskImage ? { [payload.params.annotation_mode === 'markup' ? 'markup' : 'mask']: { image_url: options.publicReferenceImageUrl(payload.maskImage) } } : {}),
+          ...imageExtensionFields(payload.params, payload.provider),
           size: payload.params.size, quality: payload.params.quality,
           output_format: payload.params.output_format, moderation: payload.params.moderation,
           n: 1,
           ...(payload.provider.responseFormatB64Json ? { response_format: 'b64_json' } : {}),
-          ...(payload.params.output_format !== 'png' && payload.params.output_compression != null
+          ...(['jpeg', 'webp'].includes(payload.params.output_format) && payload.params.output_compression != null
             ? { output_compression: payload.params.output_compression } : {}),
         }),
       }, resolveImageTimeoutSeconds(payload), payload.provider)
@@ -632,6 +630,7 @@ async function callImagesApi(
     }
 
     const formData = new FormData()
+    for (const [key, value] of Object.entries(imageExtensionFields(payload.params, payload.provider))) formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
     formData.append('model', payload.provider.model)
     formData.append('prompt', prompt)
     formData.append('size', payload.params.size)
@@ -644,7 +643,7 @@ async function callImagesApi(
     if (!payload.provider.codexCli) {
       formData.append('quality', payload.params.quality)
     }
-    if (payload.params.output_format !== 'png' && payload.params.output_compression != null) {
+    if (['jpeg', 'webp'].includes(payload.params.output_format) && payload.params.output_compression != null) {
       formData.append('output_compression', String(payload.params.output_compression))
     }
     if (!shouldUseConcurrentSingles && payload.params.n > 1) {
@@ -660,7 +659,7 @@ async function callImagesApi(
 
     if (payload.maskImage) {
       const maskBuffer = await fs.readFile(payload.maskImage.filePath)
-      formData.append('mask', new Blob([maskBuffer], { type: payload.maskImage.mimeType }), 'mask.png')
+      formData.append(payload.params.annotation_mode === 'markup' ? 'markup' : 'mask', new Blob([maskBuffer], { type: payload.maskImage.mimeType }), payload.params.annotation_mode === 'markup' ? 'markup.png' : 'mask.png')
     }
 
     const response = await fetchWithTimeout(
@@ -752,13 +751,14 @@ async function callImagesApi(
           prompt,
           size: payload.params.size,
           // 反代兼容：优先拿 b64_json，避免只返回完成态却无图
-          response_format: 'b64_json',
+          ...(!Object.keys(resolveImageCapabilities(payload.provider)).length || payload.provider.responseFormatB64Json ? { response_format: 'b64_json' } : {}),
+          ...imageExtensionFields(payload.params, payload.provider),
           n: (!shouldUseConcurrentSingles && payload.params.n > 1) ? payload.params.n : 1,
           // 下列字段部分反代会忽略；保留以兼容官方 OpenAI
           output_format: payload.params.output_format,
           moderation: payload.params.moderation,
           ...(payload.provider.codexCli ? {} : { quality: payload.params.quality }),
-          ...(payload.params.output_format !== 'png'
+          ...(['jpeg', 'webp'].includes(payload.params.output_format)
             && payload.params.output_compression != null
             ? { output_compression: payload.params.output_compression }
             : {}),
@@ -884,6 +884,8 @@ export async function executeImageTask(
   options: ExecuteImageTaskOptions = {},
 ) {
   void db
+  const extensionError = imageExtensionError(payload.params, payload.provider, payload.inputImages.length, Boolean(payload.maskImage))
+  if (extensionError) throw new Error(extensionError)
   const maxImages = resolveEffectiveMaxReferenceImages(payload.provider)
   if (payload.inputImages.length > maxImages) {
     throw new Error(`当前配置最多支持 ${maxImages} 张参考图`)
@@ -996,7 +998,8 @@ export async function fetchVeniceBalance(
 
 
 export async function writeOutputImage(outputDir: string, fileId: string, image: GeneratedImageResult) {
-  const ext = image.mimeType.includes('jpeg')
+  Object.assign(image, prepareImageOutput(image))
+  const ext = image.mimeType === 'image/svg+xml' ? 'svg' : image.mimeType === 'image/gif' ? 'gif' : image.mimeType.includes('jpeg')
     ? 'jpg'
     : image.mimeType.includes('webp')
       ? 'webp'
@@ -1006,7 +1009,7 @@ export async function writeOutputImage(outputDir: string, fileId: string, image:
   await fs.mkdir(outputDir, { recursive: true })
   await fs.writeFile(absolutePath, image.buffer)
   const sha256 = crypto.createHash('sha256').update(image.buffer).digest('hex')
-  const size = readImageSize(image.buffer, image.mimeType)
+  const size = readImageSize(image.buffer, image.mimeType) ?? await sharp(image.buffer, { animated: false }).metadata().then(meta => ({ width: meta.width, height: meta.height })).catch(() => null)
 
   return {
     fileName: filename,
@@ -1030,7 +1033,7 @@ export async function writeOutputImageThumbnail(
   const absolutePath = path.join(thumbsDir, filename)
   await fs.mkdir(thumbsDir, { recursive: true })
 
-  const thumbnailBuffer = await sharp(image.buffer, { animated: false })
+  const thumbnailBuffer = await sharp(prepareImageOutput(image).buffer, { animated: false })
     .rotate()
     .resize(IMAGE_THUMBNAIL_MAX_SIZE, IMAGE_THUMBNAIL_MAX_SIZE, {
       fit: 'inside',

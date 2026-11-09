@@ -1,3 +1,4 @@
+import type { ImageRequestParams } from './imageCapabilities.js'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { decryptText } from './crypto.js'
@@ -10,6 +11,7 @@ import { assertAllOutputImagesPersisted, createOutputImagePersistQueue } from '.
 import { downloadVideoOutput, generateVideoPoster, pollVideoGeneration, submitVideoGeneration } from './videoApi.js'
 import type { TaskEventBus } from './eventBus.js'
 import { normalizeProviderErrorMessage } from './providerImageExtract.js'
+import { cleanupEmptyTaskMediaDirectories } from './mediaCleanup.js'
 
 export class TaskWorker {
   private running = new Set<string>()
@@ -64,7 +66,14 @@ export class TaskWorker {
       .catch((error) => {
         console.error(`[TaskWorker] 未处理任务异常: ${taskId}`, error)
       })
-      .finally(() => {
+      .finally(async () => {
+        // A deleted task may still be finishing an in-flight write. Retry the
+        // empty-directory cleanup once the worker has stopped writing.
+        if (!this.db.taskExists(taskId)) {
+          await cleanupEmptyTaskMediaDirectories(this.config.mediaDir, taskId).catch((error) => {
+            console.error(`[TaskWorker] 清理任务空目录失败: ${taskId}`, error)
+          })
+        }
         this.running.delete(taskId)
         this.cancelled.delete(taskId)
         this.drain()
@@ -185,14 +194,7 @@ export class TaskWorker {
       if (!this.emit(taskId, { status: 'submitted', step: 'submitted', percent: 35, message: '已提交到上游接口' })) return
       if (!this.emit(taskId, { status: 'processing', step: 'processing', percent: 60, message: '正在生成图片' })) return
 
-      const params = JSON.parse(task.paramsJson) as {
-        size: string
-        quality: 'auto' | 'low' | 'medium' | 'high'
-        output_format: 'png' | 'jpeg' | 'webp'
-        output_compression: number | null
-        moderation: 'auto' | 'low'
-        n: number
-      }
+      const params = JSON.parse(task.paramsJson) as ImageRequestParams
       const shouldPersistIncrementally = params.n > 1
       outputDir = path.join(this.config.outputsDir, taskId)
       const outputPersistQueue = createOutputImagePersistQueue<GeneratedImageResult>({

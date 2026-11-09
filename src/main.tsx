@@ -31,9 +31,9 @@ try {
 try {
   const saved = localStorage.getItem('gpt-image-playground')
   const parsed = saved ? JSON.parse(saved) as { state?: { themeMode?: 'system' | 'light' | 'dark' } } : null
-  applyThemeMode(parsed?.state?.themeMode ?? 'system')
+  applyThemeMode(parsed?.state?.themeMode ?? 'system', false)
 } catch {
-  applyThemeMode('system')
+  applyThemeMode('system', false)
 }
 
 const SW_CACHE_PREFIX = 'gpt-image-playground'

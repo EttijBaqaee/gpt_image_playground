@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import {
   formatByteSize,
   getImageLoadStageLabel,
@@ -43,8 +44,7 @@ export default function ImageLoadingOverlay({
 
       {imageIndex != null && imageTotal != null && imageTotal > 1 && (
         <div className={`text-xs ${subTextClass}`}>
-          第 {imageIndex} / {imageTotal} 张
-        </div>
+          {t("第 ")}{imageIndex} / {imageTotal} {t(" 张")}</div>
       )}
 
       <div className={`h-1.5 w-full max-w-[14rem] overflow-hidden rounded-full ${trackClass}`}>
@@ -62,10 +62,10 @@ export default function ImageLoadingOverlay({
         {total
           ? `${formatByteSize(progress.loadedBytes)} / ${formatByteSize(total)}`
           : progress.loadedBytes > 0
-            ? `已下载 ${formatByteSize(progress.loadedBytes)}`
+            ? t("已下载 {0}", formatByteSize(progress.loadedBytes))
             : progress.stage === 'preparing'
-              ? (mediaKind === 'video' ? '等待视频地址' : '等待图片地址')
-              : '正在读取'}
+              ? (mediaKind === 'video' ? t("等待视频地址") : t("等待图片地址"))
+              : t("正在读取")}
       </div>
     </div>
   )

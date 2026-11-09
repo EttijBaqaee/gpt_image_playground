@@ -1,4 +1,4 @@
-name: Publish verified Docker image to GHCR
+name: Publish Docker image to GHCR
 
 on:
   release:
@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Published release tag containing the verified Docker archive
+        description: Published release tag containing the Docker archive
         required: true
-        default: v0.3.66.6
+        default: v0.3.66.7
         type: string
 
 permissions:
@@ -25,9 +25,9 @@ jobs:
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || 'v0.3.66.6' }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || 'v0.3.66.7' }}
     steps:
-      - name: Download and verify the tested image
+      - name: Load the release image
         shell: bash
         run: |
           set -euo pipefail
@@ -52,7 +52,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish the verified image
+      - name: Publish the image
         shell: bash
         run: |
           set -euo pipefail
@@ -60,4 +60,3 @@ jobs:
           docker push "$IMAGE:latest"
           printf 'Published `%s:%s` and `%s:latest` (linux/amd64).\n\n' \
             "$IMAGE" "$VERSION" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
-          printf 'The Release archive passed SHA256 verification. The tested application was not rebuilt.\n' >> "$GITHUB_STEP_SUMMARY"

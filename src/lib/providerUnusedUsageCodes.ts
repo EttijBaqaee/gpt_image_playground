@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { AppSettings } from '../types'
 
 export interface ProviderUnusedUsageCodeSource {
@@ -152,7 +153,7 @@ export function sumProviderUsedUsageCodes(
 }
 
 export function formatProviderUnusedRemaining(remaining: number | null) {
-  return remaining == null ? '不限' : String(remaining)
+  return remaining == null ? t("不限") : String(remaining)
 }
 
 export function formatProviderUsedCount(used: number) {

@@ -1,3 +1,4 @@
+import { t, getLocaleTag } from '../lib/i18n'
 import { useEffect } from 'react'
 import type { BackendReminderItem } from '../lib/backendSettings'
 import { preloadAnnouncementImages, useAnnouncementImageSources } from '../lib/announcementImageCache'
@@ -6,17 +7,17 @@ import { renderTextWithLinks } from '../lib/linkify'
 function formatLocalDateTime(value: string) {
   const time = new Date(value).getTime()
   if (!Number.isFinite(time)) return value
-  return new Date(value).toLocaleString('zh-CN')
+  return new Date(value).toLocaleString(getLocaleTag())
 }
 
 function getAnnouncementState(item: BackendReminderItem) {
   const now = Date.now()
   const startAt = new Date(item.startAt).getTime()
   const endAt = new Date(item.endAt).getTime()
-  if (!item.enabled) return '已关闭'
-  if (Number.isFinite(startAt) && now < startAt) return '未开始'
-  if (Number.isFinite(endAt) && now > endAt) return '已结束'
-  return '进行中'
+  if (!item.enabled) return t("已关闭")
+  if (Number.isFinite(startAt) && now < startAt) return t("未开始")
+  if (Number.isFinite(endAt) && now > endAt) return t("已结束")
+  return t("进行中")
 }
 
 export default function AnnouncementListModal({
@@ -55,8 +56,8 @@ export default function AnnouncementListModal({
       <div className="glass-surface-strong relative z-10 flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/50 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:ring-white/10">
         <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-white/[0.08]">
           <div>
-            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">最近公告</h3>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">点击任意公告可重新查看。</p>
+            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t("最近公告")}</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t("点击任意公告可重新查看。")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -65,13 +66,12 @@ export default function AnnouncementListModal({
               disabled={loading}
               className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]"
             >
-              刷新
-            </button>
+              {t("刷新")}</button>
             <button
               type="button"
               onClick={onClose}
               className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-              aria-label="关闭最近公告"
+              aria-label={t("关闭最近公告")}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -82,8 +82,7 @@ export default function AnnouncementListModal({
         <div className="tiny-scrollbar flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
             <div className="rounded-2xl border border-dashed border-gray-200/70 bg-white/30 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-              正在读取公告
-            </div>
+              {t("正在读取公告")}</div>
           ) : error ? (
             <div className="space-y-3 rounded-2xl border border-red-200/70 bg-red-50/50 px-4 py-4 text-sm text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
               <div>{error}</div>
@@ -92,8 +91,7 @@ export default function AnnouncementListModal({
                 onClick={onRefresh}
                 className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-600"
               >
-                重新读取
-              </button>
+                {t("重新读取")}</button>
             </div>
           ) : orderedItems.length ? (
             <div className="space-y-3">
@@ -106,7 +104,7 @@ export default function AnnouncementListModal({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{item.title || '公告'}</div>
+                      <div className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{item.title || t("公告")}</div>
                       <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                         {getAnnouncementState(item)} · {formatLocalDateTime(item.startAt)}
                       </div>
@@ -120,8 +118,7 @@ export default function AnnouncementListModal({
                           draggable={false}
                         />
                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-500 dark:bg-blue-500/10 dark:text-blue-300">
-                          {item.imageDataUrls.length} 图
-                        </span>
+                          {item.imageDataUrls.length} {t(" 图")}</span>
                       </div>
                     ) : null}
                   </div>
@@ -133,8 +130,7 @@ export default function AnnouncementListModal({
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-gray-200/70 bg-white/30 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-              暂无可查看公告
-            </div>
+              {t("暂无可查看公告")}</div>
           )}
         </div>
       </div>

@@ -1,3 +1,6 @@
+import ImageExtensionSettings from './ImageExtensionSettings'
+import AppearanceControls, { AppearancePreferences } from './AppearanceControls'
+import { t, getLocale, getLocaleTag } from '../lib/i18n'
 import { useEffect, useMemo, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
 import { normalizeBaseUrl } from '../lib/devProxy'
@@ -187,7 +190,7 @@ function getDefaultBucketForPreset(timePreset: BackendUsageCodeEventTimePreset):
 function createEmptyProfile(): BackendProviderProfile {
   return {
     id: '',
-    name: '新 API 配置',
+    name: t("新 API 配置"),
     remarkName: '',
     baseUrl: DEFAULT_SETTINGS.baseUrl,
     apiKey: '',
@@ -229,8 +232,9 @@ function createEmptyProfile(): BackendProviderProfile {
 function createCopiedProfile(profile: BackendProviderProfile): BackendProviderProfile {
   return {
     ...profile,
+    imageExtensions: { enabled: false, models: {} },
     id: '',
-    name: `${profile.name} 副本`,
+    name: t("{0} 副本", profile.name),
     remarkName: profile.remarkName ?? '',
     apiKey: '',
     apiKeyMasked: profile.apiKeyMasked ?? null,
@@ -264,7 +268,7 @@ function createEmptyReminder(): BackendReminderItem {
   return {
     id: createReminderId(),
     enabled: false,
-    title: '数据备份提醒',
+    title: t("数据备份提醒"),
     message: '',
     imageDataUrl: null,
     imageDataUrls: [],
@@ -307,12 +311,12 @@ function getReminderAudienceTiers(value: ReminderAudienceValue): BackendUsageCod
 
 function formatReminderAudience(item: BackendReminderItem) {
   const value = getReminderAudienceValue(item)
-  if (value === 'all') return '全部用户'
-  return value === 'free' ? '免费用户' : '付费用户'
+  if (value === 'all') return t("全部用户")
+  return value === 'free' ? t("免费用户") : t("付费用户")
 }
 
 function formatUsageCodeUserTier(value: BackendUsageCodeUserTier) {
-  return value === 'free' ? '免费用户' : '付费用户'
+  return value === 'free' ? t("免费用户") : t("付费用户")
 }
 
 function isAbortError(error: unknown) {
@@ -418,7 +422,7 @@ function ClearableInput({
   value,
   onClear,
   className = '',
-  clearLabel = '清空输入',
+  clearLabel = t("清空输入"),
   ...props
 }: InputHTMLAttributes<HTMLInputElement> & {
   value: string | number
@@ -439,7 +443,7 @@ function ClearableTextarea({
   value,
   onClear,
   className = '',
-  clearLabel = '清空输入',
+  clearLabel = t("清空输入"),
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement> & {
   value: string
@@ -467,7 +471,7 @@ function VideoDurationOptionSelector({
   return (
     <label className="block">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">视频时长</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("视频时长")}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {ALL_VIDEO_DURATION_OPTIONS.map((item) => {
@@ -509,7 +513,7 @@ function VideoResolutionOptionSelector({
   return (
     <label className="block">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">视频分辨率</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("视频分辨率")}</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {ALL_VIDEO_RESOLUTION_OPTIONS.map((item) => {
@@ -566,7 +570,7 @@ export default function SettingsModal() {
   const [reminderDrafts, setReminderDrafts] = useState<BackendReminderItem[]>([])
   const [reminderImageUrlDrafts, setReminderImageUrlDrafts] = useState<Record<string, string>>({})
   const [usageCodes, setUsageCodes] = useState<BackendUsageCode[]>([])
-  const [newCodeName, setNewCodeName] = useState('新使用码')
+  const [newCodeName, setNewCodeName] = useState(t("新使用码"))
   const [newCodeUserTier, setNewCodeUserTier] = useState<BackendUsageCodeUserTier>('free')
   const [newCodeAllowedProviderProfileIds, setNewCodeAllowedProviderProfileIds] = useState<string[] | null>([])
   const [newCodeProviderImageQuotas, setNewCodeProviderImageQuotas] = useState<Record<string, string>>({})
@@ -730,12 +734,12 @@ const unusedDetailProfile = unusedDetailProfileId
 const unusedDetailItems = useMemo(() => {
   if (!unusedDetailProfile) return []
   return listProviderUnusedUsageCodes(usageCodes, unusedDetailProfile.id, unusedDetailProfile.apiMode)
-}, [unusedDetailProfile, usageCodes])
+}, [unusedDetailProfile, usageCodes, getLocale()])
 
 const usedDetailItems = useMemo(() => {
   if (!unusedDetailProfile) return []
   return listProviderUsedUsageCodes(usageCodes, unusedDetailProfile.id, unusedDetailProfile.apiMode)
-}, [unusedDetailProfile, usageCodes])
+}, [unusedDetailProfile, usageCodes, getLocale()])
 
 const unusedDetailTotal = unusedDetailProfile
   ? getProviderDistributedRemaining(unusedDetailProfile.id, unusedDetailProfile.apiMode)
@@ -747,10 +751,10 @@ const usedDetailTotal = unusedDetailProfile
 
 const usageDetailItems = usageDetailKind === 'used' ? usedDetailItems : unusedDetailItems
 const usageDetailTotal = usageDetailKind === 'used' ? usedDetailTotal : unusedDetailTotal
-const usageDetailTitle = usageDetailKind === 'used' ? '已使用合计' : '未使用合计'
+const usageDetailTitle = usageDetailKind === 'used' ? t("已使用合计") : t("未使用合计")
 const usageDetailEmptyText = usageDetailKind === 'used'
-  ? '该端点暂无已使用记录的使用码'
-  : '该端点暂无剩余额度的使用码'
+  ? t("该端点暂无已使用记录的使用码")
+  : t("该端点暂无剩余额度的使用码")
 
 const updateUnusedDetailPosition = () => {
   const rect = unusedDetailTriggerRef.current?.getBoundingClientRect()
@@ -884,7 +888,7 @@ useEffect(() => {
   }, [])
 const hasUnreadEndedReminders = useMemo(
     () => reminderDrafts.some((item) => isCompletedReminderUnread(item)),
-    [reminderDrafts, expandedReminderIds],
+    [reminderDrafts, expandedReminderIds, getLocale()],
   )
   const orderedReminderDrafts = useMemo(() => {
     const now = Date.now()
@@ -899,7 +903,7 @@ const hasUnreadEndedReminders = useMemo(
       .sort((left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime())
 
     return [...activeSavedItems, ...endedSavedItems, ...newDraftItems]
-  }, [reminderDrafts])
+  }, [reminderDrafts, getLocale()])
 
   useEffect(() => {
     if (!showSettings) return
@@ -924,7 +928,7 @@ const hasUnreadEndedReminders = useMemo(
         .toLowerCase()
         .includes(query),
     )
-  }, [usageCodeSearchQuery, usageCodes])
+  }, [usageCodeSearchQuery, usageCodes, getLocale()])
 
   const filteredCleanupUsageCodes = useMemo(() => {
     const query = cleanupUsageCodeSearchQuery.trim().toLowerCase()
@@ -935,7 +939,7 @@ const hasUnreadEndedReminders = useMemo(
         .toLowerCase()
         .includes(query),
     )
-  }, [cleanupUsageCodeSearchQuery, usageCodes])
+  }, [cleanupUsageCodeSearchQuery, usageCodes, getLocale()])
 
   const getUsageCodeArtifactImageCount = (code: BackendUsageCode) => code.artifactImageCount ?? 0
   const getUsageCodeArtifactVideoCount = (code: BackendUsageCode) => code.artifactVideoCount ?? 0
@@ -949,9 +953,9 @@ const hasUnreadEndedReminders = useMemo(
       videoCount: selectedCodes.reduce((sum, code) => sum + getUsageCodeArtifactVideoCount(code), 0),
       totalBytes: selectedCodes.reduce((sum, code) => sum + (code.taskMediaBytes ?? 0), 0),
     }
-  }, [selectedCleanupUsageCodeIds, usageCodes])
+  }, [selectedCleanupUsageCodeIds, usageCodes, getLocale()])
 
-  const formatAdminCleanupTaskTypeLabel = (taskType: string) => (taskType === 'video' ? '视频' : '图片')
+  const formatAdminCleanupTaskTypeLabel = (taskType: string) => (taskType === 'video' ? t("视频") : t("图片"))
 
   const filteredCleanupAdminTasks = useMemo(() => {
     const query = cleanupAdminTaskSearchQuery.trim().toLowerCase()
@@ -967,7 +971,7 @@ const hasUnreadEndedReminders = useMemo(
         .toLowerCase()
         .includes(query),
     )
-  }, [cleanupAdminTaskSearchQuery, adminTaskCleanupCandidates])
+  }, [cleanupAdminTaskSearchQuery, adminTaskCleanupCandidates, getLocale()])
 
   const selectedCleanupAdminTaskSummary = useMemo(() => {
     const selectedTasks = adminTaskCleanupCandidates.filter((task) => selectedCleanupAdminTaskIds.includes(task.id))
@@ -977,14 +981,14 @@ const hasUnreadEndedReminders = useMemo(
       videoCount: selectedTasks.reduce((sum, task) => sum + (task.outputVideoCount ?? 0), 0),
       totalBytes: selectedTasks.reduce((sum, task) => sum + (task.taskMediaBytes ?? 0), 0),
     }
-  }, [selectedCleanupAdminTaskIds, adminTaskCleanupCandidates])
+  }, [selectedCleanupAdminTaskIds, adminTaskCleanupCandidates, getLocale()])
 
   const allAdminTaskCleanupSummary = useMemo(() => ({
     count: adminTaskCleanupCandidates.length,
     imageCount: adminTaskCleanupCandidates.reduce((sum, task) => sum + (task.outputImageCount ?? 0), 0),
     videoCount: adminTaskCleanupCandidates.reduce((sum, task) => sum + (task.outputVideoCount ?? 0), 0),
     totalBytes: adminTaskCleanupCandidates.reduce((sum, task) => sum + (task.taskMediaBytes ?? 0), 0),
-  }), [adminTaskCleanupCandidates])
+  }), [adminTaskCleanupCandidates, getLocale()])
 
   const calculateQuotaExpression = (rawValue: string, baseValue: number) => {
     const value = rawValue.trim().replace(/\s+/g, '')
@@ -1014,8 +1018,8 @@ const hasUnreadEndedReminders = useMemo(
   }
 
   const formatQuotaValue = (value: number | null | undefined) => {
-    if (value == null) return '不限'
-    if (value === 0) return '禁用'
+    if (value == null) return t("不限")
+    if (value === 0) return t("禁用")
     return String(value)
   }
 
@@ -1058,7 +1062,7 @@ const hasUnreadEndedReminders = useMemo(
   }
 
   const formatLocalDateTime = (value: string) =>
-    new Date(value).toLocaleString('zh-CN', {
+    new Date(value).toLocaleString(getLocaleTag(), {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -1129,7 +1133,7 @@ const hasUnreadEndedReminders = useMemo(
                 event.stopPropagation()
               }}
             >
-              <span className="truncate">未用 {distributedRemaining}</span>
+              <span className="truncate">{t("未用 ")}{distributedRemaining}</span>
             </button>
             <button
               type="button"
@@ -1143,13 +1147,13 @@ const hasUnreadEndedReminders = useMemo(
                 event.stopPropagation()
               }}
             >
-              <span className="truncate">已用 {getProviderDistributedUsed(profile.id, profile.apiMode)}</span>
+              <span className="truncate">{t("已用 ")}{getProviderDistributedUsed(profile.id, profile.apiMode)}</span>
             </button>
           </div>
         )}
         {userRemaining != null && (
           <span className="ml-auto shrink-0 text-[11px] text-gray-500 dark:text-gray-400">
-            剩余 {userRemaining}
+            {t("剩余 ")}{userRemaining}
           </span>
         )}
       </div>
@@ -1172,7 +1176,7 @@ const hasUnreadEndedReminders = useMemo(
     if (parsed.kind === 'all') {
       return [{
         key: 'all',
-        name: '全部 API',
+        name: t("全部 API"),
         colorKey: 'all-api',
         tagColor: null,
       }]
@@ -1180,7 +1184,7 @@ const hasUnreadEndedReminders = useMemo(
     if (parsed.kind === 'unknown') {
       return [{
         key: 'unknown',
-        name: '未匹配 API',
+        name: t("未匹配 API"),
         colorKey: 'unknown-api',
         tagColor: null,
       }]
@@ -1236,8 +1240,7 @@ const hasUnreadEndedReminders = useMemo(
     if (!items.length) {
       return (
         <span className="text-xs text-gray-400 dark:text-gray-500">
-          无
-        </span>
+          {t("无")}</span>
       )
     }
     return items.map((item) => (
@@ -1258,20 +1261,20 @@ const hasUnreadEndedReminders = useMemo(
 
   const categoryOptions = useMemo(() => (
     usageCodeEventModal?.result?.categories ?? [
-      { value: 'all' as const, label: '全部事件' },
-      { value: 'create' as const, label: '创建使用码' },
-      { value: 'generate' as const, label: '生成' },
-      { value: 'delete' as const, label: '删除' },
-      { value: 'backup' as const, label: '备份' },
-      { value: 'api_access_change' as const, label: '管理员调整 API' },
-      { value: 'quota_increase' as const, label: '管理员加额' },
-      { value: 'quota_decrease' as const, label: '额度扣减' },
-      { value: 'export' as const, label: '导出' },
-      { value: 'distribution_change' as const, label: '分发设置' },
-      { value: 'rename' as const, label: '重命名' },
-      { value: 'enable_disable' as const, label: '启用与禁用' },
+      { value: 'all' as const, label: t("全部事件") },
+      { value: 'create' as const, label: t("创建使用码") },
+      { value: 'generate' as const, label: t("生成") },
+      { value: 'delete' as const, label: t("删除") },
+      { value: 'backup' as const, label: t("备份") },
+      { value: 'api_access_change' as const, label: t("管理员调整 API") },
+      { value: 'quota_increase' as const, label: t("管理员加额") },
+      { value: 'quota_decrease' as const, label: t("额度扣减") },
+      { value: 'export' as const, label: t("导出") },
+      { value: 'distribution_change' as const, label: t("分发设置") },
+      { value: 'rename' as const, label: t("重命名") },
+      { value: 'enable_disable' as const, label: t("启用与禁用") },
     ]
-  ), [usageCodeEventModal?.result?.categories])
+  ), [usageCodeEventModal?.result?.categories, getLocale()])
 
   const executeUsageCodeEventQuery = async (code: BackendUsageCode, query: UsageCodeEventQueryDraft, page = 1) => {
     setUsageCodeEventModal((prev) => prev && prev.code.id === code.id ? { ...prev, loading: true, query } : {
@@ -1302,7 +1305,7 @@ const hasUnreadEndedReminders = useMemo(
     } catch (err) {
       setUsageCodeEventModal((prev) => prev ? { ...prev, loading: false } : prev)
       useStore.getState().showToast(
-        `读取完整记录失败：${err instanceof Error ? err.message : String(err)}`,
+        t("读取完整记录失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -1373,20 +1376,20 @@ const hasUnreadEndedReminders = useMemo(
 
   const getUsageCodeEventSummaryText = (summary: BackendUsageCodeEventSummary) => (
     [
-      summary.generatedImageCount > 0 ? `图片 ${summary.generatedImageCount} 张` : '',
-      summary.generatedVideoCount > 0 ? `视频 ${summary.generatedVideoCount} 个` : '',
-      summary.imageQuotaIncreasedCredits > 0 ? `图片加额 ${summary.imageQuotaIncreasedCredits}` : '',
-      summary.videoQuotaIncreasedCredits > 0 ? `视频加额 ${summary.videoQuotaIncreasedCredits}` : '',
-      summary.imageQuotaDecreasedCredits > 0 ? `图片扣减 ${summary.imageQuotaDecreasedCredits}` : '',
-      summary.videoQuotaDecreasedCredits > 0 ? `视频扣减 ${summary.videoQuotaDecreasedCredits}` : '',
-      summary.deletedTaskCount > 0 ? `删除 ${summary.deletedTaskCount}` : '',
-      summary.exportCount > 0 ? `导出 ${summary.exportCount}` : '',
-      summary.apiAccessChangeCount > 0 ? `API 调整 ${summary.apiAccessChangeCount}` : '',
-      summary.backupCount > 0 ? `备份 ${summary.backupCount}` : '',
-      summary.createCount > 0 ? `创建 ${summary.createCount}` : '',
-      summary.distributionChangeCount > 0 ? `分发 ${summary.distributionChangeCount}` : '',
-      summary.renameCount > 0 ? `重命名 ${summary.renameCount}` : '',
-      summary.enableDisableCount > 0 ? `启停 ${summary.enableDisableCount}` : '',
+      summary.generatedImageCount > 0 ? t("图片 {0} 张", summary.generatedImageCount) : '',
+      summary.generatedVideoCount > 0 ? t("视频 {0} 个", summary.generatedVideoCount) : '',
+      summary.imageQuotaIncreasedCredits > 0 ? t("图片加额 {0}", summary.imageQuotaIncreasedCredits) : '',
+      summary.videoQuotaIncreasedCredits > 0 ? t("视频加额 {0}", summary.videoQuotaIncreasedCredits) : '',
+      summary.imageQuotaDecreasedCredits > 0 ? t("图片扣减 {0}", summary.imageQuotaDecreasedCredits) : '',
+      summary.videoQuotaDecreasedCredits > 0 ? t("视频扣减 {0}", summary.videoQuotaDecreasedCredits) : '',
+      summary.deletedTaskCount > 0 ? t("删除 {0}", summary.deletedTaskCount) : '',
+      summary.exportCount > 0 ? t("导出 {0}", summary.exportCount) : '',
+      summary.apiAccessChangeCount > 0 ? t("API 调整 {0}", summary.apiAccessChangeCount) : '',
+      summary.backupCount > 0 ? t("备份 {0}", summary.backupCount) : '',
+      summary.createCount > 0 ? t("创建 {0}", summary.createCount) : '',
+      summary.distributionChangeCount > 0 ? t("分发 {0}", summary.distributionChangeCount) : '',
+      summary.renameCount > 0 ? t("重命名 {0}", summary.renameCount) : '',
+      summary.enableDisableCount > 0 ? t("启停 {0}", summary.enableDisableCount) : '',
     ].filter(Boolean).join(' · ')
   )
 
@@ -1395,7 +1398,7 @@ const hasUnreadEndedReminders = useMemo(
     eventCategories: BackendUsageCodeEventCategory[],
   ) => {
     const cards: Array<{ key: string; title: string; value: number }> = [
-      { key: 'total', title: '总事件数', value: summary.totalEvents },
+      { key: 'total', title: t("总事件数"), value: summary.totalEvents },
     ]
     const push = (key: string, title: string, value: number) => {
       if (value <= 0) return
@@ -1403,26 +1406,26 @@ const hasUnreadEndedReminders = useMemo(
     }
     const categorySet = new Set(eventCategories)
     const isAll = categorySet.has('all')
-    if (isAll || categorySet.has('create')) push('create', '创建使用码', summary.createCount)
+    if (isAll || categorySet.has('create')) push('create', t("创建使用码"), summary.createCount)
     if (isAll || categorySet.has('generate')) {
-      push('generated-image', '生成图片', summary.generatedImageCount)
-      push('generated-video', '生成视频', summary.generatedVideoCount)
+      push('generated-image', t("生成图片"), summary.generatedImageCount)
+      push('generated-video', t("生成视频"), summary.generatedVideoCount)
     }
-    if (isAll || categorySet.has('delete')) push('delete', '删除相关', summary.deletedTaskCount)
-    if (isAll || categorySet.has('backup')) push('backup', '备份相关', summary.backupCount)
-    if (isAll || categorySet.has('api_access_change')) push('api-access', 'API 调整', summary.apiAccessChangeCount)
+    if (isAll || categorySet.has('delete')) push('delete', t("删除相关"), summary.deletedTaskCount)
+    if (isAll || categorySet.has('backup')) push('backup', t("备份相关"), summary.backupCount)
+    if (isAll || categorySet.has('api_access_change')) push('api-access', t("API 调整"), summary.apiAccessChangeCount)
     if (isAll || categorySet.has('quota_increase')) {
-      push('image-quota-increase', '图片加额', summary.imageQuotaIncreasedCredits)
-      push('video-quota-increase', '视频加额', summary.videoQuotaIncreasedCredits)
+      push('image-quota-increase', t("图片加额"), summary.imageQuotaIncreasedCredits)
+      push('video-quota-increase', t("视频加额"), summary.videoQuotaIncreasedCredits)
     }
     if (isAll || categorySet.has('quota_decrease')) {
-      push('image-quota-decrease', '图片扣减', summary.imageQuotaDecreasedCredits)
-      push('video-quota-decrease', '视频扣减', summary.videoQuotaDecreasedCredits)
+      push('image-quota-decrease', t("图片扣减"), summary.imageQuotaDecreasedCredits)
+      push('video-quota-decrease', t("视频扣减"), summary.videoQuotaDecreasedCredits)
     }
-    if (isAll || categorySet.has('export')) push('export', '导出相关', summary.exportCount)
-    if (isAll || categorySet.has('distribution_change')) push('distribution', '分发设置', summary.distributionChangeCount)
-    if (isAll || categorySet.has('rename')) push('rename', '重命名', summary.renameCount)
-    if (isAll || categorySet.has('enable_disable')) push('enable-disable', '启用与禁用', summary.enableDisableCount)
+    if (isAll || categorySet.has('export')) push('export', t("导出相关"), summary.exportCount)
+    if (isAll || categorySet.has('distribution_change')) push('distribution', t("分发设置"), summary.distributionChangeCount)
+    if (isAll || categorySet.has('rename')) push('rename', t("重命名"), summary.renameCount)
+    if (isAll || categorySet.has('enable_disable')) push('enable-disable', t("启用与禁用"), summary.enableDisableCount)
     return cards
   }
 
@@ -1450,7 +1453,7 @@ const hasUnreadEndedReminders = useMemo(
   }
 
   const getUsageCodeEventCategoryMenuLabel = (eventCategories: BackendUsageCodeEventCategory[]) => {
-    if (eventCategories.includes('all')) return '全部事件'
+    if (eventCategories.includes('all')) return t("全部事件")
     return categoryOptions
       .filter((item) => item.value !== 'all' && eventCategories.includes(item.value))
       .map((item) => item.label)
@@ -1486,6 +1489,7 @@ const hasUnreadEndedReminders = useMemo(
             apiMode: runtimeSettings.apiMode,
             timeout: runtimeSettings.timeoutSeconds,
             codexCli: runtimeSettings.codexCli,
+            imageExtensions: runtimeSettings.imageExtensions,
             grokApiCompat: runtimeSettings.grokApiCompat,
             xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
             responseFormatB64Json: runtimeSettings.responseFormatB64Json,
@@ -1509,7 +1513,7 @@ const hasUnreadEndedReminders = useMemo(
       ? nextProfiles
       : [{
           id: runtimeSettings.id ?? 'default',
-          name: runtimeSettings.name ?? '默认节点',
+          name: runtimeSettings.name ?? t("默认节点"),
           baseUrl: runtimeSettings.baseUrl,
           apiKey: runtimeSettings.apiKey,
           apiKeyMasked: runtimeSettings.apiKeyMasked ?? null,
@@ -1518,6 +1522,7 @@ const hasUnreadEndedReminders = useMemo(
           apiMode: runtimeSettings.apiMode,
           timeoutSeconds: runtimeSettings.timeoutSeconds,
           codexCli: runtimeSettings.codexCli,
+          imageExtensions: runtimeSettings.imageExtensions,
           grokApiCompat: runtimeSettings.grokApiCompat,
           xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
           responseFormatB64Json: runtimeSettings.responseFormatB64Json,
@@ -1569,7 +1574,7 @@ const hasUnreadEndedReminders = useMemo(
     if (!isAdmin) setActiveTab('api')
     void loadSettings().catch((err) => {
       useStore.getState().showToast(
-        `读取后端设置失败：${err instanceof Error ? err.message : String(err)}`,
+        t("读取后端设置失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     })
@@ -1629,7 +1634,7 @@ const hasUnreadEndedReminders = useMemo(
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault()
-      event.returnValue = '导出文件尚未处理完成。刷新后本次下载会中断。'
+      event.returnValue = t("导出文件尚未处理完成。刷新后本次下载会中断。")
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
@@ -1671,6 +1676,7 @@ const hasUnreadEndedReminders = useMemo(
   const updateProfileDraft = (patch: Partial<BackendProviderProfile>) => {
     setProfileDraft((prev) => {
       const next = { ...prev, ...patch }
+      if (patch.baseUrl !== undefined && patch.baseUrl !== prev.baseUrl) next.imageExtensions = { enabled: false, models: {} }
       if (next.publicReferenceBaseUrl !== prev.publicReferenceBaseUrl || next.publicReferenceEnabled !== prev.publicReferenceEnabled) {
         next.publicReferenceVerification = ''
       }
@@ -1694,7 +1700,7 @@ const hasUnreadEndedReminders = useMemo(
       setProfileDraft(prev => prev.id === id && prev.publicReferenceEnabled && prev.publicReferenceBaseUrl?.trim() === origin
         ? { ...prev, ...result } : prev)
     } catch (error) {
-      if (epoch === publicReferenceCheckEpoch.current) setPublicReferenceCheckError(error instanceof Error ? error.message : '检测失败')
+      if (epoch === publicReferenceCheckEpoch.current) setPublicReferenceCheckError(error instanceof Error ? error.message : t("检测失败"))
     } finally {
       if (epoch === publicReferenceCheckEpoch.current) setIsCheckingPublicReference(false)
     }
@@ -1735,6 +1741,7 @@ const hasUnreadEndedReminders = useMemo(
         apiMode: runtimeSettings.apiMode,
         timeout: runtimeSettings.timeoutSeconds,
         codexCli: runtimeSettings.codexCli,
+        imageExtensions: runtimeSettings.imageExtensions,
         grokApiCompat: runtimeSettings.grokApiCompat,
         xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
         responseFormatB64Json: runtimeSettings.responseFormatB64Json,
@@ -1754,21 +1761,21 @@ const hasUnreadEndedReminders = useMemo(
 
   const handleQueryProviderBalance = async () => {
     if (profileDraft.apiMode !== 'wavespeed' && profileDraft.apiMode !== 'kie' && profileDraft.apiMode !== 'venice_images') {
-      useStore.getState().showToast('当前接口不支持余额查询', 'error')
+      useStore.getState().showToast(t("当前接口不支持余额查询"), 'error')
       return
     }
     const baseUrl = profileDraft.baseUrl.trim() || getDefaultBaseUrlForMode(profileDraft.apiMode)
     if (!baseUrl) {
-      useStore.getState().showToast('请先填写 API URL', 'error')
+      useStore.getState().showToast(t("请先填写 API URL"), 'error')
       return
     }
     const draftKey = profileDraft.apiKey?.trim() || ''
     if (!profileDraft.id && !draftKey) {
-      useStore.getState().showToast('请先填写 API Key 再查询余额', 'error')
+      useStore.getState().showToast(t("请先填写 API Key 再查询余额"), 'error')
       return
     }
     if (profileDraft.id && !draftKey && profileDraft.apiKeyConfigured === false) {
-      useStore.getState().showToast('当前配置缺少可用 API Key，请重新填写后查询', 'error')
+      useStore.getState().showToast(t("当前配置缺少可用 API Key，请重新填写后查询"), 'error')
       return
     }
 
@@ -1785,7 +1792,7 @@ const hasUnreadEndedReminders = useMemo(
       })
       if (!result.supported) {
         setProviderBalanceText(null)
-        useStore.getState().showToast(result.message || '当前接口不支持余额查询', 'error')
+        useStore.getState().showToast(result.message || t("当前接口不支持余额查询"), 'error')
         return
       }
       const textValue = result.display
@@ -1795,10 +1802,10 @@ const hasUnreadEndedReminders = useMemo(
             ? (Number(result.balances?.diem ?? result.balance ?? 0).toFixed(2) + ' DIEM · USD ' + Number(result.balances?.usd ?? 0).toFixed(2))
             : (String(result.balance ?? 0) + ' credits'))
       setProviderBalanceText(textValue)
-      useStore.getState().showToast(`余额：${textValue}`, 'success')
+      useStore.getState().showToast(t("余额：{0}", textValue), 'success')
     } catch (error) {
       setProviderBalanceText(null)
-      useStore.getState().showToast(error instanceof Error ? error.message : '余额查询失败', 'error')
+      useStore.getState().showToast(error instanceof Error ? error.message : t("余额查询失败"), 'error')
     } finally {
       setIsQueryingBalance(false)
     }
@@ -1815,6 +1822,7 @@ const hasUnreadEndedReminders = useMemo(
             model: selectedOption.model,
             timeout: selectedOption.timeoutSeconds,
             codexCli: selectedOption.codexCli,
+            imageExtensions: selectedOption.imageExtensions,
             grokApiCompat: selectedOption.grokApiCompat,
             xaiImage2kEnabled: selectedOption.xaiImage2kEnabled,
             responseFormatB64Json: selectedOption.responseFormatB64Json,
@@ -1827,17 +1835,17 @@ const hasUnreadEndedReminders = useMemo(
             providerProfileId: draft.providerProfileId ?? null,
           })
       setShowSettings(false)
-      useStore.getState().showToast('API 选择已保存', 'success')
+      useStore.getState().showToast(t("API 选择已保存"), 'success')
       return
     }
 
     if (publicReferenceNeedsCheck || isCheckingPublicReference) {
-      useStore.getState().showToast('请先检测公网参考图地址，检测通过后才能保存', 'error')
+      useStore.getState().showToast(t("请先检测公网参考图地址，检测通过后才能保存"), 'error')
       return
     }
     const normalizedProfile: BackendProviderProfile = {
       ...profileDraft,
-      name: profileDraft.name.trim() || '默认节点',
+      name: profileDraft.name.trim() || t("默认节点"),
       remarkName: profileDraft.remarkName?.trim() || null,
       baseUrl: normalizeBaseUrl(profileDraft.baseUrl.trim() || DEFAULT_SETTINGS.baseUrl, { preservePath: profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie' }),
       model: isMultiModelMode(profileDraft.apiMode)
@@ -1890,6 +1898,7 @@ const hasUnreadEndedReminders = useMemo(
                 ? 'kie'
                 : 'images',
       codexCli: (profileDraft.apiMode === 'videos' || profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie') ? false : profileDraft.codexCli,
+      imageExtensions: profileDraft.imageExtensions,
       grokApiCompat: (profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie') ? false : profileDraft.grokApiCompat,
       xaiImage2kEnabled: (
         profileDraft.apiMode === 'wavespeed'
@@ -1926,7 +1935,7 @@ const hasUnreadEndedReminders = useMemo(
     }
 
     if (!normalizedProfile.id && !normalizedProfile.apiKey?.trim()) {
-      useStore.getState().showToast('新 API 配置需要填写 API Key', 'error')
+      useStore.getState().showToast(t("新 API 配置需要填写 API Key"), 'error')
       return
     }
 
@@ -1971,6 +1980,7 @@ const hasUnreadEndedReminders = useMemo(
           apiMode: activeProviderOption.apiMode,
           timeout: activeProviderOption.timeoutSeconds,
           codexCli: activeProviderOption.codexCli,
+          imageExtensions: activeProviderOption.imageExtensions,
           grokApiCompat: activeProviderOption.grokApiCompat,
           xaiImage2kEnabled: activeProviderOption.xaiImage2kEnabled,
           responseFormatB64Json: activeProviderOption.responseFormatB64Json,
@@ -1986,10 +1996,10 @@ const hasUnreadEndedReminders = useMemo(
       setProfiles(nextProfiles)
       setProviderOptions(nextProviderOptions)
       setProfileDraft(refreshedSavedProfile)
-      useStore.getState().showToast('设置已保存', 'success')
+      useStore.getState().showToast(t("设置已保存"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `保存设置失败：${err instanceof Error ? err.message : String(err)}`,
+        t("保存设置失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -1999,12 +2009,12 @@ const hasUnreadEndedReminders = useMemo(
 
   const handleCopyProfile = () => {
     if (!profileDraft.id) {
-      useStore.getState().showToast('请先选择一个已有 API 配置', 'info')
+      useStore.getState().showToast(t("请先选择一个已有 API 配置"), 'info')
       return
     }
     setProfileDraft(createCopiedProfile(profileDraft))
     setShowApiKey(false)
-    useStore.getState().showToast('已复制当前 API 配置', 'success')
+    useStore.getState().showToast(t("已复制当前 API 配置"), 'success')
   }
 
   const handleAddSessionUsageCode = async () => {
@@ -2017,10 +2027,10 @@ const hasUnreadEndedReminders = useMemo(
       setAddCodeValue('')
       const tasks = await fetchBackendTasks()
       setTasks(tasks)
-      useStore.getState().showToast('使用码已添加', 'success')
+      useStore.getState().showToast(t("使用码已添加"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `添加使用码失败：${err instanceof Error ? err.message : String(err)}`,
+        t("添加使用码失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2035,16 +2045,16 @@ const hasUnreadEndedReminders = useMemo(
     }
 
     setConfirmDialog({
-      title: '删除 API 配置',
-      message: `确定要删除「${profileDraft.name}」吗？已使用该配置提交的历史任务不会被删除。`,
-      confirmText: '确认删除',
+      title: t("删除 API 配置"),
+      message: t("确定要删除「{0}」吗？已使用该配置提交的历史任务不会被删除。", profileDraft.name),
+      confirmText: t("确认删除"),
       tone: 'danger',
       action: () => {
         void deleteBackendProviderProfile(profileDraft.id)
           .then(() => loadSettings())
           .catch((err) => {
             useStore.getState().showToast(
-              `删除 API 配置失败：${err instanceof Error ? err.message : String(err)}`,
+              t("删除 API 配置失败：{0}", err instanceof Error ? err.message : String(err)),
               'error',
             )
           })
@@ -2058,10 +2068,10 @@ const hasUnreadEndedReminders = useMemo(
       await startBackendBackupExport()
       const nextStatus = await fetchAuthStatus()
       setAuthStatus(nextStatus)
-      useStore.getState().showToast('服务器备份任务已启动', 'success')
+      useStore.getState().showToast(t("服务器备份任务已启动"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `启动备份失败：${err instanceof Error ? err.message : String(err)}`,
+        t("启动备份失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2071,9 +2081,9 @@ const hasUnreadEndedReminders = useMemo(
 
   const handleExportBackup = () => {
     setConfirmDialog({
-      title: '开始服务器备份',
-      message: '确认后会先停止新的写入请求。系统会等待现有任务队列执行完成，再自动冻结普通用户和管理员的写入操作，然后开始生成服务器备份包。',
-      confirmText: '确认开始',
+      title: t("开始服务器备份"),
+      message: t("确认后会先停止新的写入请求。系统会等待现有任务队列执行完成，再自动冻结普通用户和管理员的写入操作，然后开始生成服务器备份包。"),
+      confirmText: t("确认开始"),
       action: () => {
         void startBackupExportNow()
       },
@@ -2088,10 +2098,10 @@ const hasUnreadEndedReminders = useMemo(
       setAuthStatus(latestAuth)
       setUsageCodeExportFiles([])
       setUsageCodeDownloadStates({})
-      useStore.getState().showToast('导出任务已开始。生成完成后可下载成品文件。', 'success')
+      useStore.getState().showToast(t("导出任务已开始。生成完成后可下载成品文件。"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `导出图片与视频失败：${err instanceof Error ? err.message : String(err)}`,
+        t("导出图片与视频失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2102,7 +2112,7 @@ const hasUnreadEndedReminders = useMemo(
   const handleDownloadUsageCodeExportFile = async (fileName: string) => {
     const currentState = usageCodeDownloadStates[fileName]
     if (currentState?.status !== 'downloading' && activeUsageCodeDownloadCount >= 2) {
-      useStore.getState().showToast('最多同时下载两个分包', 'info')
+      useStore.getState().showToast(t("最多同时下载两个分包"), 'info')
       return
     }
 
@@ -2142,7 +2152,7 @@ const hasUnreadEndedReminders = useMemo(
         },
       }))
       void markUsageCodeMediaExportDownloadCompleted(fileName).catch(() => undefined)
-      useStore.getState().showToast('导出文件下载已开始保存', 'success')
+      useStore.getState().showToast(t("导出文件下载已开始保存"), 'success')
     } catch (err) {
       const stopAction = usageCodeDownloadStopActionsRef.current[fileName]
       delete usageCodeDownloadAbortControllersRef.current[fileName]
@@ -2157,7 +2167,7 @@ const hasUnreadEndedReminders = useMemo(
               totalBytes: prev[fileName]?.totalBytes ?? null,
             },
           }))
-          useStore.getState().showToast('下载已暂停。继续后会重新开始。', 'info')
+          useStore.getState().showToast(t("下载已暂停。继续后会重新开始。"), 'info')
           return
         }
         setUsageCodeDownloadStates((prev) => ({
@@ -2168,7 +2178,7 @@ const hasUnreadEndedReminders = useMemo(
             totalBytes: null,
           },
         }))
-        useStore.getState().showToast('下载已取消', 'info')
+        useStore.getState().showToast(t("下载已取消"), 'info')
         return
       }
       setUsageCodeDownloadStates((prev) => ({
@@ -2180,7 +2190,7 @@ const hasUnreadEndedReminders = useMemo(
         },
       }))
       useStore.getState().showToast(
-        `下载导出文件失败：${err instanceof Error ? err.message : String(err)}`,
+        t("下载导出文件失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -2208,14 +2218,14 @@ const hasUnreadEndedReminders = useMemo(
         totalBytes: null,
       },
     }))
-    useStore.getState().showToast('下载已取消', 'info')
+    useStore.getState().showToast(t("下载已取消"), 'info')
   }
 
   const handleDeleteUsageCodeExportFiles = () => {
     setConfirmDialog({
-      title: '删除远端备份',
-      message: '确定要删除服务器上这次导出的备份文件吗？删除后需要重新导出才能再次下载。',
-      confirmText: '确认删除',
+      title: t("删除远端备份"),
+      message: t("确定要删除服务器上这次导出的备份文件吗？删除后需要重新导出才能再次下载。"),
+      confirmText: t("确认删除"),
       tone: 'danger',
       action: () => {
         setIsDeletingUsageCodeExportFiles(true)
@@ -2225,11 +2235,11 @@ const hasUnreadEndedReminders = useMemo(
             setAuthStatus(latestAuth)
             setUsageCodeExportFiles([])
             setUsageCodeDownloadStates({})
-            useStore.getState().showToast('远端备份已删除', 'success')
+            useStore.getState().showToast(t("远端备份已删除"), 'success')
           })
           .catch((err) => {
             useStore.getState().showToast(
-              `删除远端备份失败：${err instanceof Error ? err.message : String(err)}`,
+              t("删除远端备份失败：{0}", err instanceof Error ? err.message : String(err)),
               'error',
             )
           })
@@ -2251,10 +2261,10 @@ const hasUnreadEndedReminders = useMemo(
       const nextReminderDrafts = saved.map(normalizeReminderForEditor)
       setReminderDrafts(nextReminderDrafts)
       setReminderImageUrlDrafts(createReminderImageUrlDraftMap(nextReminderDrafts))
-      useStore.getState().showToast('提醒事项已保存', 'success')
+      useStore.getState().showToast(t("提醒事项已保存"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `保存提醒事项失败：${err instanceof Error ? err.message : String(err)}`,
+        t("保存提醒事项失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2349,12 +2359,12 @@ const hasUnreadEndedReminders = useMemo(
       await loadSettings()
       setShowImportCandidates(false)
       useStore.getState().showToast(
-        `导入完成：${result.importedTasks} 条任务，${result.importedImages} 个媒体文件`,
+        t("导入完成：{0} 条任务，{1} 个媒体文件", result.importedTasks, result.importedImages),
         'success',
       )
     } catch (err) {
       useStore.getState().showToast(
-        `导入备份失败：${err instanceof Error ? err.message : String(err)}`,
+        t("导入备份失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2369,11 +2379,11 @@ const hasUnreadEndedReminders = useMemo(
       setImportCandidates(result.items)
       setShowImportCandidates(true)
       if (!result.items.length) {
-        useStore.getState().showToast('未发现服务器备份包，可以上传本地备份', 'info')
+        useStore.getState().showToast(t("未发现服务器备份包，可以上传本地备份"), 'info')
       }
     } catch (err) {
       useStore.getState().showToast(
-        `读取备份列表失败：${err instanceof Error ? err.message : String(err)}`,
+        t("读取备份列表失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2390,12 +2400,12 @@ const hasUnreadEndedReminders = useMemo(
       await loadSettings()
       setShowImportCandidates(false)
       useStore.getState().showToast(
-        `恢复完成：${result.importedTasks} 条任务，${result.importedImages} 个媒体文件`,
+        t("恢复完成：{0} 条任务，{1} 个媒体文件", result.importedTasks, result.importedImages),
         'success',
       )
     } catch (err) {
       useStore.getState().showToast(
-        `恢复备份失败：${err instanceof Error ? err.message : String(err)}`,
+        t("恢复备份失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     } finally {
@@ -2412,14 +2422,14 @@ const hasUnreadEndedReminders = useMemo(
       await resetBackendRemoteData(mode, options)
       const latestAuth = await fetchAuthStatus()
       useStore.getState().setAuthStatus(latestAuth)
-      useStore.getState().showToast('清理任务已提交，请等待进度完成', 'success')
+      useStore.getState().showToast(t("清理任务已提交，请等待进度完成"), 'success')
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       useStore.getState().showToast(
-        message.includes('当前已有维护任务正在执行')
-          ? '当前已有清理或备份任务正在执行，请等待完成后再试'
-          : `清空远端存储失败：${message}`,
-        message.includes('当前已有维护任务正在执行') ? 'info' : 'error',
+        message.includes(t("当前已有维护任务正在执行"))
+          ? t("当前已有清理或备份任务正在执行，请等待完成后再试")
+          : t("清空远端存储失败：{0}", message),
+        message.includes(t("当前已有维护任务正在执行")) ? 'info' : 'error',
       )
     } finally {
       setIsClearingRemote(false)
@@ -2430,10 +2440,10 @@ const hasUnreadEndedReminders = useMemo(
     try {
       const saved = await saveBackendDistribution({ ...distribution, enabled })
       setDistribution(saved)
-      useStore.getState().showToast(enabled ? '分发功能已开启' : '分发功能已关闭', 'success')
+      useStore.getState().showToast(enabled ? t("分发功能已开启") : t("分发功能已关闭"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `保存分发设置失败：${err instanceof Error ? err.message : String(err)}`,
+        t("保存分发设置失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -2443,10 +2453,10 @@ const hasUnreadEndedReminders = useMemo(
     try {
       const saved = await saveBackendDistribution(distribution)
       setDistribution(saved)
-      useStore.getState().showToast('并发设置已保存', 'success')
+      useStore.getState().showToast(t("并发设置已保存"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `保存并发设置失败：${err instanceof Error ? err.message : String(err)}`,
+        t("保存并发设置失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -2475,17 +2485,17 @@ const hasUnreadEndedReminders = useMemo(
       newCodeProviderVideoQuotas,
     )
     if (!providerImageQuotas) {
-      useStore.getState().showToast('API 图片额度需要是非负整数', 'error')
+      useStore.getState().showToast(t("API 图片额度需要是非负整数"), 'error')
       return
     }
     if (!providerVideoQuotas) {
-      useStore.getState().showToast('API 视频额度需要是非负整数', 'error')
+      useStore.getState().showToast(t("API 视频额度需要是非负整数"), 'error')
       return
     }
 
     try {
       const result = await createBackendUsageCode({
-        name: newCodeName.trim() || '未命名使用码',
+        name: newCodeName.trim() || t("未命名使用码"),
         userTier: newCodeUserTier,
         allowedProviderProfileIds: newCodeAllowedProviderProfileIds,
         providerImageQuotas,
@@ -2498,10 +2508,10 @@ const hasUnreadEndedReminders = useMemo(
       setNewCodeAllowedProviderProfileIds([])
       setNewCodeProviderImageQuotas({})
       setNewCodeProviderVideoQuotas({})
-      useStore.getState().showToast('使用码已生成，明文只显示一次', 'success')
+      useStore.getState().showToast(t("使用码已生成，明文只显示一次"), 'success')
     } catch (err) {
       useStore.getState().showToast(
-        `生成使用码失败：${err instanceof Error ? err.message : String(err)}`,
+        t("生成使用码失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -2523,7 +2533,7 @@ const hasUnreadEndedReminders = useMemo(
       setUsageCodes((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
     } catch (err) {
       useStore.getState().showToast(
-        `更新使用码失败：${err instanceof Error ? err.message : String(err)}`,
+        t("更新使用码失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -2548,7 +2558,7 @@ const hasUnreadEndedReminders = useMemo(
 
     const nextQuota = calculateQuotaExpression(trimmedValue || '0', currentQuota)
     if (nextQuota == null) {
-      useStore.getState().showToast(`端点${quotaType === 'video' ? '视频' : '图片'}额度表达式无效`, 'error')
+      useStore.getState().showToast(t("端点{0}额度表达式无效", quotaType === 'video' ? t("视频") : t("图片")), 'error')
       setDraftState((prev) => ({
         ...prev,
         [code.id]: {
@@ -2580,19 +2590,19 @@ const hasUnreadEndedReminders = useMemo(
 
   const handleDeleteUsageCode = (code: BackendUsageCode) => {
     setConfirmDialog({
-      title: '删除使用码',
-      message: `确定要删除「${code.name}」吗？该使用码会立即失效，历史任务仍保留给管理员查看。`,
-      confirmText: '确认删除',
+      title: t("删除使用码"),
+      message: t("确定要删除「{0}」吗？该使用码会立即失效，历史任务仍保留给管理员查看。", code.name),
+      confirmText: t("确认删除"),
       tone: 'danger',
       action: () => {
         void deleteBackendUsageCode(code.id)
           .then(() => {
             setUsageCodes((prev) => prev.filter((item) => item.id !== code.id))
-            useStore.getState().showToast('使用码已删除', 'success')
+            useStore.getState().showToast(t("使用码已删除"), 'success')
           })
           .catch((err) => {
             useStore.getState().showToast(
-              `删除使用码失败：${err instanceof Error ? err.message : String(err)}`,
+              t("删除使用码失败：{0}", err instanceof Error ? err.message : String(err)),
               'error',
             )
           })
@@ -2624,20 +2634,20 @@ const hasUnreadEndedReminders = useMemo(
       />
       <div ref={settingsPanelRef} className="glass-surface-strong relative z-10 flex h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/50 shadow-2xl ring-1 ring-black/5 animate-modal-in dark:border-white/[0.08] dark:ring-white/10">
         <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-white/[0.08]">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">设置</h3>
-          <div className="flex items-center gap-3">
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t("设置")}</h3>
+          <div className="flex items-center gap-1 sm:gap-3">
+            <AppearanceControls compact />
             <button
               type="button"
               onClick={() => setShowHelp(true)}
               className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-200 hover:text-gray-700 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]"
             >
-              操作指南
-            </button>
+              {t("操作指南")}</button>
             <span className="text-xs font-mono text-gray-400 dark:text-gray-500 select-none">v{__APP_VERSION__}</span>
             <button
               onClick={() => setShowSettings(false)}
               className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-              aria-label="关闭"
+              aria-label={t("关闭")}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2648,49 +2658,49 @@ const hasUnreadEndedReminders = useMemo(
 
         {/* 默认铺满无滚动条；仅极窄屏（如 SE）才允许横向滚动并显示细滚动条 */}
         <div className="settings-tabs flex w-full gap-1 border-b border-gray-100 px-3 py-2.5 dark:border-white/[0.08] sm:gap-2 sm:px-5 sm:py-3">
-          {isAdmin && <button className={tabClass('habits')} onClick={() => setActiveTab('habits')}>习惯配置</button>}
-          <button className={tabClass('api')} onClick={() => setActiveTab('api')}>API 配置</button>
+          {isAdmin && <button className={tabClass('habits')} onClick={() => setActiveTab('habits')}>{t("习惯配置")}</button>}
+          <button className={tabClass('api')} onClick={() => setActiveTab('api')}>{t("API 配置")}</button>
           {isAdmin && (
             <button className={tabClass('distribution')} onClick={() => setActiveTab('distribution')}>
-              分发管理
-              {hasUnreadEndedReminders && (
+              {t("分发管理")}{hasUnreadEndedReminders && (
                 <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
               )}
             </button>
           )}
-          {isAdmin && <button className={tabClass('data')} onClick={() => setActiveTab('data')}>数据管理</button>}
+          {isAdmin && <button className={tabClass('data')} onClick={() => setActiveTab('data')}>{t("数据管理")}</button>}
         </div>
 
         <div className="tiny-scrollbar flex-1 overflow-y-auto px-5 py-4">
           {activeTab === 'habits' && (
             <div className="divide-y divide-gray-100 dark:divide-white/[0.08]">
+              <AppearancePreferences />
               <PreferenceRow
-                title="提交任务后清空输入框"
-                description="开启后，任务创建成功时会清空提示词、参考图和遮罩。"
+                title={t("提交任务后清空输入框")}
+                description={t("开启后，任务创建成功时会清空提示词、参考图和遮罩。")}
                 checked={draft.clearInputAfterSubmit}
                 onChange={(checked) => updateDraft({ clearInputAfterSubmit: checked })}
               />
               <PreferenceRow
-                title="重启后加载上次的输入框"
-                description="关闭后，不再持久化提示词和参考图，下次启动会使用空输入框。"
+                title={t("重启后加载上次的输入框")}
+                description={t("关闭后，不再持久化提示词和参考图，下次启动会使用空输入框。")}
                 checked={draft.persistInputOnRestart}
                 onChange={(checked) => updateDraft({ persistInputOnRestart: checked })}
               />
               <PreferenceRow
-                title="复用配置时临时复用该任务的 API 配置"
-                description="当前后端版本会保存该习惯配置。任务级 API 复用会在后续请求链路继续接入。"
+                title={t("复用配置时临时复用该任务的 API 配置")}
+                description={t("当前后端版本会保存该习惯配置。任务级 API 复用会在后续请求链路继续接入。")}
                 checked={draft.reuseTaskApiProfileTemporarily}
                 onChange={(checked) => updateDraft({ reuseTaskApiProfileTemporarily: checked })}
               />
               <PreferenceRow
-                title="成功任务仍然展示重试按钮"
-                description="当前后端版本会保存该习惯配置。重试入口会在任务卡片清理时接入。"
+                title={t("成功任务仍然展示重试按钮")}
+                description={t("当前后端版本会保存该习惯配置。重试入口会在任务卡片清理时接入。")}
                 checked={draft.alwaysShowRetryButton}
                 onChange={(checked) => updateDraft({ alwaysShowRetryButton: checked })}
               />
               <PreferenceRow
-                title="任务卡片中的使用码显示别名"
-                description="只影响管理员查看任务卡片和详情时的使用码按钮文本。普通用户仍显示使用码本身。"
+                title={t("任务卡片中的使用码显示别名")}
+                description={t("只影响管理员查看任务卡片和详情时的使用码按钮文本。普通用户仍显示使用码本身。")}
                 checked={draft.showUsageCodeAliasOnTaskCard}
                 onChange={(checked) => updateDraft({ showUsageCodeAliasOnTaskCard: checked })}
               />
@@ -2700,7 +2710,7 @@ const hasUnreadEndedReminders = useMemo(
           {activeTab === 'api' && !isAdmin && (
             <div className="space-y-4">
               <label className="block">
-                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">可用 API</span>
+                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("可用 API")}</span>
                 <Select
                   value={draft.providerProfileId ?? providerOptions.find((option) => option.isDefault)?.id ?? ''}
                   onChange={(value) => updateDraft({ providerProfileId: String(value) })}
@@ -2712,15 +2722,15 @@ const hasUnreadEndedReminders = useMemo(
                 />
               </label>
               <div className="space-y-3 rounded-xl border border-gray-200/70 bg-gray-50/60 px-3 py-3 text-sm text-gray-600 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-300">
-                <div className="font-medium text-gray-800 dark:text-gray-100">当前使用码</div>
+                <div className="font-medium text-gray-800 dark:text-gray-100">{t("当前使用码")}</div>
                 <div className="space-y-2">
                   {userUsageCodes.map((code) => (
                     <div key={code.id} className="rounded-lg bg-white/70 px-3 py-2 dark:bg-white/[0.04]">
                       <div className="flex items-center justify-between gap-3">
                         <span className="min-w-0 truncate font-medium">{code.name}</span>
                         <div className="shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
-                          <div>图片剩余 {code.remainingImageCredits ?? 0}</div>
-                          <div>视频剩余 {code.remainingVideoCredits ?? 0}</div>
+                          <div>{t("图片剩余 ")}{code.remainingImageCredits ?? 0}</div>
+                          <div>{t("视频剩余 ")}{code.remainingVideoCredits ?? 0}</div>
                         </div>
                       </div>
                       {providerOptions.length > 0 && (
@@ -2736,7 +2746,7 @@ const hasUnreadEndedReminders = useMemo(
                                 <div key={option.id} className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
                                   <span className="min-w-0 truncate">{option.name}</span>
                                   <span className="shrink-0">
-                                    {isVideoProvider ? '视频剩余' : '图片剩余'} {providerRemaining ?? 0}
+                                    {isVideoProvider ? t("视频剩余") : t("图片剩余")} {providerRemaining ?? 0}
                                   </span>
                                 </div>
                               )
@@ -2746,7 +2756,7 @@ const hasUnreadEndedReminders = useMemo(
                     </div>
                   ))}
                   {!userUsageCodes.length && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400">当前没有可用使用码。</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{t("当前没有可用使用码。")}</div>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -2759,7 +2769,7 @@ const hasUnreadEndedReminders = useMemo(
                         void handleAddSessionUsageCode()
                       }
                     }}
-                    placeholder="输入新的使用码"
+                    placeholder={t("输入新的使用码")}
                     className="min-w-0 flex-1 rounded-lg border border-gray-200/70 bg-white/80 px-3 py-2 text-sm outline-none focus:border-blue-400 dark:border-white/[0.08] dark:bg-white/[0.04]"
                   />
                   <button
@@ -2768,8 +2778,7 @@ const hasUnreadEndedReminders = useMemo(
                     disabled={isSaving || !addCodeValue.trim()}
                     className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    添加
-                  </button>
+                    {t("添加")}</button>
                 </div>
                 <button
                   type="button"
@@ -2777,30 +2786,28 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isSaving || isExporting || isUsageCodeExportActive}
                   className="w-full rounded-lg border border-gray-200/70 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                 >
-                  {isExporting ? '提交中...' : isUsageCodeExportActive ? '导出进行中...' : '导出图片与视频'}
+                  {isExporting ? t("提交中...") : isUsageCodeExportActive ? t("导出进行中...") : t("导出图片与视频")}
                 </button>
                 <div className="rounded-lg border border-dashed border-gray-200/70 bg-white/40 px-3 py-2 text-xs text-gray-500 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-400">
                   {usageCodeExportSummary
-                    ? `本次将导出 ${usageCodeExportSummary.imageCount} 张图片、${usageCodeExportSummary.videoCount} 个视频，预计总大小 ${formatBytes(usageCodeExportSummary.totalBytes)}。`
-                    : '正在读取导出预估信息。'}
+                    ? t("本次将导出 {0} 张图片、{1} 个视频，预计总大小 {2}。", usageCodeExportSummary.imageCount, usageCodeExportSummary.videoCount, formatBytes(usageCodeExportSummary.totalBytes))
+                    : t("正在读取导出预估信息。")}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  压缩包只包含当前使用码对应的图片文件和视频文件。超过 512 MB 会自动分包。
-                </div>
+                  {t("压缩包只包含当前使用码对应的图片文件和视频文件。超过 512 MB 会自动分包。")}</div>
                 {usageCodeExportFiles.length > 1 && backupState?.phase === 'completed' && (
                   <div className="text-xs text-blue-600 dark:text-blue-300">
-                    本次导出共 {usageCodeExportFiles.length} 个分包。请全部下载后再统一保存。
-                  </div>
+                    {t("本次导出共 ")}{usageCodeExportFiles.length} {t(" 个分包。请全部下载后再统一保存。")}</div>
                 )}
                 {shouldShowUsageCodeExportStatus && backupState && (
                   <div className="rounded-lg border border-blue-200/70 bg-blue-50/70 px-3 py-3 dark:border-blue-400/20 dark:bg-blue-500/10">
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
                         {backupState.phase === 'completed'
-                          ? '导出已完成'
+                          ? t("导出已完成")
                           : backupState.phase === 'failed'
-                            ? '导出失败'
-                            : '正在生成导出文件'}
+                            ? t("导出失败")
+                            : t("正在生成导出文件")}
                       </div>
                       <div className="text-sm font-semibold text-blue-800 dark:text-blue-100">{backupState.progressPercent}%</div>
                     </div>
@@ -2815,24 +2822,23 @@ const hasUnreadEndedReminders = useMemo(
                     </div>
                     <div className="mt-2 text-xs leading-5 text-blue-700/90 dark:text-blue-200/80">
                       {backupState.phase === 'preparing'
-                        ? '正在整理导出文件。'
+                        ? t("正在整理导出文件。")
                         : backupState.phase === 'completed' && usageCodeExportFiles.length > 1
-                          ? `已生成 ${usageCodeExportFiles.length} 个分包，合计 ${formatBytes(backupState.totalBytes)}`
-                          : `已处理 ${backupState.processedFiles}/${backupState.totalFiles} 个文件，${formatBytes(backupState.processedBytes)}/${formatBytes(backupState.totalBytes)}`}
+                          ? t("已生成 {0} 个分包，合计 {1}", usageCodeExportFiles.length, formatBytes(backupState.totalBytes))
+                          : t("已处理 {0}/{1} 个文件，{2}/{3}", backupState.processedFiles, backupState.totalFiles, formatBytes(backupState.processedBytes), formatBytes(backupState.totalBytes))}
                     </div>
                     {usageCodeExportFiles.length > 0 && backupState.phase === 'completed' && (
                       <div className="mt-3 space-y-2">
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-200/60 bg-white/70 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.04]">
                           <div className="text-[11px] text-blue-700/90 dark:text-blue-200/80">
-                            远端备份保存在服务器。最多同时下载两个分包。删除后，当前这批下载文件会一并失效。
-                          </div>
+                            {t("远端备份保存在服务器。最多同时下载两个分包。删除后，当前这批下载文件会一并失效。")}</div>
                           <button
                             type="button"
                             onClick={handleDeleteUsageCodeExportFiles}
                             disabled={isDeletingUsageCodeExportFiles || hasPendingUsageCodeDownload}
                             className="shrink-0 rounded-md border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-400/20 dark:bg-white/[0.04] dark:text-red-200 dark:hover:bg-white/[0.08]"
                           >
-                            {isDeletingUsageCodeExportFiles ? '删除中...' : '删除远端备份'}
+                            {isDeletingUsageCodeExportFiles ? t("删除中...") : t("删除远端备份")}
                           </button>
                         </div>
                         {usageCodeExportFiles.map((item) => {
@@ -2870,14 +2876,14 @@ const hasUnreadEndedReminders = useMemo(
                                     className="rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-400/20 dark:bg-white/[0.04] dark:text-blue-100 dark:hover:bg-white/[0.08]"
                                   >
                                     {isSuccess
-                                      ? '下载成功'
+                                      ? t("下载成功")
                                       : isPaused
-                                        ? '继续下载'
+                                        ? t("继续下载")
                                         : isDownloading
-                                          ? '下载中...'
+                                          ? t("下载中...")
                                           : downloadState.status === 'error'
-                                            ? '重新下载'
-                                            : '下载'}
+                                            ? t("重新下载")
+                                            : t("下载")}
                                   </button>
                                   {(isDownloading || isPaused) && (
                                     <>
@@ -2887,16 +2893,14 @@ const hasUnreadEndedReminders = useMemo(
                                           onClick={() => handlePauseUsageCodeExportDownload(item.fileName)}
                                           className="rounded-md border border-blue-200 bg-white px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-50 dark:border-blue-400/20 dark:bg-white/[0.04] dark:text-blue-100 dark:hover:bg-white/[0.08]"
                                         >
-                                          暂停
-                                        </button>
+                                          {t("暂停")}</button>
                                       )}
                                       <button
                                         type="button"
                                         onClick={() => handleCancelUsageCodeExportDownload(item.fileName)}
                                         className="rounded-md border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:border-red-400/20 dark:bg-white/[0.04] dark:text-red-200 dark:hover:bg-white/[0.08]"
                                       >
-                                        取消
-                                      </button>
+                                        {t("取消")}</button>
                                     </>
                                   )}
                                 </div>
@@ -2911,10 +2915,10 @@ const hasUnreadEndedReminders = useMemo(
                                   </div>
                                   <div className="mt-2 text-[11px] text-blue-700/90 dark:text-blue-200/80">
                                     {isPaused
-                                      ? '下载已暂停。继续后会重新开始。'
+                                      ? t("下载已暂停。继续后会重新开始。")
                                       : downloadState.totalBytes && downloadState.totalBytes > 0
-                                        ? `下载进度 ${progressPercent}%`
-                                        : `已下载 ${formatBytes(downloadState.loadedBytes)}`}
+                                        ? t("下载进度 {0}%", progressPercent)
+                                        : t("已下载 {0}", formatBytes(downloadState.loadedBytes))}
                                   </div>
                                 </>
                               )}
@@ -2929,9 +2933,9 @@ const hasUnreadEndedReminders = useMemo(
                   type="button"
                   onClick={() =>
                     setConfirmDialog({
-                      title: '清除浏览器缓存',
-                      message: '这会清空当前浏览器中的任务记录、图片缓存、视频缓存和输入草稿。\n\n不会删除服务器上的任务、图片、视频和使用码额度。',
-                      confirmText: '确认清除',
+                      title: t("清除浏览器缓存"),
+                      message: t("这会清空当前浏览器中的任务记录、图片缓存、视频缓存和输入草稿。\n\n不会删除服务器上的任务、图片、视频和使用码额度。"),
+                      confirmText: t("确认清除"),
                       tone: 'warning',
                       action: () => {
                         void clearAllData()
@@ -2940,8 +2944,7 @@ const hasUnreadEndedReminders = useMemo(
                   }
                   className="w-full rounded-lg border border-orange-200/80 bg-orange-50/50 px-4 py-2 text-sm font-medium text-orange-600 transition hover:bg-orange-100/80 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-300 dark:hover:bg-orange-500/20"
                 >
-                  清除浏览器缓存
-                </button>
+                  {t("清除浏览器缓存")}</button>
               </div>
             </div>
           )}
@@ -2965,7 +2968,7 @@ const hasUnreadEndedReminders = useMemo(
                         label: renderProviderOptionLabel(profile, { showDistributedRemaining: true }),
                         value: profile.id,
                       })),
-                      { label: '新增 API 配置', value: '__new__' },
+                      { label: t("新增 API 配置"), value: '__new__' },
                     ]}
                     className="rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                   />
@@ -2976,19 +2979,17 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={!profileDraft.id}
                   className="min-w-0 whitespace-nowrap rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm font-medium leading-normal text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                 >
-                  复制
-                </button>
+                  {t("复制")}</button>
                 <button
                   type="button"
                   onClick={() => setProfileDraft(createEmptyProfile())}
                   className="min-w-0 whitespace-nowrap rounded-xl bg-blue-50 px-3 py-2 text-sm font-medium leading-normal text-blue-500 transition hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20"
                 >
-                  新增
-                </button>
+                  {t("新增")}</button>
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">配置名称</span>
+                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("配置名称")}</span>
                 <ClearableInput
                   value={profileDraft.name}
                   onChange={(event) => updateProfileDraft({ name: event.target.value })}
@@ -2998,12 +2999,12 @@ const hasUnreadEndedReminders = useMemo(
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">API 备注名</span>
+                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("API 备注名")}</span>
                 <ClearableInput
                   value={profileDraft.remarkName ?? ''}
                   onChange={(event) => updateProfileDraft({ remarkName: event.target.value })}
                   onClear={() => updateProfileDraft({ remarkName: '' })}
-                  placeholder="只给管理员显示"
+                  placeholder={t("只给管理员显示")}
                   className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                 />
               </label>
@@ -3027,14 +3028,14 @@ const hasUnreadEndedReminders = useMemo(
                     onChange={(event) => updateProfileDraft({ apiKey: event.target.value })}
                     onClear={() => updateProfileDraft({ apiKey: '' })}
                     type={showApiKey ? 'text' : 'password'}
-                    placeholder={profileDraft.apiKeyMasked ?? '输入后保存到后端'}
+                    placeholder={profileDraft.apiKeyMasked ?? t("输入后保存到后端")}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 pr-20 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey((value) => !value)}
                     className="absolute inset-y-0 right-8 flex items-center px-3 text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-200"
-                    aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}
+                    aria-label={showApiKey ? t("隐藏 API Key") : t("显示 API Key")}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {showApiKey ? (
@@ -3056,11 +3057,11 @@ const hasUnreadEndedReminders = useMemo(
                       disabled={isQueryingBalance || isSaving}
                       className="rounded-lg border border-gray-200/80 bg-white/70 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                     >
-                      {isQueryingBalance ? '查询中...' : '查询余额'}
+                      {isQueryingBalance ? t("查询中...") : t("查询余额")}
                     </button>
                     {providerBalanceText && (
                       <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                        当前余额：{providerBalanceText}
+                        {t("当前余额：")}{providerBalanceText}
                       </span>
                     )}
                   </div>
@@ -3068,7 +3069,7 @@ const hasUnreadEndedReminders = useMemo(
               </div>
 
               <label className="block">
-                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">API 接口</span>
+                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("API 接口")}</span>
                 <Select
                   value={profileDraft.apiMode}
                   onChange={(value) => {
@@ -3126,24 +3127,21 @@ const hasUnreadEndedReminders = useMemo(
                 />
                 {profileDraft.apiMode === 'venice_images' && (
                   <div className="mt-2 rounded-2xl border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200">
-                    此模式需要分别填写 Venice 文生图、单图编辑、多图编辑三个模型。系统会自动分发：不上传图片时走文生图，上传 1 张图时走单图编辑，上传 2 到 N 张图时走多图编辑（N 为下方参考图上限）。
-                  </div>
+                    {t("此模式需要分别填写 Venice 文生图、单图编辑、多图编辑三个模型。系统会自动分发：不上传图片时走文生图，上传 1 张图时走单图编辑，上传 2 到 N 张图时走多图编辑（N 为下方参考图上限）。")}</div>
                 )}
                 {profileDraft.apiMode === 'wavespeed' && (
                   <div className="mt-2 rounded-2xl border border-sky-200/70 bg-sky-50/80 px-3 py-2 text-xs leading-5 text-sky-700 dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-200">
-                    Base URL 建议填写 https://api.wavespeed.ai/api/v3。请分别填写文生图、单图编辑、多图编辑模型。系统会自动分发：无图走文生图，1 张图走单图编辑，2 到 N 张图走多图编辑（N 为下方参考图上限）。编辑请求会先上传文件。
-                  </div>
+                    {t("Base URL 建议填写 https://api.wavespeed.ai/api/v3。请分别填写文生图、单图编辑、多图编辑模型。系统会自动分发：无图走文生图，1 张图走单图编辑，2 到 N 张图走多图编辑（N 为下方参考图上限）。编辑请求会先上传文件。")}</div>
                 )}
                 {profileDraft.apiMode === 'kie' && (
                   <div className="mt-2 rounded-2xl border border-violet-200/70 bg-violet-50/80 px-3 py-2 text-xs leading-5 text-violet-700 dark:border-violet-400/20 dark:bg-violet-500/10 dark:text-violet-200">
-                    Base URL 建议填写 https://api.kie.ai/api/v1。请分别填写文生图、单图编辑、多图编辑模型。无图走文生图；有参考图时会先上传到 Kie 文件服务，再按 image_urls 提交图生图。
-                  </div>
+                    {t("Base URL 建议填写 https://api.kie.ai/api/v1。请分别填写文生图、单图编辑、多图编辑模型。无图走文生图；有参考图时会先上传到 Kie 文件服务，再按 image_urls 提交图生图。")}</div>
                 )}
               </label>
 
               {!isMultiModelMode(profileDraft.apiMode) && (
                 <label className="block">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">模型 ID</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("模型 ID")}</span>
                   <ClearableInput
                     value={profileDraft.model}
                     onChange={(event) => updateProfileDraft({ model: event.target.value })}
@@ -3164,8 +3162,8 @@ const hasUnreadEndedReminders = useMemo(
                   }`}>
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">文生图模型</div>
-                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">不上传参考图时使用。</div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("文生图模型")}</div>
+                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t("不上传参考图时使用。")}</div>
                       </div>
                       <Switch
                         checked={profileDraft.veniceGenerateEnabled !== false}
@@ -3178,7 +3176,7 @@ const hasUnreadEndedReminders = useMemo(
                       onClear={() => updateProfileDraft({ veniceGenerateModel: '' })}
                       placeholder={profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie'
                         ? getDefaultModelForMode(profileDraft.apiMode)
-                        : (profileDraft.model || '例如：flux-dev')}
+                        : (profileDraft.model || t("例如：flux-dev"))}
                       disabled={profileDraft.veniceGenerateEnabled === false}
                       className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                     />
@@ -3190,8 +3188,8 @@ const hasUnreadEndedReminders = useMemo(
                   }`}>
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">单图编辑模型</div>
-                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">上传 1 张参考图时使用。</div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("单图编辑模型")}</div>
+                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t("上传 1 张参考图时使用。")}</div>
                       </div>
                       <Switch
                         checked={profileDraft.veniceEditEnabled !== false}
@@ -3204,7 +3202,7 @@ const hasUnreadEndedReminders = useMemo(
                       onClear={() => updateProfileDraft({ veniceEditModel: '' })}
                       placeholder={profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie'
                         ? (getDefaultEditModelForMode(profileDraft.apiMode) || getDefaultModelForMode(profileDraft.apiMode))
-                        : (profileDraft.model || '例如：grok-imagine-edit')}
+                        : (profileDraft.model || t("例如：grok-imagine-edit"))}
                       disabled={profileDraft.veniceEditEnabled === false}
                       className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                     />
@@ -3216,8 +3214,8 @@ const hasUnreadEndedReminders = useMemo(
                   }`}>
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">多图编辑模型</div>
-                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">上传 2 到 {normalizeMaxReferenceImages(profileDraft.apiMode, profileDraft.maxReferenceImages)} 张参考图时使用。</div>
+                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("多图编辑模型")}</div>
+                        <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t("上传 2 到 ")}{normalizeMaxReferenceImages(profileDraft.apiMode, profileDraft.maxReferenceImages)} {t(" 张参考图时使用。")}</div>
                       </div>
                       <Switch
                         checked={profileDraft.veniceMultiEditEnabled !== false}
@@ -3232,7 +3230,7 @@ const hasUnreadEndedReminders = useMemo(
                         ? (profileDraft.veniceEditModel
                           || getDefaultEditModelForMode(profileDraft.apiMode)
                           || getDefaultModelForMode(profileDraft.apiMode))
-                        : (profileDraft.veniceEditModel || profileDraft.model || '例如：grok-imagine-edit')}
+                        : (profileDraft.veniceEditModel || profileDraft.model || t("例如：grok-imagine-edit"))}
                       disabled={profileDraft.veniceMultiEditEnabled === false}
                       className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                     />
@@ -3243,14 +3241,13 @@ const hasUnreadEndedReminders = useMemo(
               {!isMultiModelMode(profileDraft.apiMode) && (
                 <div className="rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 py-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">已保存模型</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{t("已保存模型")}</span>
                     <button
                       type="button"
                       onClick={saveCurrentModelToDraft}
                       className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20"
                     >
-                      保存当前模型
-                    </button>
+                      {t("保存当前模型")}</button>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(profileDraft.modelOptions ?? []).length > 0 ? (
@@ -3277,7 +3274,7 @@ const hasUnreadEndedReminders = useMemo(
                               type="button"
                               onClick={() => removeModelOptionFromDraft(model)}
                               className={selected ? 'text-white/80 hover:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}
-                              aria-label={`删除模型 ${model}`}
+                              aria-label={t("删除模型 {0}", model)}
                             >
                               ×
                             </button>
@@ -3285,14 +3282,14 @@ const hasUnreadEndedReminders = useMemo(
                         )
                       })
                     ) : (
-                      <span className="text-xs text-gray-400 dark:text-gray-500">当前没有已保存模型</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{t("当前没有已保存模型")}</span>
                     )}
                   </div>
                 </div>
               )}
 
               <label className="block">
-                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">请求超时 (秒)</span>
+                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("请求超时 (秒)")}</span>
                 <ClearableInput
                   value={profileDraft.timeoutSeconds}
                   onChange={(event) => updateProfileDraft({ timeoutSeconds: Number(event.target.value) })}
@@ -3306,11 +3303,11 @@ const hasUnreadEndedReminders = useMemo(
 
               <div className="rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 py-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <div className="mb-2">
-                  <div className="text-sm font-medium text-gray-800 dark:text-gray-100">参考图上限</div>
+                  <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("参考图上限")}</div>
                   <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
                     {isSpecialMultiModelMode(profileDraft.apiMode)
-                      ? '多图编辑开启时生效。关闭多图后最多 1 张；单图和多图都关闭时不能上传参考图。'
-                      : '限制用户可上传的参考图张数。'}
+                      ? t("多图编辑开启时生效。关闭多图后最多 1 张；单图和多图都关闭时不能上传参考图。")
+                      : t("限制用户可上传的参考图张数。")}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3320,7 +3317,7 @@ const hasUnreadEndedReminders = useMemo(
                       maxReferenceImages: Math.max(1, normalizeMaxReferenceImages(profileDraft.apiMode, profileDraft.maxReferenceImages) - 1),
                     })}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200/70 bg-white/70 text-lg text-gray-700 transition hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
-                    aria-label="减少参考图上限"
+                    aria-label={t("减少参考图上限")}
                   >
                     −
                   </button>
@@ -3350,21 +3347,20 @@ const hasUnreadEndedReminders = useMemo(
                       maxReferenceImages: Math.min(16, normalizeMaxReferenceImages(profileDraft.apiMode, profileDraft.maxReferenceImages) + 1),
                     })}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200/70 bg-white/70 text-lg text-gray-700 transition hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
-                    aria-label="增加参考图上限"
+                    aria-label={t("增加参考图上限")}
                   >
                     +
                   </button>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">张（1-16）</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{t("张（1-16）")}</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 py-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">上游代理</div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("上游代理")}</div>
                     <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                      仅作用于该 API 端点。支持 http、https、socks4、socks5。示例：http://127.0.0.1:7890 或 socks5://127.0.0.1:1080
-                    </div>
+                      {t("仅作用于该 API 端点。支持 http、https、socks4、socks5。示例：http://127.0.0.1:7890 或 socks5://127.0.0.1:1080")}</div>
                   </div>
                   <Switch
                     checked={profileDraft.proxyEnabled === true}
@@ -3381,10 +3377,11 @@ const hasUnreadEndedReminders = useMemo(
                 />
               </div>
 
+              {profileDraft.apiMode === 'images' && !profileDraft.codexCli && !profileDraft.grokApiCompat && <ImageExtensionSettings model={profileDraft.model} value={profileDraft.imageExtensions} onChange={imageExtensions => updateProfileDraft({ imageExtensions })} />}
               <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 dark:divide-white/[0.08] dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <PreferenceRow
-                  title="auto 从参考图取比例"
-                  description="开启后，尺寸选择 auto 且存在参考图时，按第一张参考图比例映射。关闭后，auto 固定使用 1:1。"
+                  title={t("auto 从参考图取比例")}
+                  description={t("开启后，尺寸选择 auto 且存在参考图时，按第一张参考图比例映射。关闭后，auto 固定使用 1:1。")}
                   checked={profileDraft.autoAspectFromReference !== false}
                   onChange={(checked) => updateProfileDraft({ autoAspectFromReference: checked })}
                 />
@@ -3393,12 +3390,12 @@ const hasUnreadEndedReminders = useMemo(
                             <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 dark:divide-white/[0.08] dark:border-white/[0.08] dark:bg-white/[0.03]">
                 {(profileDraft.apiMode === 'images' || profileDraft.apiMode === 'venice_images' || profileDraft.apiMode === 'responses' || profileDraft.apiMode === 'videos') && (
                   <PreferenceRow
-                    title="Grok API 兼容"
+                    title={t("Grok API 兼容")}
                     description={profileDraft.apiMode === 'videos'
-                      ? '启用后该视频配置会显示 Grok 相关能力设置。'
+                      ? t("启用后该视频配置会显示 Grok 相关能力设置。")
                       : profileDraft.apiMode === 'venice_images'
-                        ? '启用后按 Grok 风格提交尺寸参数。尺寸会换算成接口支持的比例与分辨率。遮罩编辑不会提交到该接口。'
-                        : '启用后改用 xAI Images 接口的字段。尺寸会换算成 xAI 支持的比例与分辨率。遮罩编辑不会提交到该接口。'}
+                        ? t("启用后按 Grok 风格提交尺寸参数。尺寸会换算成接口支持的比例与分辨率。遮罩编辑不会提交到该接口。")
+                        : t("启用后改用 xAI Images 接口的字段。尺寸会换算成 xAI 支持的比例与分辨率。遮罩编辑不会提交到该接口。")}
                     checked={profileDraft.grokApiCompat}
                     onChange={(checked) => updateProfileDraft({
                       grokApiCompat: checked,
@@ -3426,18 +3423,18 @@ const hasUnreadEndedReminders = useMemo(
                 )}
                 {profileDraft.apiMode === 'venice_images' && (
                   <PreferenceRow
-                    title="不传递分辨率"
-                    description="开启后，威尼斯图片编辑请求不会附带 resolution 参数。"
+                    title={t("不传递分辨率")}
+                    description={t("开启后，威尼斯图片编辑请求不会附带 resolution 参数。")}
                     checked={profileDraft.veniceSkipResolution === true}
                     onChange={(checked) => updateProfileDraft({ veniceSkipResolution: checked })}
                   />
                 )}
                 {(profileDraft.apiMode === 'images' || profileDraft.apiMode === 'venice_images' || profileDraft.apiMode === 'responses') && profileDraft.grokApiCompat && (
                   <PreferenceRow
-                    title="允许 xAI 2K 图片"
+                    title={t("允许 xAI 2K 图片")}
                     description={profileDraft.apiMode === 'venice_images'
-                      ? '开启后，用户选择 high 才提交 2K；关闭时固定 1K。'
-                      : '开启后，xAI 图片接口会按请求尺寸尽量使用 2K。关闭时，xAI 图片仍固定使用 1K。'}
+                      ? t("开启后，用户选择 high 才提交 2K；关闭时固定 1K。")
+                      : t("开启后，xAI 图片接口会按请求尺寸尽量使用 2K。关闭时，xAI 图片仍固定使用 1K。")}
                     checked={profileDraft.xaiImage2kEnabled}
                     onChange={(checked) => updateProfileDraft({ xaiImage2kEnabled: checked })}
                   />
@@ -3445,8 +3442,8 @@ const hasUnreadEndedReminders = useMemo(
                 {(profileDraft.apiMode === 'images' || profileDraft.apiMode === 'venice_images' || profileDraft.apiMode === 'responses') && (
                   <>
                     <PreferenceRow
-                      title="Codex CLI 模式"
-                      description="禁用该接口不支持的质量参数，并使用兼容的多图提交方式。"
+                      title={t("Codex CLI 模式")}
+                      description={t("禁用该接口不支持的质量参数，并使用兼容的多图提交方式。")}
                       checked={profileDraft.codexCli}
                       onChange={(checked) => updateProfileDraft({
                         codexCli: checked,
@@ -3454,10 +3451,10 @@ const hasUnreadEndedReminders = useMemo(
                       })}
                     />
                     <PreferenceRow
-                      title="返回 Base64 图片数据"
+                      title={t("返回 Base64 图片数据")}
                       description={profileDraft.apiMode === 'venice_images'
-                        ? 'Venice 图片接口当前直接返回图片文件流。此开关在该模式下不会生效。'
-                        : <>开启后在请求体中加入 <code className="rounded bg-gray-200 px-1 py-0.5 font-mono dark:bg-white/[0.08]">response_format: b64_json</code>，尝试让接口直接返回 Base64 图片。</>}
+                        ? t("Venice 图片接口当前直接返回图片文件流。此开关在该模式下不会生效。")
+                        : <>{t("开启后在请求体中加入 ")}<code className="rounded bg-gray-200 px-1 py-0.5 font-mono dark:bg-white/[0.08]">response_format: b64_json</code>{t("，尝试让接口直接返回 Base64 图片。")}</>}
                       checked={profileDraft.responseFormatB64Json}
                       onChange={(checked) => updateProfileDraft({ responseFormatB64Json: checked })}
                     />
@@ -3466,8 +3463,8 @@ const hasUnreadEndedReminders = useMemo(
                 {profileDraft.apiMode === 'images' && (
                   <>
                     <PreferenceRow
-                      title="参考图使用公网 URL"
-                      description="按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。"
+                      title={t("参考图使用公网 URL")}
+                      description={t("按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。")}
                       checked={profileDraft.publicReferenceEnabled === true}
                       onChange={(checked) => updateProfileDraft({
                         publicReferenceEnabled: checked,
@@ -3477,9 +3474,8 @@ const hasUnreadEndedReminders = useMemo(
                     {profileDraft.publicReferenceEnabled && (
                       <div className="space-y-3 py-3">
                         <label className="block text-sm text-gray-700 dark:text-gray-200">
-                          公网访问地址
-                          <ClearableInput
-                            aria-label="公网访问地址"
+                          {t("公网访问地址")}<ClearableInput
+                            aria-label={t("公网访问地址")}
                             value={profileDraft.publicReferenceBaseUrl ?? ''}
                             onChange={(event) => updateProfileDraft({ publicReferenceBaseUrl: event.target.value })}
                             onClear={() => updateProfileDraft({ publicReferenceBaseUrl: '' })}
@@ -3488,15 +3484,17 @@ const hasUnreadEndedReminders = useMemo(
                           />
                         </label>
                         <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">
-                          支持 https://域名 或 http://公网IP:端口，无需证书。只填公网地址，不填路径；参考图独立使用编排中的 REFERENCE_BASE_PATH，默认 /references/。临时链接至少有效 1 小时，长请求按两倍请求超时加 60 秒延长；过期后需重新提交任务。
+                          {t("支持 https://域名 或 http://公网IP:端口，无需证书。只填公网地址，不填路径；参考图独立使用编排中的 REFERENCE_BASE_PATH，默认 /references/。临时链接至少有效 1 小时，长请求按两倍请求超时加 60 秒延长；过期后需重新提交任务。")}</p>
+                        <p className="text-xs leading-5 text-red-600 dark:text-red-400">
+                          {t("请务必确保上游服务能够访问此地址；检测通过仅表示当前服务器可访问。")}
                         </p>
                         <button type="button" onClick={handleCheckPublicReference}
                           disabled={isCheckingPublicReference || isSaving || !profileDraft.publicReferenceBaseUrl?.trim()}
                           className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
-                          {isCheckingPublicReference ? '检测中...' : '检测公网访问'}
+                          {isCheckingPublicReference ? t("检测中...") : t("检测公网访问")}
                         </button>
                         <p role="status" className={`text-xs leading-5 ${publicReferenceCheckError ? 'text-red-500' : profileDraft.publicReferenceVerification ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {publicReferenceCheckError || (profileDraft.publicReferenceVerification ? '检测通过，可以保存配置。' : '保存前需检测通过。检测最多等待 10 秒，不会调用供应商 API。')}
+                          {publicReferenceCheckError || (profileDraft.publicReferenceVerification ? t("检测通过，可以保存配置。") : t("保存前需检测通过。检测最多等待 10 秒，不会调用供应商 API。"))}
                         </p>
                       </div>
                     )}
@@ -3505,20 +3503,20 @@ const hasUnreadEndedReminders = useMemo(
                 {profileDraft.apiMode === 'wavespeed' && (
                   <>
                     <PreferenceRow
-                      title="允许高分辨率 (2K)"
-                      description="开启后，用户选择 high 才提交 2k；关闭时固定 1k。"
+                      title={t("允许高分辨率 (2K)")}
+                      description={t("开启后，用户选择 high 才提交 2k；关闭时固定 1k。")}
                       checked={profileDraft.xaiImage2kEnabled}
                       onChange={(checked) => updateProfileDraft({ xaiImage2kEnabled: checked })}
                     />
                     <PreferenceRow
-                      title="同步模式"
-                      description="开启后请求体附带 enable_sync_mode=true，尽量等待接口直接返回结果。"
+                      title={t("同步模式")}
+                      description={t("开启后请求体附带 enable_sync_mode=true，尽量等待接口直接返回结果。")}
                       checked={profileDraft.enableSyncMode === true}
                       onChange={(checked) => updateProfileDraft({ enableSyncMode: checked })}
                     />
                     <PreferenceRow
-                      title="Base64 输出"
-                      description="开启后请求体附带 enable_base64_output=true。结果若返回 base64 会直接解码落盘；若返回 URL 则继续下载。"
+                      title={t("Base64 输出")}
+                      description={t("开启后请求体附带 enable_base64_output=true。结果若返回 base64 会直接解码落盘；若返回 URL 则继续下载。")}
                       checked={profileDraft.enableBase64Output === true}
                       onChange={(checked) => updateProfileDraft({ enableBase64Output: checked })}
                     />
@@ -3527,14 +3525,14 @@ const hasUnreadEndedReminders = useMemo(
                 {profileDraft.apiMode === 'kie' && (
                   <>
                     <PreferenceRow
-                      title="NSFW 安全审核"
-                      description="开启后请求 input.nsfw_checker=true。关闭后提交 false。"
+                      title={t("NSFW 安全审核")}
+                      description={t("开启后请求 input.nsfw_checker=true。关闭后提交 false。")}
                       checked={profileDraft.nsfwChecker !== false}
                       onChange={(checked) => updateProfileDraft({ nsfwChecker: checked })}
                     />
                     <PreferenceRow
-                      title="高质量 (2K)"
-                      description="开启后，用户选择 high 才提交 quality=high；关闭时固定 basic。"
+                      title={t("高质量 (2K)")}
+                      description={t("开启后，用户选择 high 才提交 quality=high；关闭时固定 basic。")}
                       checked={profileDraft.xaiImage2kEnabled}
                       onChange={(checked) => updateProfileDraft({ xaiImage2kEnabled: checked })}
                     />
@@ -3548,15 +3546,14 @@ const hasUnreadEndedReminders = useMemo(
                   onClick={handleDeleteProfile}
                   className="rounded-xl border border-red-200/70 bg-red-50/50 px-4 py-2.5 text-sm font-medium text-red-500 transition hover:bg-red-100/80 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
                 >
-                  删除配置
-                </button>
+                  {t("删除配置")}</button>
                 <button
                   type="button"
                   onClick={handleSave}
                   disabled={isSaving || isCheckingPublicReference || publicReferenceNeedsCheck}
                   className="rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSaving ? '保存中...' : '保存'}
+                  {isSaving ? t("保存中...") : t("保存")}
                 </button>
               </div>
             </div>
@@ -3565,16 +3562,16 @@ const hasUnreadEndedReminders = useMemo(
           {activeTab === 'distribution' && isAdmin && (
             <div className="space-y-4">
               <PreferenceRow
-                title="开启分发功能"
-                description="开启后，普通用户可以用使用码登录。关闭后，只有管理员可以使用。"
+                title={t("开启分发功能")}
+                description={t("开启后，普通用户可以用使用码登录。关闭后，只有管理员可以使用。")}
                 checked={distribution.enabled}
                 onChange={handleToggleDistribution}
               />
 
               <div className="rounded-2xl border border-gray-200/70 bg-gray-50/60 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-100">同时执行任务数</span>
-                  <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">超过该数量的任务会进入队列，按提交顺序执行。</span>
+                  <span className="mb-1 block text-sm font-medium text-gray-800 dark:text-gray-100">{t("同时执行任务数")}</span>
+                  <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("超过该数量的任务会进入队列，按提交顺序执行。")}</span>
                   <ClearableInput
                     value={distribution.maxConcurrentTasks}
                     onChange={(event) => setDistribution((prev) => ({
@@ -3594,18 +3591,16 @@ const hasUnreadEndedReminders = useMemo(
               <div className="space-y-4 rounded-2xl border border-gray-200/70 bg-gray-50/60 p-4 dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">公共提醒事项</div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("公共提醒事项")}</div>
                     <div className="mt-1 text-xs leading-6 text-gray-500 dark:text-gray-400">
-                      事项会在生效时间内按设定频率向使用码用户弹出。结束后仍保留在这里，方便管理员查看历史。
-                    </div>
+                      {t("事项会在生效时间内按设定频率向使用码用户弹出。结束后仍保留在这里，方便管理员查看历史。")}</div>
                   </div>
                   <button
                     type="button"
                     onClick={handleCreateReminder}
                     className="self-start rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 sm:self-auto"
                   >
-                    新建事项
-                  </button>
+                    {t("新建事项")}</button>
                 </div>
                 <div className="space-y-3">
                   {orderedReminderDrafts.map((reminder) => {
@@ -3626,11 +3621,10 @@ const hasUnreadEndedReminders = useMemo(
                                   ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
                                   : 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400'
                             }`}>
-                              {ended ? '已结束' : reminder.enabled ? '进行中' : '已关闭'}
+                              {ended ? t("已结束") : reminder.enabled ? t("进行中") : t("已关闭")}
                             </span>
                             <span className="text-xs text-gray-400 dark:text-gray-500">
-                              {formatReminderAudience(reminder)} · 每天最多提醒 {reminder.maxDailyShows} 次
-                            </span>
+                              {formatReminderAudience(reminder)} {t(" · 每天最多提醒 ")}{reminder.maxDailyShows} {t(" 次")}</span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                             <button
@@ -3638,7 +3632,7 @@ const hasUnreadEndedReminders = useMemo(
                               onClick={() => toggleReminderExpanded(reminder.id)}
                               className="relative rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-200 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.1]"
                             >
-                              {expanded ? '收起' : '展开'}
+                              {expanded ? t("收起") : t("展开")}
                               {unreadEnded && !expanded && (
                                 <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
                               )}
@@ -3654,66 +3648,65 @@ const hasUnreadEndedReminders = useMemo(
                               onClick={() => handleDeleteReminder(reminder.id)}
                               className="rounded-lg bg-red-50 px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
                             >
-                              删除
-                            </button>
+                              {t("删除")}</button>
                           </div>
                         </div>
                         {!expanded ? (
                           <div className="rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                            <div className="font-medium text-gray-700 dark:text-gray-200">{reminder.title || '未命名事项'}</div>
+                            <div className="font-medium text-gray-700 dark:text-gray-200">{reminder.title || t("未命名事项")}</div>
                             <div className="mt-1 break-words whitespace-pre-wrap">
-                              {reminder.message.trim() ? renderTextWithLinks(reminder.message.trim()) : '无正文'}
+                              {reminder.message.trim() ? renderTextWithLinks(reminder.message.trim()) : t("无正文")}
                             </div>
                           </div>
                         ) : ended ? (
                           <div className="space-y-3">
                             <div className="rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                              <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">事项标题</div>
-                              <div className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-200">{reminder.title || '未命名事项'}</div>
+                              <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("事项标题")}</div>
+                              <div className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-200">{reminder.title || t("未命名事项")}</div>
                             </div>
                             <div className="rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-6 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                              <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">事项正文</div>
+                              <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("事项正文")}</div>
                               <div className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700 dark:text-gray-200">
-                                {reminder.message.trim() ? renderTextWithLinks(reminder.message.trim()) : '无正文'}
+                                {reminder.message.trim() ? renderTextWithLinks(reminder.message.trim()) : t("无正文")}
                               </div>
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                               <div className="rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">开始时间</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("开始时间")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{reminder.startAt.replace('T', ' ')}</div>
                               </div>
                               <div className="rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">结束时间</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("结束时间")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{reminder.endAt.replace('T', ' ')}</div>
                               </div>
                             </div>
                             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
                               <div className="min-w-0 rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">投放对象</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("投放对象")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{formatReminderAudience(reminder)}</div>
                               </div>
                               <div className="min-w-0 rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">每天提醒次数</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("每天提醒次数")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{reminder.maxDailyShows}</div>
                               </div>
                               <div className="min-w-0 rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">日内开始</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("日内开始")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{reminder.startTime}</div>
                               </div>
                               <div className="min-w-0 rounded-xl bg-gray-50/80 px-3 py-2 text-xs leading-5 text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
-                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">日内结束</div>
+                                <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500">{t("日内结束")}</div>
                                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">{reminder.endTime}</div>
                               </div>
                             </div>
                             {reminder.imageDataUrls?.length ? (
                               <div className="space-y-2">
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">事项配图</span>
+                                <span className="block text-xs text-gray-500 dark:text-gray-400">{t("事项配图")}</span>
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                   {reminder.imageDataUrls.map((imageDataUrl, imageIndex) => (
                                     <img
                                       key={`${reminder.id}-readonly-image-${imageIndex}`}
                                       src={imageDataUrl}
-                                      alt={`${reminder.title || '事项配图'} ${imageIndex + 1}`}
+                                      alt={`${reminder.title || t("事项配图")} ${imageIndex + 1}`}
                                       className="max-h-36 w-full rounded-2xl object-contain"
                                     />
                                   ))}
@@ -3724,29 +3717,29 @@ const hasUnreadEndedReminders = useMemo(
                         ) : (
                           <>
                         <label className="block">
-                          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">事项标题</span>
+                          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("事项标题")}</span>
                           <ClearableInput
                             value={reminder.title}
                             onChange={(event) => handleUpdateReminder(reminder.id, { title: event.target.value })}
                             onClear={() => handleUpdateReminder(reminder.id, { title: '' })}
-                            placeholder="数据备份提醒"
+                            placeholder={t("数据备份提醒")}
                             className="w-full rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                           />
                         </label>
                         <label className="block">
-                          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">事项正文</span>
+                          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("事项正文")}</span>
                           <ClearableTextarea
                             value={reminder.message}
                             onChange={(event) => handleUpdateReminder(reminder.id, { message: event.target.value })}
                             onClear={() => handleUpdateReminder(reminder.id, { message: '' })}
                             rows={4}
-                            placeholder="请先导出图片和视频，再准备后续清理。"
+                            placeholder={t("请先导出图片和视频，再准备后续清理。")}
                             className="w-full rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                           />
                         </label>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <label className="block">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">开始时间</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("开始时间")}</span>
                             <ClearableInput
                               value={reminder.startAt}
                               onChange={(event) => handleUpdateReminder(reminder.id, { startAt: event.target.value })}
@@ -3756,7 +3749,7 @@ const hasUnreadEndedReminders = useMemo(
                             />
                           </label>
                           <label className="block">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">结束时间</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("结束时间")}</span>
                             <ClearableInput
                               value={reminder.endAt}
                               onChange={(event) => handleUpdateReminder(reminder.id, { endAt: event.target.value })}
@@ -3768,20 +3761,20 @@ const hasUnreadEndedReminders = useMemo(
                         </div>
                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4">
                           <label className="block min-w-0">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">投放对象</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("投放对象")}</span>
                             <Select
                               value={getReminderAudienceValue(reminder)}
                               onChange={(value) => handleUpdateReminder(reminder.id, { audienceTiers: getReminderAudienceTiers(value as ReminderAudienceValue) })}
                               options={[
-                                { value: 'all', label: '全部用户' },
-                                { value: 'free', label: '免费用户' },
-                                { value: 'paid', label: '付费用户' },
+                                { value: 'all', label: t("全部用户") },
+                                { value: 'free', label: t("免费用户") },
+                                { value: 'paid', label: t("付费用户") },
                               ]}
                               className="w-full min-w-0 rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                             />
                           </label>
                           <label className="block min-w-0">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">每天提醒次数</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("每天提醒次数")}</span>
                             <ClearableInput
                               value={reminder.maxDailyShows}
                               onChange={(event) => handleUpdateReminder(reminder.id, {
@@ -3795,7 +3788,7 @@ const hasUnreadEndedReminders = useMemo(
                             />
                           </label>
                           <label className="block min-w-0">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">日内开始</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("日内开始")}</span>
                             <ClearableInput
                               value={reminder.startTime}
                               onChange={(event) => handleUpdateReminder(reminder.id, { startTime: event.target.value })}
@@ -3805,7 +3798,7 @@ const hasUnreadEndedReminders = useMemo(
                             />
                           </label>
                           <label className="block min-w-0">
-                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">日内结束</span>
+                            <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("日内结束")}</span>
                             <ClearableInput
                               value={reminder.endTime}
                               onChange={(event) => handleUpdateReminder(reminder.id, { endTime: event.target.value })}
@@ -3816,7 +3809,7 @@ const hasUnreadEndedReminders = useMemo(
                           </label>
                         </div>
                         <div className="space-y-2">
-                          <span className="block text-xs text-gray-500 dark:text-gray-400">事项配图</span>
+                          <span className="block text-xs text-gray-500 dark:text-gray-400">{t("事项配图")}</span>
                           <textarea
                             value={reminderImageUrlDrafts[reminder.id] ?? ''}
                             onChange={(event) => handleReminderImageUrlChange(reminder.id, event.target.value)}
@@ -3827,11 +3820,10 @@ const hasUnreadEndedReminders = useMemo(
                             }}
                             rows={4}
                             className="min-h-[96px] w-full rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
-                            placeholder={'每行一个公开图片链接\nhttps://example.com/a.jpg\nhttps://example.com/b.png'}
+                            placeholder={t("每行一个公开图片链接\nhttps://example.com/a.jpg\nhttps://example.com/b.png")}
                           />
                           <div className="text-[11px] text-gray-400 dark:text-gray-500">
-                            支持粘贴多张公开图片链接。每行一个。最多保留 16 张。下方会直接预览。
-                          </div>
+                            {t("支持粘贴多张公开图片链接。每行一个。最多保留 16 张。下方会直接预览。")}</div>
                           {reminder.imageDataUrls?.length ? (
                             <div className="space-y-2">
                               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -3842,7 +3834,7 @@ const hasUnreadEndedReminders = useMemo(
                                   >
                                     <img
                                       src={imageDataUrl}
-                                      alt={`${reminder.title || '事项配图'} ${imageIndex + 1}`}
+                                      alt={`${reminder.title || t("事项配图")} ${imageIndex + 1}`}
                                       className="max-h-32 w-full rounded-xl object-contain"
                                     />
                                     <button
@@ -3850,8 +3842,7 @@ const hasUnreadEndedReminders = useMemo(
                                       onClick={() => handleRemoveReminderImage(reminder.id, imageIndex)}
                                       className="absolute right-3 top-3 rounded-full bg-black/45 px-2 py-1 text-[11px] font-medium text-white transition hover:bg-black/65"
                                     >
-                                      删除
-                                    </button>
+                                      {t("删除")}</button>
                                   </div>
                                 ))}
                               </div>
@@ -3865,8 +3856,7 @@ const hasUnreadEndedReminders = useMemo(
                   })}
                   {!reminderDrafts.length && (
                     <div className="rounded-xl border border-dashed border-gray-200/70 bg-white/40 px-3 py-6 text-center text-xs text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-                      暂无提醒事项
-                    </div>
+                      {t("暂无提醒事项")}</div>
                   )}
                 </div>
                 <button
@@ -3875,7 +3865,7 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isSavingReminders}
                   className="w-full rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSavingReminders ? '保存中...' : '保存提醒事项'}
+                  {isSavingReminders ? t("保存中...") : t("保存提醒事项")}
                 </button>
               </div>
 
@@ -3885,7 +3875,7 @@ const hasUnreadEndedReminders = useMemo(
                     value={newCodeName}
                     onChange={(event) => setNewCodeName(event.target.value)}
                     onClear={() => setNewCodeName('')}
-                    placeholder="使用码名称"
+                    placeholder={t("使用码名称")}
                     className="rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                   />
                   <button
@@ -3893,34 +3883,33 @@ const hasUnreadEndedReminders = useMemo(
                     onClick={handleCreateUsageCode}
                     className="rounded-xl bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600"
                   >
-                    生成
-                  </button>
+                    {t("生成")}</button>
                 </div>
                 {latestPlainCode && (
                   <div className="mt-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm dark:bg-black/20">
-                    <span className="shrink-0 text-gray-500 dark:text-gray-400">新使用码：</span>
+                    <span className="shrink-0 text-gray-500 dark:text-gray-400">{t("新使用码：")}</span>
                     <button
                       type="button"
                       onClick={() => {
                         void copyTextToClipboard(latestPlainCode)
-                          .then(() => useStore.getState().showToast('新使用码已复制', 'success'))
-                          .catch((err) => useStore.getState().showToast(getClipboardFailureMessage('复制失败', err), 'error'))
+                          .then(() => useStore.getState().showToast(t("新使用码已复制"), 'success'))
+                          .catch((err) => useStore.getState().showToast(getClipboardFailureMessage(t("复制失败"), err), 'error'))
                       }}
                       className="min-w-0 flex-1 truncate rounded-lg bg-gray-50 px-2 py-1 text-left font-mono font-semibold tracking-wide text-gray-900 transition hover:bg-gray-100 dark:bg-white/[0.04] dark:text-gray-100 dark:hover:bg-white/[0.08]"
-                      title="点击复制新使用码"
+                      title={t("点击复制新使用码")}
                     >
                       {latestPlainCode}
                     </button>
                   </div>
                 )}
                 <label className="mt-3 block">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">用户类型</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("用户类型")}</span>
                   <Select
                     value={newCodeUserTier}
                     onChange={(value) => setNewCodeUserTier(value as BackendUsageCodeUserTier)}
                     options={[
-                      { value: 'free', label: '免费用户' },
-                      { value: 'paid', label: '付费用户' },
+                      { value: 'free', label: t("免费用户") },
+                      { value: 'paid', label: t("付费用户") },
                     ]}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                   />
@@ -3928,7 +3917,7 @@ const hasUnreadEndedReminders = useMemo(
                 {profiles.length > 0 && (
                   <div className="mt-3 space-y-3">
                     <div>
-                      <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">允许调用的 API 配置</span>
+                      <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("允许调用的 API 配置")}</span>
                       <div className="flex flex-wrap gap-2">
                         {(() => {
                           const selectedIds = Array.isArray(newCodeAllowedProviderProfileIds) ? newCodeAllowedProviderProfileIds : null
@@ -3948,8 +3937,7 @@ const hasUnreadEndedReminders = useMemo(
                               : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.08]'
                           }`}
                         >
-                          全部可用
-                        </button>
+                          {t("全部可用")}</button>
                           )
                         })()}
                         {profiles.map((profile) => {
@@ -3984,7 +3972,7 @@ const hasUnreadEndedReminders = useMemo(
                     </div>
                     <div>
                       <div className="mb-2 flex items-center justify-between gap-3">
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">端点图片额度</span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">{t("端点图片额度")}</span>
                       </div>
                       <div className="space-y-2">
                         {getQuotaEditorProfiles(newCodeAllowedProviderProfileIds, 'image').map((profile) => (
@@ -4009,7 +3997,7 @@ const hasUnreadEndedReminders = useMemo(
                               onBlur={() => {
                                 const quota = calculateQuotaExpression(newCodeProviderImageQuotas[profile.id] ?? '', 0)
                                 if (quota === undefined) {
-                                  useStore.getState().showToast('端点图片额度表达式无效', 'error')
+                                  useStore.getState().showToast(t("端点图片额度表达式无效"), 'error')
                                   return
                                 }
                                 setNewCodeProviderImageQuotas((prev) => ({
@@ -4021,18 +4009,17 @@ const hasUnreadEndedReminders = useMemo(
                                 if (event.key === 'Enter') event.currentTarget.blur()
                               }}
                               inputMode="numeric"
-                              placeholder="0 表示禁用"
+                              placeholder={t("0 表示禁用")}
                               className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                             />
                           </label>
                         ))}
                       </div>
                       <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                        每个图片 API 独立设置。留空按 0 保存。
-                      </p>
+                        {t("每个图片 API 独立设置。留空按 0 保存。")}</p>
                     </div>
                     <div>
-                      <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">端点视频额度</span>
+                      <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("端点视频额度")}</span>
                       <div className="space-y-2">
                         {getQuotaEditorProfiles(newCodeAllowedProviderProfileIds, 'video').map((profile) => (
                           <label key={profile.id} className="flex items-center gap-3">
@@ -4054,7 +4041,7 @@ const hasUnreadEndedReminders = useMemo(
                               onBlur={() => {
                                 const quota = calculateQuotaExpression(newCodeProviderVideoQuotas[profile.id] ?? '', 0)
                                 if (quota === undefined) {
-                                  useStore.getState().showToast('端点视频额度表达式无效', 'error')
+                                  useStore.getState().showToast(t("端点视频额度表达式无效"), 'error')
                                   return
                                 }
                                 setNewCodeProviderVideoQuotas((prev) => ({
@@ -4066,15 +4053,14 @@ const hasUnreadEndedReminders = useMemo(
                                 if (event.key === 'Enter') event.currentTarget.blur()
                               }}
                               inputMode="numeric"
-                              placeholder="0 表示禁用"
+                              placeholder={t("0 表示禁用")}
                               className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                             />
                           </label>
                         ))}
                       </div>
                       <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                        每个视频 API 独立设置。留空按 0 保存。
-                      </p>
+                        {t("每个视频 API 独立设置。留空按 0 保存。")}</p>
                     </div>
                   </div>
                 )}
@@ -4085,7 +4071,7 @@ const hasUnreadEndedReminders = useMemo(
                   value={usageCodeSearchQuery}
                   onChange={(event) => setUsageCodeSearchQuery(event.target.value)}
                   onClear={() => setUsageCodeSearchQuery('')}
-                  placeholder="搜索使用码或别名"
+                  placeholder={t("搜索使用码或别名")}
                   className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                 />
                 {filteredUsageCodes.map((code) => {
@@ -4104,7 +4090,7 @@ const hasUnreadEndedReminders = useMemo(
                           type="button"
                           onClick={() => toggleUsageCodeExpanded(code.id)}
                           className="mt-0.5 rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-                          title={isExpanded ? '收起设置' : '展开设置'}
+                          title={isExpanded ? t("收起设置") : t("展开设置")}
                         >
                           <svg className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -4120,7 +4106,7 @@ const hasUnreadEndedReminders = useMemo(
                                   setUsageCodes((prev) => prev.map((item) => item.id === code.id ? { ...item, name } : item))
                                 }}
                                 onClear={() => setUsageCodes((prev) => prev.map((item) => item.id === code.id ? { ...item, name: '' } : item))}
-                                onBlur={() => handleUpdateUsageCode(code.id, { name: code.name.trim() || '未命名使用码' })}
+                                onBlur={() => handleUpdateUsageCode(code.id, { name: code.name.trim() || t("未命名使用码") })}
                                 className="w-full rounded-lg bg-transparent pr-2 text-sm font-medium text-gray-800 outline-none dark:text-gray-100"
                               />
                               <div className="mt-1">
@@ -4133,16 +4119,16 @@ const hasUnreadEndedReminders = useMemo(
                                 </span>
                               </div>
                               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                <span>{`任务 ${code.taskCount} · 已生成图片 ${code.outputImageCount}`}</span>
+                                <span>{t("任务 {0} · 已生成图片 {1}", code.taskCount, code.outputImageCount)}</span>
                                 {legacyImageUsageCount > 0 && (
                                   <span className="ml-1 whitespace-nowrap text-[11px] text-gray-400 dark:text-gray-500">
-                                    {`（旧额 ${legacyImageUsageCount}）`}
+                                    {t("（旧额 {0}）", legacyImageUsageCount)}
                                   </span>
                                 )}
-                                <span>{` · 已生成视频 ${code.outputVideoCount}`}</span>
+                                <span>{t(" · 已生成视频 {0}", code.outputVideoCount)}</span>
                               </p>
                               <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                                最近使用：{code.lastUsedAt ? new Date(code.lastUsedAt).toLocaleString('zh-CN') : '从未使用'}
+                                {t("最近使用：")}{code.lastUsedAt ? new Date(code.lastUsedAt).toLocaleString(getLocaleTag()) : t("从未使用")}
                               </p>
                             </div>
                             <Switch
@@ -4171,7 +4157,7 @@ const hasUnreadEndedReminders = useMemo(
                                       <div>
                                         <div className="font-medium text-gray-800 dark:text-gray-100">{getAdminProviderName(profile)}</div>
                                         <div className="mt-1 whitespace-nowrap text-[11px] text-gray-600 dark:text-gray-300">
-                                          总额度 {providerStats.totalText} 已用 {providerStats.usedCount} 可用 {providerStats.availableDetailText}
+                                          {t("总额度 ")}{providerStats.totalText} {t(" 已用 ")}{providerStats.usedCount} {t(" 可用 ")}{providerStats.availableDetailText}
                                         </div>
                                       </div>
                                     }
@@ -4190,8 +4176,7 @@ const hasUnreadEndedReminders = useMemo(
                               })()
                             )) : (
                               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:bg-white/[0.05] dark:text-gray-400">
-                                未启用 API
-                              </span>
+                                {t("未启用 API")}</span>
                             )}
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -4200,38 +4185,37 @@ const hasUnreadEndedReminders = useMemo(
                               onClick={() => {
                                 if (!code.code) return
                                 void copyTextToClipboard(code.code)
-                                  .then(() => useStore.getState().showToast('使用码已复制', 'success'))
-                                  .catch((err) => useStore.getState().showToast(getClipboardFailureMessage('复制失败', err), 'error'))
+                                  .then(() => useStore.getState().showToast(t("使用码已复制"), 'success'))
+                                  .catch((err) => useStore.getState().showToast(getClipboardFailureMessage(t("复制失败"), err), 'error'))
                               }}
                               className="rounded-lg bg-gray-100 px-2 py-1 font-mono text-xs text-gray-800 transition hover:bg-gray-200 dark:bg-black/20 dark:text-gray-100 dark:hover:bg-black/30"
                             >
-                              {code.code ?? '旧使用码无法恢复'}
+                              {code.code ?? t("旧使用码无法恢复")}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteUsageCode(code)}
                               className="rounded-lg bg-red-50 px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
                             >
-                              删除
-                            </button>
+                              {t("删除")}</button>
                           </div>
                           {isExpanded && (
                             <>
                               <label className="mt-3 block">
-                                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">用户类型</span>
+                                <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("用户类型")}</span>
                                 <Select
                                   value={code.userTier}
                                   onChange={(value) => void handleUpdateUsageCode(code.id, { userTier: value as BackendUsageCodeUserTier })}
                                   options={[
-                                    { value: 'free', label: '免费用户' },
-                                    { value: 'paid', label: '付费用户' },
+                                    { value: 'free', label: t("免费用户") },
+                                    { value: 'paid', label: t("付费用户") },
                                   ]}
                                   className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                                 />
                               </label>
                               {profiles.length > 0 && (
                                 <div className="mt-3">
-                                  <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">允许调用的 API 配置</span>
+                                  <span className="mb-2 block text-xs text-gray-500 dark:text-gray-400">{t("允许调用的 API 配置")}</span>
                                   <div className="flex flex-wrap gap-2">
                                     {(() => {
                                       const selectedIds = Array.isArray(code.allowedProviderProfileIds) ? code.allowedProviderProfileIds : null
@@ -4251,8 +4235,7 @@ const hasUnreadEndedReminders = useMemo(
                                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.08]'
                                       }`}
                                     >
-                                      全部可用
-                                    </button>
+                                      {t("全部可用")}</button>
                                       )
                                     })()}
                                     {profiles.map((profile) => {
@@ -4285,14 +4268,13 @@ const hasUnreadEndedReminders = useMemo(
                                     })}
                                   </div>
                                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                    不选表示该使用码不可调用任何 API 配置。点“全部可用”可恢复不限制。
-                                  </p>
+                                    {t("不选表示该使用码不可调用任何 API 配置。点“全部可用”可恢复不限制。")}</p>
                                 </div>
                               )}
                               {imageQuotaEditorProfiles.length > 0 && (
                                 <div className="mt-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">
-                                    <span className="block text-xs text-gray-500 dark:text-gray-400">端点图片额度</span>
+                                    <span className="block text-xs text-gray-500 dark:text-gray-400">{t("端点图片额度")}</span>
                                   </div>
                                   <div className="space-y-2">
                                     {imageQuotaEditorProfiles.map((profile) => {
@@ -4303,7 +4285,7 @@ const hasUnreadEndedReminders = useMemo(
                                           <div className="mb-1 flex items-center justify-between gap-3">
                                             <span className="truncate text-xs text-gray-500 dark:text-gray-400">{profile.name}</span>
                                             <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                                              已用：{code.providerUsedImageCredits?.[profile.id] ?? 0}
+                                              {t("已用：")}{code.providerUsedImageCredits?.[profile.id] ?? 0}
                                             </span>
                                           </div>
                                           <ClearableInput
@@ -4328,21 +4310,20 @@ const hasUnreadEndedReminders = useMemo(
                                             }}
                                             inputMode="numeric"
                                             className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
-                                            placeholder="0 表示禁用"
+                                            placeholder={t("0 表示禁用")}
                                           />
                                         </label>
                                       )
                                     })}
                                   </div>
                                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                    每个图片 API 独立扣减。填 0 表示禁用。
-                                  </p>
+                                    {t("每个图片 API 独立扣减。填 0 表示禁用。")}</p>
                                 </div>
                               )}
                               {videoQuotaEditorProfiles.length > 0 && (
                                 <div className="mt-3">
                                   <div className="mb-2 flex items-center justify-between gap-3">
-                                    <span className="block text-xs text-gray-500 dark:text-gray-400">端点视频额度</span>
+                                    <span className="block text-xs text-gray-500 dark:text-gray-400">{t("端点视频额度")}</span>
                                   </div>
                                   <div className="space-y-2">
                                     {videoQuotaEditorProfiles.map((profile) => {
@@ -4353,7 +4334,7 @@ const hasUnreadEndedReminders = useMemo(
                                           <div className="mb-1 flex items-center justify-between gap-3">
                                             <span className="truncate text-xs text-gray-500 dark:text-gray-400">{profile.name}</span>
                                             <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                                              已用：{code.providerUsedVideoCredits?.[profile.id] ?? 0}
+                                              {t("已用：")}{code.providerUsedVideoCredits?.[profile.id] ?? 0}
                                             </span>
                                           </div>
                                           <ClearableInput
@@ -4378,27 +4359,25 @@ const hasUnreadEndedReminders = useMemo(
                                             }}
                                             inputMode="numeric"
                                             className="w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
-                                            placeholder="0 表示禁用"
+                                            placeholder={t("0 表示禁用")}
                                           />
                                         </label>
                                       )
                                     })}
                                   </div>
                                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                                    每个视频 API 独立扣减。填 0 表示禁用。
-                                  </p>
+                                    {t("每个视频 API 独立扣减。填 0 表示禁用。")}</p>
                                 </div>
                               )}
                               <div className="mt-4">
                                 <div className="mb-2 flex items-center justify-between gap-3">
-                                  <span className="block text-xs text-gray-500 dark:text-gray-400">行为记录</span>
+                                  <span className="block text-xs text-gray-500 dark:text-gray-400">{t("行为记录")}</span>
                                   <button
                                     type="button"
                                     onClick={() => openUsageCodeEventModal(code)}
                                     className="rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-600 transition hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20"
                                   >
-                                    完整查询
-                                  </button>
+                                    {t("完整查询")}</button>
                                 </div>
                                 {code.activityEvents.length > 0 ? (
                                   <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-gray-200/70 bg-white/40 p-2 dark:border-white/[0.08] dark:bg-white/[0.02]">
@@ -4410,15 +4389,15 @@ const hasUnreadEndedReminders = useMemo(
                                             <div className="min-w-0 flex-1 text-gray-800 dark:text-gray-100">
                                               {accessActivity ? (
                                                 <div className="space-y-2">
-                                                  <div>{accessActivity.kind === 'created' ? '管理员创建使用码' : '管理员调整可用 API'}</div>
+                                                  <div>{accessActivity.kind === 'created' ? t("管理员创建使用码") : t("管理员调整可用 API")}</div>
                                                   <div className="space-y-1">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                      <span className="text-[11px] text-gray-400 dark:text-gray-500">启用</span>
+                                                      <span className="text-[11px] text-gray-400 dark:text-gray-500">{t("启用")}</span>
                                                       {renderUsageCodeAccessTags(accessActivity.enabledLabel)}
                                                     </div>
                                                     {accessActivity.disabledLabel && (
                                                       <div className="flex flex-wrap items-center gap-2">
-                                                        <span className="text-[11px] text-gray-400 dark:text-gray-500">禁用</span>
+                                                        <span className="text-[11px] text-gray-400 dark:text-gray-500">{t("禁用")}</span>
                                                         {renderUsageCodeAccessTags(accessActivity.disabledLabel, true)}
                                                       </div>
                                                     )}
@@ -4441,8 +4420,8 @@ const hasUnreadEndedReminders = useMemo(
                                             )}
                                           </div>
                                           <div className="mt-1 text-gray-400 dark:text-gray-500">
-                                            {new Date(event.createdAt).toLocaleString('zh-CN')}
-                                            {event.taskId ? ` · 任务 ${event.taskId}` : ''}
+                                            {new Date(event.createdAt).toLocaleString(getLocaleTag())}
+                                            {event.taskId ? t(" · 任务 {0}", event.taskId) : ''}
                                           </div>
                                         </div>
                                       )
@@ -4450,8 +4429,7 @@ const hasUnreadEndedReminders = useMemo(
                                   </div>
                                 ) : (
                                   <div className="rounded-xl border border-dashed border-gray-200/70 bg-white/30 px-3 py-3 text-xs text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-                                    暂无最近记录
-                                  </div>
+                                    {t("暂无最近记录")}</div>
                                 )}
                               </div>
                             </>
@@ -4463,7 +4441,7 @@ const hasUnreadEndedReminders = useMemo(
                 })}
                 {!filteredUsageCodes.length && (
                   <div className="rounded-2xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-400 dark:border-white/[0.08]">
-                    {usageCodes.length ? '没有匹配的使用码' : '暂无使用码'}
+                    {usageCodes.length ? t("没有匹配的使用码") : t("暂无使用码")}
                   </div>
                 )}
               </div>
@@ -4479,41 +4457,41 @@ const hasUnreadEndedReminders = useMemo(
                       <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
                         {backupState.operation === 'backup_import'
                           ? backupState.phase === 'completed'
-                            ? '服务器备份恢复已完成'
+                            ? t("服务器备份恢复已完成")
                             : backupState.phase === 'failed'
-                              ? '服务器备份恢复失败'
-                              : '正在恢复服务器备份'
+                              ? t("服务器备份恢复失败")
+                              : t("正在恢复服务器备份")
                           : backupState.operation === 'backup_export'
                             ? backupState.phase === 'preparing'
-                              ? '正在等待任务队列完成'
+                              ? t("正在等待任务队列完成")
                               : backupState.phase === 'running'
-                                ? '正在生成服务器备份包'
+                                ? t("正在生成服务器备份包")
                                 : backupState.phase === 'completed'
-                                  ? '服务器备份已完成'
-                                  : '服务器备份失败'
+                                  ? t("服务器备份已完成")
+                                  : t("服务器备份失败")
                             : backupState.operation === 'remote_reset_usage_code'
                               ? backupState.phase === 'completed'
-                                ? '使用码任务与产物已清理完成'
+                                ? t("使用码任务与产物已清理完成")
                                 : backupState.phase === 'failed'
-                                  ? '使用码任务与产物清理失败'
-                                  : '正在清理使用码任务与产物'
+                                  ? t("使用码任务与产物清理失败")
+                                  : t("正在清理使用码任务与产物")
                               : backupState.operation === 'remote_reset_admin'
                                 ? backupState.phase === 'completed'
-                                  ? '管理员任务与产物已清理完成'
+                                  ? t("管理员任务与产物已清理完成")
                                   : backupState.phase === 'failed'
-                                    ? '管理员任务与产物清理失败'
-                                    : '正在清理管理员任务与产物'
+                                    ? t("管理员任务与产物清理失败")
+                                    : t("正在清理管理员任务与产物")
                               : backupState.operation === 'remote_reset_all'
                                 ? backupState.phase === 'completed'
-                                  ? '远端全部数据已清空'
+                                  ? t("远端全部数据已清空")
                                   : backupState.phase === 'failed'
-                                    ? '远端全部数据清空失败'
-                                    : '正在清空远端全部'
+                                    ? t("远端全部数据清空失败")
+                                    : t("正在清空远端全部")
                                 : backupState.phase === 'completed'
-                                  ? '远端记录已清空'
+                                  ? t("远端记录已清空")
                                   : backupState.phase === 'failed'
-                                    ? '远端记录清空失败'
-                                    : '正在清空远端记录'}
+                                    ? t("远端记录清空失败")
+                                    : t("正在清空远端记录")}
                       </div>
                       <div className="mt-1 break-all text-xs leading-5 text-blue-700/90 dark:text-blue-200/80">
                         {backupState.error || backupState.message}
@@ -4529,14 +4507,14 @@ const hasUnreadEndedReminders = useMemo(
                   </div>
                   <div className="mt-3 text-xs leading-5 text-blue-700/90 dark:text-blue-200/80">
                     {backupState.operation === 'backup_import'
-                      ? '恢复期间普通用户与管理员写入操作都会暂停。'
+                      ? t("恢复期间普通用户与管理员写入操作都会暂停。")
                       : backupState.operation?.startsWith('remote_reset_')
                         ? backupState.phase === 'preparing'
-                          ? `执行中 ${backupState.waitingRunningTasks} 个，排队中 ${backupState.waitingPendingTasks} 个`
-                          : `已处理 ${backupState.processedFiles}/${backupState.totalFiles} 个步骤，${formatBytes(backupState.processedBytes)}/${formatBytes(backupState.totalBytes)}`
+                          ? t("执行中 {0} 个，排队中 {1} 个", backupState.waitingRunningTasks, backupState.waitingPendingTasks)
+                          : t("已处理 {0}/{1} 个步骤，{2}/{3}", backupState.processedFiles, backupState.totalFiles, formatBytes(backupState.processedBytes), formatBytes(backupState.totalBytes))
                       : backupState.phase === 'preparing'
-                        ? `执行中 ${backupState.waitingRunningTasks} 个，排队中 ${backupState.waitingPendingTasks} 个`
-                        : `已处理 ${backupState.processedFiles}/${backupState.totalFiles} 个文件，${formatBytes(backupState.processedBytes)}/${formatBytes(backupState.totalBytes)}`}
+                        ? t("执行中 {0} 个，排队中 {1} 个", backupState.waitingRunningTasks, backupState.waitingPendingTasks)
+                        : t("已处理 {0}/{1} 个文件，{2}/{3}", backupState.processedFiles, backupState.totalFiles, formatBytes(backupState.processedBytes), formatBytes(backupState.totalBytes))}
                   </div>
                   {backupState.filePath && (
                     <div className="mt-2 break-all text-xs leading-5 text-blue-700/90 dark:text-blue-200/80">
@@ -4546,7 +4524,7 @@ const hasUnreadEndedReminders = useMemo(
                 </div>
               )}
               <div className="rounded-2xl border border-gray-200/80 bg-white/50 p-4 dark:border-white/[0.08] dark:bg-white/[0.03]">
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">数据管理操作日志</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("数据管理操作日志")}</div>
                 <div className="mt-3 max-h-44 space-y-2 overflow-y-auto tiny-scrollbar">
                   {managementLogs.length ? managementLogs.map((item) => (
                     <div
@@ -4560,7 +4538,7 @@ const hasUnreadEndedReminders = useMemo(
                       <div className="mt-1 break-all text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</div>
                     </div>
                   )) : (
-                    <div className="text-xs leading-5 text-gray-500 dark:text-gray-400">最近还没有数据管理操作日志。</div>
+                    <div className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t("最近还没有数据管理操作日志。")}</div>
                   )}
                 </div>
               </div>
@@ -4571,7 +4549,7 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isExporting || isImporting || isClearingRemote || Boolean(backupState?.active)}
                   className="rounded-xl border border-gray-200/80 bg-gray-50/60 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 >
-                  {isExporting ? '提交中...' : backupState?.active ? '备份进行中' : '生成服务器备份包'}
+                  {isExporting ? t("提交中...") : backupState?.active ? t("备份进行中") : t("生成服务器备份包")}
                 </button>
                 <button
                   type="button"
@@ -4579,24 +4557,22 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isImporting || isExporting || isClearingRemote || Boolean(backupState?.active)}
                   className="rounded-xl border border-gray-200/80 bg-gray-50/60 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 >
-                  {isImporting ? '读取中...' : '选择并恢复备份'}
+                  {isImporting ? t("读取中...") : t("选择并恢复备份")}
                 </button>
               </div>
               <div className="rounded-xl border border-dashed border-gray-200/80 bg-white/40 px-3 py-2 text-xs leading-5 text-gray-500 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-400">
-                每次服务器备份都会写入 `backups/备份批次目录/`。大体积备份会拆成引导文件和多个分包。恢复本地分包时，需要把同一目录内的 `.index.json` 和全部 `.zip` 一起上传。
-              </div>
+                {t("每次服务器备份都会写入 `backups/备份批次目录/`。大体积备份会拆成引导文件和多个分包。恢复本地分包时，需要把同一目录内的 `.index.json` 和全部 `.zip` 一起上传。")}</div>
               {showImportCandidates && (
                 <div className="space-y-3 rounded-xl border border-gray-200/80 bg-white/50 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">可导入的服务器备份目录</div>
+                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("可导入的服务器备份目录")}</div>
                     <button
                       type="button"
                       onClick={() => importInputRef.current?.click()}
                       disabled={isImporting || isExporting || isClearingRemote}
                       className="rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      上传本地备份组
-                    </button>
+                      {t("上传本地备份组")}</button>
                   </div>
                   {importCandidates.length ? (
                     <div className="space-y-2">
@@ -4607,14 +4583,14 @@ const hasUnreadEndedReminders = useMemo(
                         >
                           <div className="break-all text-sm font-medium text-gray-800 dark:text-gray-100">{item.displayName || item.fileName}</div>
                           <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                            <div>修改时间：{formatLocalDateTime(item.modifiedAt)}</div>
-                            <div>文件大小：{formatBytes(item.bytes)}</div>
+                            <div>{t("修改时间：")}{formatLocalDateTime(item.modifiedAt)}</div>
+                            <div>{t("文件大小：")}{formatBytes(item.bytes)}</div>
                             {item.kind === 'split' && (
                               <>
-                                <div>引导文件：{item.fileName}</div>
+                                <div>{t("引导文件：")}{item.fileName}</div>
                                 <div>
-                                  分包情况：{item.foundPartCount}/{item.partCount}
-                                  {item.missingPartNames?.length ? ` · 缺少 ${item.missingPartNames.join('、')}` : ' · 已齐全'}
+                                  {t("分包情况：")}{item.foundPartCount}/{item.partCount}
+                                  {item.missingPartNames?.length ? t(" · 缺少 {0}", item.missingPartNames.join('、')) : t(" · 已齐全")}
                                 </div>
                               </>
                             )}
@@ -4626,7 +4602,7 @@ const hasUnreadEndedReminders = useMemo(
                               disabled={isImporting || isExporting || isClearingRemote || Boolean(item.missingPartNames?.length)}
                               className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                             >
-                              {isImporting ? '恢复中...' : item.kind === 'split' ? '恢复这组备份' : '从该文件恢复'}
+                              {isImporting ? t("恢复中...") : item.kind === 'split' ? t("恢复这组备份") : t("从该文件恢复")}
                             </button>
                           </div>
                         </div>
@@ -4634,39 +4610,37 @@ const hasUnreadEndedReminders = useMemo(
                     </div>
                   ) : (
                     <div className="text-xs leading-5 text-gray-500 dark:text-gray-400">
-                      服务器备份目录中还没有可导入的备份批次。可以先上传本地备份组。
-                    </div>
+                      {t("服务器备份目录中还没有可导入的备份批次。可以先上传本地备份组。")}</div>
                   )}
                 </div>
               )}
               <div className="rounded-xl border border-gray-200/70 bg-white/40 px-4 py-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">清理指定分发码产物</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("清理指定分发码产物")}</div>
                 <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  只删除所选分发码提交的任务卡片与对应媒体文件，不会删除分发码本身、配额与活动日志。搜索不会清空已勾选项。
-                </p>
+                  {t("只删除所选分发码提交的任务卡片与对应媒体文件，不会删除分发码本身、配额与活动日志。搜索不会清空已勾选项。")}</p>
                 {usageCodes.length ? (
                   <>
                     <ClearableInput
                       value={cleanupUsageCodeSearchQuery}
                       onChange={(event) => setCleanupUsageCodeSearchQuery(event.target.value)}
                       onClear={() => setCleanupUsageCodeSearchQuery('')}
-                      placeholder="搜索分发码别名或码值"
+                      placeholder={t("搜索分发码别名或码值")}
                       className="mt-3 w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                     />
                     <div className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
                       {selectedCleanupUsageCodeSummary.count > 0 ? (
                         <>
-                          <span>{`已选 ${selectedCleanupUsageCodeSummary.count} 个分发码`}</span>
-                          <span>{` · 任务 ${selectedCleanupUsageCodeSummary.taskCount}`}</span>
-                          <span>{` · 图片 ${selectedCleanupUsageCodeSummary.imageCount}`}</span>
-                          <span>{` · 视频 ${selectedCleanupUsageCodeSummary.videoCount}`}</span>
-                          <span>{` · 占用 ${formatBytes(selectedCleanupUsageCodeSummary.totalBytes)}`}</span>
+                          <span>{t("已选 {0} 个分发码", selectedCleanupUsageCodeSummary.count)}</span>
+                          <span>{t(" · 任务 {0}", selectedCleanupUsageCodeSummary.taskCount)}</span>
+                          <span>{t(" · 图片 {0}", selectedCleanupUsageCodeSummary.imageCount)}</span>
+                          <span>{t(" · 视频 {0}", selectedCleanupUsageCodeSummary.videoCount)}</span>
+                          <span>{t(" · 占用 {0}", formatBytes(selectedCleanupUsageCodeSummary.totalBytes))}</span>
                         </>
                       ) : (
-                        <span>尚未选择分发码</span>
+                        <span>{t("尚未选择分发码")}</span>
                       )}
                       {cleanupUsageCodeSearchQuery.trim()
-                        ? ` · 当前列表 ${filteredCleanupUsageCodes.length} 个`
+                        ? t(" · 当前列表 {0} 个", filteredCleanupUsageCodes.length)
                         : ''}
                     </div>
                     {filteredCleanupUsageCodes.length ? (
@@ -4691,9 +4665,9 @@ const hasUnreadEndedReminders = useMemo(
                                 className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 dark:border-white/20 dark:bg-white/[0.04]"
                               />
                               <span className="min-w-0 flex-1">
-                                <span className="block font-medium text-gray-800 dark:text-gray-100">{code.name || '未命名使用码'}</span>
+                                <span className="block font-medium text-gray-800 dark:text-gray-100">{code.name || t("未命名使用码")}</span>
                                 <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
-                                  {`任务 ${code.taskCount} · 图片 ${getUsageCodeArtifactImageCount(code)} · 视频 ${getUsageCodeArtifactVideoCount(code)} · 占用 ${formatBytes(code.taskMediaBytes ?? 0)}`}
+                                  {t("任务 {0} · 图片 {1} · 视频 {2} · 占用 {3}", code.taskCount, getUsageCodeArtifactImageCount(code), getUsageCodeArtifactVideoCount(code), formatBytes(code.taskMediaBytes ?? 0))}
                                 </span>
                               </span>
                             </label>
@@ -4701,11 +4675,11 @@ const hasUnreadEndedReminders = useMemo(
                         })}
                       </div>
                     ) : (
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">没有匹配的分发码。</div>
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t("没有匹配的分发码。")}</div>
                     )}
                   </>
                 ) : (
-                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">暂无分发码可选。</div>
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t("暂无分发码可选。")}</div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -4719,8 +4693,7 @@ const hasUnreadEndedReminders = useMemo(
                     disabled={!filteredCleanupUsageCodes.length || isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    全选当前结果
-                  </button>
+                    {t("全选当前结果")}</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -4736,26 +4709,24 @@ const hasUnreadEndedReminders = useMemo(
                     }
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    取消当前结果
-                  </button>
+                    {t("取消当前结果")}</button>
                   <button
                     type="button"
                     onClick={() => setSelectedCleanupUsageCodeIds([])}
                     disabled={!selectedCleanupUsageCodeIds.length || isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    清空全部选择
-                  </button>
+                    {t("清空全部选择")}</button>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     const selectedCodes = usageCodes.filter((code) => selectedCleanupUsageCodeIds.includes(code.id))
-                    const label = selectedCodes.map((code) => code.name || '未命名使用码').join('、')
+                    const label = selectedCodes.map((code) => code.name || t("未命名使用码")).join('、')
                     setConfirmDialog({
-                      title: '清理所选分发码产物',
-                      message: `这会删除以下分发码提交的全部任务卡片与媒体产物：\n\n${label}\n\n已选 ${selectedCleanupUsageCodeSummary.count} 个分发码\n任务 ${selectedCleanupUsageCodeSummary.taskCount} · 图片 ${selectedCleanupUsageCodeSummary.imageCount} · 视频 ${selectedCleanupUsageCodeSummary.videoCount} · 占用 ${formatBytes(selectedCleanupUsageCodeSummary.totalBytes)}\n\n不会删除分发码、配额记录、活动日志、API 配置或其他分发码任务。`,
-                      confirmText: '确认清理',
+                      title: t("清理所选分发码产物"),
+                      message: t("这会删除以下分发码提交的全部任务卡片与媒体产物：\n\n{0}\n\n已选 {1} 个分发码\n任务 {2} · 图片 {3} · 视频 {4} · 占用 {5}\n\n不会删除分发码、配额记录、活动日志、API 配置或其他分发码任务。", label, selectedCleanupUsageCodeSummary.count, selectedCleanupUsageCodeSummary.taskCount, selectedCleanupUsageCodeSummary.imageCount, selectedCleanupUsageCodeSummary.videoCount, formatBytes(selectedCleanupUsageCodeSummary.totalBytes)),
+                      confirmText: t("确认清理"),
                       tone: 'danger',
                       action: () => {
                         void handleResetRemoteData('usage_code_tasks_only', {
@@ -4773,36 +4744,35 @@ const hasUnreadEndedReminders = useMemo(
                   }
                   className="mt-3 w-full rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
                 >
-                  {isClearingRemote || backupState?.active ? '清理进行中...' : '清理所选分发码产物'}
+                  {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清理所选分发码产物")}
                 </button>
               </div>
               <div className="rounded-xl border border-gray-200/70 bg-white/40 px-4 py-3 dark:border-white/[0.08] dark:bg-white/[0.02]">
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">清理指定管理员任务</div>
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{t("清理指定管理员任务")}</div>
                 <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  只删除管理员登录后提交的任务卡片与对应媒体文件。可按任务类型、提示词或任务 ID 搜索，搜索不会清空已勾选项。
-                </p>
+                  {t("只删除管理员登录后提交的任务卡片与对应媒体文件。可按任务类型、提示词或任务 ID 搜索，搜索不会清空已勾选项。")}</p>
                 {adminTaskCleanupCandidates.length ? (
                   <>
                     <ClearableInput
                       value={cleanupAdminTaskSearchQuery}
                       onChange={(event) => setCleanupAdminTaskSearchQuery(event.target.value)}
                       onClear={() => setCleanupAdminTaskSearchQuery('')}
-                      placeholder="搜索任务类型、提示词或任务 ID"
+                      placeholder={t("搜索任务类型、提示词或任务 ID")}
                       className="mt-3 w-full rounded-xl border border-gray-200/70 bg-white/70 px-3 py-2 text-sm outline-none dark:border-white/[0.08] dark:bg-white/[0.03]"
                     />
                     <div className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
                       {selectedCleanupAdminTaskSummary.count > 0 ? (
                         <>
-                          <span>{`已选 ${selectedCleanupAdminTaskSummary.count} 个任务`}</span>
-                          <span>{` · 图片 ${selectedCleanupAdminTaskSummary.imageCount}`}</span>
-                          <span>{` · 视频 ${selectedCleanupAdminTaskSummary.videoCount}`}</span>
-                          <span>{` · 占用 ${formatBytes(selectedCleanupAdminTaskSummary.totalBytes)}`}</span>
+                          <span>{t("已选 {0} 个任务", selectedCleanupAdminTaskSummary.count)}</span>
+                          <span>{t(" · 图片 {0}", selectedCleanupAdminTaskSummary.imageCount)}</span>
+                          <span>{t(" · 视频 {0}", selectedCleanupAdminTaskSummary.videoCount)}</span>
+                          <span>{t(" · 占用 {0}", formatBytes(selectedCleanupAdminTaskSummary.totalBytes))}</span>
                         </>
                       ) : (
-                        <span>尚未选择管理员任务</span>
+                        <span>{t("尚未选择管理员任务")}</span>
                       )}
                       {cleanupAdminTaskSearchQuery.trim()
-                        ? ` · 当前列表 ${filteredCleanupAdminTasks.length} 个`
+                        ? t(" · 当前列表 {0} 个", filteredCleanupAdminTasks.length)
                         : ''}
                     </div>
                     {filteredCleanupAdminTasks.length ? (
@@ -4829,10 +4799,10 @@ const hasUnreadEndedReminders = useMemo(
                               />
                               <span className="min-w-0 flex-1">
                                 <span className="block break-words font-medium text-gray-800 dark:text-gray-100">
-                                  {`${formatAdminCleanupTaskTypeLabel(task.taskType)} · ${promptPreview || '（无提示词）'}`}
+                                  {`${formatAdminCleanupTaskTypeLabel(task.taskType)} · ${promptPreview || t("（无提示词）")}`}
                                 </span>
                                 <span className="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">
-                                  {`图片 ${task.outputImageCount} · 视频 ${task.outputVideoCount} · 占用 ${formatBytes(task.taskMediaBytes)}`}
+                                  {t("图片 {0} · 视频 {1} · 占用 {2}", task.outputImageCount, task.outputVideoCount, formatBytes(task.taskMediaBytes))}
                                 </span>
                               </span>
                             </label>
@@ -4840,11 +4810,11 @@ const hasUnreadEndedReminders = useMemo(
                         })}
                       </div>
                     ) : (
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">没有匹配的管理员任务。</div>
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t("没有匹配的管理员任务。")}</div>
                     )}
                   </>
                 ) : (
-                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">暂无管理员任务可选。</div>
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t("暂无管理员任务可选。")}</div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -4858,8 +4828,7 @@ const hasUnreadEndedReminders = useMemo(
                     disabled={!filteredCleanupAdminTasks.length || isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    全选当前结果
-                  </button>
+                    {t("全选当前结果")}</button>
                   <button
                     type="button"
                     onClick={() => {
@@ -4875,25 +4844,23 @@ const hasUnreadEndedReminders = useMemo(
                     }
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    取消当前结果
-                  </button>
+                    {t("取消当前结果")}</button>
                   <button
                     type="button"
                     onClick={() => setSelectedCleanupAdminTaskIds([])}
                     disabled={!selectedCleanupAdminTaskIds.length || isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                     className="rounded-lg border border-gray-200/80 bg-gray-50/80 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
                   >
-                    清空全部选择
-                  </button>
+                    {t("清空全部选择")}</button>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     const summary = selectedCleanupAdminTaskSummary
                     setConfirmDialog({
-                      title: '清理所选管理员任务',
-                      message: `这会删除所选管理员任务卡片与媒体产物：\n\n已选 ${summary.count} 个任务\n图片 ${summary.imageCount} · 视频 ${summary.videoCount} · 占用 ${formatBytes(summary.totalBytes)}\n\n不会删除使用码任务、API 配置或分发设置。`,
-                      confirmText: '确认清理',
+                      title: t("清理所选管理员任务"),
+                      message: t("这会删除所选管理员任务卡片与媒体产物：\n\n已选 {0} 个任务\n图片 {1} · 视频 {2} · 占用 {3}\n\n不会删除使用码任务、API 配置或分发设置。", summary.count, summary.imageCount, summary.videoCount, formatBytes(summary.totalBytes)),
+                      confirmText: t("确认清理"),
                       tone: 'danger',
                       action: () => {
                         void handleResetRemoteData('admin_tasks_only', {
@@ -4911,16 +4878,16 @@ const hasUnreadEndedReminders = useMemo(
                   }
                   className="mt-3 w-full rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
                 >
-                  {isClearingRemote || backupState?.active ? '清理进行中...' : '清理所选管理员任务'}
+                  {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清理所选管理员任务")}
                 </button>
               </div>
               <button
                 type="button"
                 onClick={() =>
                   setConfirmDialog({
-                    title: '清除全部使用码任务与产物',
-                    message: '这会删除所有使用码用户提交的任务卡片，以及这些任务对应的输入图、遮罩图、输出图、视频和缩略图，用于释放服务器硬盘空间。\n\n不会删除管理员任务。不会删除使用码、配额记录、活动日志、API 配置或分发设置。',
-                    confirmText: '确认清除',
+                    title: t("清除全部使用码任务与产物"),
+                    message: t("这会删除所有使用码用户提交的任务卡片，以及这些任务对应的输入图、遮罩图、输出图、视频和缩略图，用于释放服务器硬盘空间。\n\n不会删除管理员任务。不会删除使用码、配额记录、活动日志、API 配置或分发设置。"),
+                    confirmText: t("确认清除"),
                     tone: 'danger',
                     action: () => {
                       void handleResetRemoteData('usage_code_tasks_only')
@@ -4930,16 +4897,16 @@ const hasUnreadEndedReminders = useMemo(
                 disabled={isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                 className="w-full rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
               >
-                {isClearingRemote || backupState?.active ? '清理进行中...' : '清除全部使用码任务与产物'}
+                {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清除全部使用码任务与产物")}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   const summary = allAdminTaskCleanupSummary
                   setConfirmDialog({
-                    title: '清除全部管理员任务与产物',
-                    message: `这会删除所有管理员提交的任务卡片与媒体产物：\n\n共 ${summary.count} 个任务\n图片 ${summary.imageCount} · 视频 ${summary.videoCount} · 占用 ${formatBytes(summary.totalBytes)}\n\n不会删除使用码任务、API 配置或分发设置。`,
-                    confirmText: '确认清除',
+                    title: t("清除全部管理员任务与产物"),
+                    message: t("这会删除所有管理员提交的任务卡片与媒体产物：\n\n共 {0} 个任务\n图片 {1} · 视频 {2} · 占用 {3}\n\n不会删除使用码任务、API 配置或分发设置。", summary.count, summary.imageCount, summary.videoCount, formatBytes(summary.totalBytes)),
+                    confirmText: t("确认清除"),
                     tone: 'danger',
                     action: () => {
                       void handleResetRemoteData('admin_tasks_only')
@@ -4949,16 +4916,16 @@ const hasUnreadEndedReminders = useMemo(
                 disabled={isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                 className="w-full rounded-xl border border-amber-200/80 bg-amber-50/50 px-4 py-2.5 text-sm text-amber-700 transition hover:bg-amber-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
               >
-                {isClearingRemote || backupState?.active ? '清理进行中...' : '清除全部管理员任务与产物'}
+                {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清除全部管理员任务与产物")}
               </button>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() =>
                     setConfirmDialog({
-                      title: '清空远端任务与图片',
-                      message: '这会删除后端数据库中的全部任务记录，以及后端媒体目录中的输入图、遮罩图、输出图和缩略图。\n\n后端运行配置会保留。',
-                      confirmText: '确认清空',
+                      title: t("清空远端任务与图片"),
+                      message: t("这会删除后端数据库中的全部任务记录，以及后端媒体目录中的输入图、遮罩图、输出图和缩略图。\n\n后端运行配置会保留。"),
+                      confirmText: t("确认清空"),
                       tone: 'danger',
                       action: () => {
                         void handleResetRemoteData('tasks')
@@ -4968,15 +4935,15 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                   className="rounded-xl border border-orange-200/80 bg-orange-50/50 px-4 py-2.5 text-sm text-orange-600 transition hover:bg-orange-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-300 dark:hover:bg-orange-500/20"
                 >
-                  {isClearingRemote || backupState?.active ? '清理进行中...' : '清空远端记录'}
+                  {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清空远端记录")}
                 </button>
                 <button
                   type="button"
                   onClick={() =>
                     setConfirmDialog({
-                      title: '清空远端全部数据',
-                      message: '这会删除后端任务记录、全部图片文件，以及后端保存的 API URL、API Key、模型、接口模式等运行配置。',
-                      confirmText: '确认全部清空',
+                      title: t("清空远端全部数据"),
+                      message: t("这会删除后端任务记录、全部图片文件，以及后端保存的 API URL、API Key、模型、接口模式等运行配置。"),
+                      confirmText: t("确认全部清空"),
                       tone: 'danger',
                       action: () => {
                         void handleResetRemoteData('all')
@@ -4986,25 +4953,24 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={isClearingRemote || isImporting || isExporting || Boolean(backupState?.active)}
                   className="rounded-xl border border-red-200/80 bg-red-50/50 px-4 py-2.5 text-sm text-red-500 transition hover:bg-red-100/80 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                 >
-                  {isClearingRemote || backupState?.active ? '清理进行中...' : '清空远端全部'}
+                  {isClearingRemote || backupState?.active ? t("清理进行中...") : t("清空远端全部")}
                 </button>
               </div>
               <button
                 onClick={() =>
                   setConfirmDialog({
-                    title: '清空所有数据',
-                    message: '确定要清空当前浏览器的所有任务记录和图片缓存吗？此操作不可恢复。',
+                    title: t("清空所有数据"),
+                    message: t("确定要清空当前浏览器的所有任务记录和图片缓存吗？此操作不可恢复。"),
                     action: () => clearAllData(),
                   })
                 }
                 className="w-full rounded-xl border border-red-200/80 bg-red-50/50 px-4 py-2.5 text-sm text-red-500 transition hover:bg-red-100/80 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
               >
-                清空本地缓存
-              </button>
+                {t("清空本地缓存")}</button>
               <div className="rounded-xl border border-gray-200/70 bg-white/40 px-4 py-3 text-xs leading-6 text-gray-500 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-400">
                 {mediaStats
-                  ? `媒体统计：图片 ${mediaStats.imageCount} 张，视频 ${mediaStats.videoCount} 个，总大小 ${formatBytes(mediaStats.totalBytes)}`
-                  : '媒体统计：读取中...'}
+                  ? t("媒体统计：图片 {0} 张，视频 {1} 个，总大小 {2}", mediaStats.imageCount, mediaStats.videoCount, formatBytes(mediaStats.totalBytes))
+                  : t("媒体统计：读取中...")}
               </div>
               <input
                 ref={importInputRef}
@@ -5025,15 +4991,14 @@ const hasUnreadEndedReminders = useMemo(
               onClick={() => setShowSettings(false)}
               className="rounded-xl bg-gray-100/80 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200 dark:bg-white/[0.06] dark:text-gray-200 dark:hover:bg-white/[0.1]"
             >
-              取消
-            </button>
+              {t("取消")}</button>
             <button
               type="button"
               onClick={handleSave}
               disabled={isSaving || isCheckingPublicReference || publicReferenceNeedsCheck}
               className="rounded-xl bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? '保存中...' : '保存'}
+              {isSaving ? t("保存中...") : t("保存")}
             </button>
           </div>
         )}
@@ -5047,16 +5012,16 @@ const hasUnreadEndedReminders = useMemo(
           <div ref={usageCodeEventPanelRef} className="glass-surface-strong relative z-10 flex h-[82vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/50 shadow-2xl ring-1 ring-black/5 dark:border-white/[0.08] dark:ring-white/10">
             <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-white/[0.08]">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold text-gray-800 dark:text-gray-100">{usageCodeEventModal.code.name} 完整记录</h3>
+                <h3 className="truncate text-base font-semibold text-gray-800 dark:text-gray-100">{usageCodeEventModal.code.name} {t(" 完整记录")}</h3>
                 <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  最近使用：{usageCodeEventModal.code.lastUsedAt ? formatLocalDateTime(usageCodeEventModal.code.lastUsedAt) : '从未使用'}
+                  {t("最近使用：")}{usageCodeEventModal.code.lastUsedAt ? formatLocalDateTime(usageCodeEventModal.code.lastUsedAt) : t("从未使用")}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setUsageCodeEventModal(null)}
                 className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-                aria-label="关闭完整查询"
+                aria-label={t("关闭完整查询")}
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -5066,22 +5031,22 @@ const hasUnreadEndedReminders = useMemo(
             <div className="tiny-scrollbar flex-1 overflow-y-auto px-5 py-4">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">时间范围</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("时间范围")}</span>
                   <Select
                     value={usageCodeEventModal.query.timePreset}
                     onChange={(value) => handleUsageCodeEventPresetChange(value as BackendUsageCodeEventTimePreset)}
                     options={[
-                      { value: 'today', label: '今天' },
-                      { value: 'yesterday', label: '昨天' },
-                      { value: 'last7days', label: '近 7 天' },
-                      { value: 'last30days', label: '近 30 天' },
-                      { value: 'custom', label: '自定义' },
+                      { value: 'today', label: t("今天") },
+                      { value: 'yesterday', label: t("昨天") },
+                      { value: 'last7days', label: t("近 7 天") },
+                      { value: 'last30days', label: t("近 30 天") },
+                      { value: 'custom', label: t("自定义") },
                     ]}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                   />
                 </label>
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">开始时间</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("开始时间")}</span>
                   <input
                     type="datetime-local"
                     value={usageCodeEventModal.query.startAt}
@@ -5091,7 +5056,7 @@ const hasUnreadEndedReminders = useMemo(
                   />
                 </label>
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">结束时间</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("结束时间")}</span>
                   <input
                     type="datetime-local"
                     value={usageCodeEventModal.query.endAt}
@@ -5101,23 +5066,23 @@ const hasUnreadEndedReminders = useMemo(
                   />
                 </label>
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">时间粒度</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("时间粒度")}</span>
                   <Select
                     value={usageCodeEventModal.query.bucket}
                     onChange={(value) => updateUsageCodeEventQuery({ bucket: value as BackendUsageCodeEventBucket })}
                     options={[
-                      { value: 'month', label: '按月' },
-                      { value: 'day', label: '按日' },
-                      { value: 'hour', label: '按小时' },
-                      { value: '30m', label: '按 30 分钟' },
-                      { value: '15m', label: '按 15 分钟' },
-                      { value: '5m', label: '按 5 分钟' },
+                      { value: 'month', label: t("按月") },
+                      { value: 'day', label: t("按日") },
+                      { value: 'hour', label: t("按小时") },
+                      { value: '30m', label: t("按 30 分钟") },
+                      { value: '15m', label: t("按 15 分钟") },
+                      { value: '5m', label: t("按 5 分钟") },
                     ]}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                   />
                 </label>
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">事件类型</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("事件类型")}</span>
                   <div className="md:hidden flex flex-wrap gap-2 rounded-xl border border-gray-200/70 bg-white/40 p-2 dark:border-white/[0.08] dark:bg-white/[0.02]">
                     {categoryOptions.map((item) => {
                       const selected = usageCodeEventModal.query.eventCategories.includes(item.value)
@@ -5190,12 +5155,12 @@ const hasUnreadEndedReminders = useMemo(
                   </div>
                 </label>
                 <label className="block xl:col-span-1">
-                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">任务号</span>
+                  <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">{t("任务号")}</span>
                   <ClearableInput
                     value={usageCodeEventModal.query.taskId}
                     onChange={(event) => updateUsageCodeEventQuery({ taskId: event.target.value })}
                     onClear={() => updateUsageCodeEventQuery({ taskId: '' })}
-                    placeholder="输入完整任务号"
+                    placeholder={t("输入完整任务号")}
                     className="w-full rounded-xl border border-gray-200/70 bg-white/60 px-3 py-2 text-sm text-gray-700 outline-none dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
                   />
                 </label>
@@ -5207,7 +5172,7 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={usageCodeEventModal.loading}
                   className="rounded-xl bg-blue-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {usageCodeEventModal.loading ? '查询中...' : '查询'}
+                  {usageCodeEventModal.loading ? t("查询中...") : t("查询")}
                 </button>
                 <button
                   type="button"
@@ -5215,13 +5180,11 @@ const hasUnreadEndedReminders = useMemo(
                   disabled={usageCodeEventModal.loading}
                   className="rounded-xl border border-gray-200/70 bg-white/60 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                 >
-                  重置
-                </button>
+                  {t("重置")}</button>
               </div>
               {usageCodeEventModal.loading && !usageCodeEventModal.result && (
                 <div className="mt-4 rounded-2xl border border-dashed border-gray-200/70 bg-white/30 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-                  正在读取记录
-                </div>
+                  {t("正在读取记录")}</div>
               )}
               {usageCodeEventModal.result && (
                 <>
@@ -5253,7 +5216,7 @@ const hasUnreadEndedReminders = useMemo(
                             <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{group.bucketLabel}</div>
                           </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {group.eventCount} 条 · {getUsageCodeEventSummaryText(group.summary)}
+                            {group.eventCount} {t(" 条 · ")}{getUsageCodeEventSummaryText(group.summary)}
                           </div>
                         </button>
                         {isExpanded && (
@@ -5278,7 +5241,7 @@ const hasUnreadEndedReminders = useMemo(
                               </div>
                               <div className="mt-1 text-gray-400 dark:text-gray-500">
                                 {formatLocalDateTime(event.createdAt)}
-                                {event.taskId ? ` · 任务 ${event.taskId}` : ''}
+                                {event.taskId ? t(" · 任务 {0}", event.taskId) : ''}
                               </div>
                             </div>
                           ))}
@@ -5288,8 +5251,7 @@ const hasUnreadEndedReminders = useMemo(
                       )
                     }) : (
                       <div className="rounded-2xl border border-dashed border-gray-200/70 bg-white/30 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.08] dark:bg-white/[0.02] dark:text-gray-500">
-                        当前筛选条件下没有记录
-                      </div>
+                        {t("当前筛选条件下没有记录")}</div>
                     )}
                   </div>
                 </>
@@ -5298,8 +5260,7 @@ const hasUnreadEndedReminders = useMemo(
             {usageCodeEventModal.result && (
               <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-4 text-sm dark:border-white/[0.08]">
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  第 {usageCodeEventModal.result.pagination.page}/{usageCodeEventModal.result.pagination.totalPages} 页，共 {usageCodeEventModal.result.pagination.total} 条
-                </div>
+                  {t("第 ")}{usageCodeEventModal.result.pagination.page}/{usageCodeEventModal.result.pagination.totalPages} {t(" 页，共 ")}{usageCodeEventModal.result.pagination.total} {t(" 条")}</div>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -5307,16 +5268,14 @@ const hasUnreadEndedReminders = useMemo(
                     disabled={usageCodeEventModal.loading || usageCodeEventModal.result.pagination.page <= 1}
                     className="rounded-xl border border-gray-200/70 bg-white/60 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                   >
-                    上一页
-                  </button>
+                    {t("上一页")}</button>
                   <button
                     type="button"
                     onClick={() => runCurrentUsageCodeEventQuery(usageCodeEventModal.result!.pagination.page + 1)}
                     disabled={usageCodeEventModal.loading || usageCodeEventModal.result.pagination.page >= usageCodeEventModal.result.pagination.totalPages}
                     className="rounded-xl border border-gray-200/70 bg-white/60 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200 dark:hover:bg-white/[0.08]"
                   >
-                    下一页
-                  </button>
+                    {t("下一页")}</button>
                 </div>
               </div>
             )}
@@ -5356,15 +5315,15 @@ const detailBody = (
                         <button
                           type="button"
                           className={`min-w-0 truncate text-left text-gray-700 transition dark:text-gray-200 ${item.code ? 'hover:text-blue-600 dark:hover:text-blue-300' : 'cursor-default'}`}
-                          title={item.code ? `点击复制使用码：${item.name}` : item.name}
+                          title={item.code ? t("点击复制使用码：{0}", item.name) : item.name}
                           onClick={() => {
                             if (!item.code) {
-                              useStore.getState().showToast('该使用码无法复制（旧码不可恢复）', 'error')
+                              useStore.getState().showToast(t("该使用码无法复制（旧码不可恢复）"), 'error')
                               return
                             }
                             void copyTextToClipboard(item.code)
-                              .then(() => useStore.getState().showToast('使用码已复制', 'success'))
-                              .catch((err) => useStore.getState().showToast(getClipboardFailureMessage('复制失败', err), 'error'))
+                              .then(() => useStore.getState().showToast(t("使用码已复制"), 'success'))
+                              .catch((err) => useStore.getState().showToast(getClipboardFailureMessage(t("复制失败"), err), 'error'))
                           }}
                         >
                           {item.name}
@@ -5381,8 +5340,7 @@ const detailBody = (
               </div>
               {usageDetailItems.length > 0 && (
                 <div className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-white/[0.08] dark:text-gray-400">
-                  共 {usageDetailItems.length} 个使用码
-                </div>
+                  {t("共 ")}{usageDetailItems.length} {t(" 个使用码")}</div>
               )}
             </>
           )
@@ -5393,7 +5351,7 @@ const detailBody = (
                 <button
                   type="button"
                   className="absolute inset-0 bg-black/40"
-                  aria-label={usageDetailKind === 'used' ? '关闭已使用明细' : '关闭未使用明细'}
+                  aria-label={usageDetailKind === 'used' ? t("关闭已使用明细") : t("关闭未使用明细")}
                   data-select-ignore-outside
                   onPointerDown={(event) => {
                     event.preventDefault()

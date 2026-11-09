@@ -122,7 +122,7 @@ export async function createBackendTask(input: {
 
   if (input.maskDataUrl) {
     const maskBlob = await maskDataUrlToPngBlob(input.maskDataUrl)
-    formData.append('mask', maskBlob, 'mask.png')
+    formData.append(input.params.annotation_mode === 'markup' ? 'markup' : 'mask', maskBlob, input.params.annotation_mode === 'markup' ? 'markup.png' : 'mask.png')
   }
 
   const response = await appFetch('/api/tasks', {

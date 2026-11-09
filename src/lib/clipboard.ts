@@ -1,3 +1,5 @@
+import { imageDataUrlToPngBlob } from './canvasImage'
+import { t } from './i18n'
 export async function copyTextToClipboard(text: string) {
   let asyncClipboardError: unknown = null
 
@@ -16,6 +18,10 @@ export async function copyTextToClipboard(text: string) {
 }
 
 export async function copyBlobToClipboard(blob: Blob) {
+  if (blob.type === 'image/svg+xml' || blob.type === 'image/gif') {
+    const url = URL.createObjectURL(blob)
+    try { blob = await imageDataUrlToPngBlob(url) } finally { URL.revokeObjectURL(url) }
+  }
   const mimeType = normalizeImageMimeType(blob.type)
 
   if (window.isSecureContext && navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
@@ -27,16 +33,16 @@ export async function copyBlobToClipboard(blob: Blob) {
 
   if (await copyBlobWithExecCommand(blob, mimeType)) return
 
-  throw new Error('当前页面不是安全上下文，无法直接复制图片，请改用 HTTPS 或 localhost 访问后重试')
+  throw new Error(t("当前页面不是安全上下文，无法直接复制图片，请改用 HTTPS 或 localhost 访问后重试"))
 }
 
 export function getClipboardFailureMessage(fallback: string, err: unknown) {
   if (!window.isSecureContext) {
-    return '复制失败：当前页面不是安全上下文，请改用 HTTPS 或 localhost 访问后重试'
+    return t("复制失败：当前页面不是安全上下文，请改用 HTTPS 或 localhost 访问后重试")
   }
 
   if (isEmbeddedPage() && isClipboardPermissionError(err)) {
-    return '复制失败：内嵌页面未授予剪贴板权限'
+    return t("复制失败：内嵌页面未授予剪贴板权限")
   }
 
   return fallback

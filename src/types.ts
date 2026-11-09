@@ -1,3 +1,4 @@
+import type { ImageExtensionsConfig, ImageRequestParams } from "../server/src/lib/imageCapabilities"
 // ===== 设置 =====
 
 export type ApiMode = 'images' | 'responses' | 'videos' | 'venice_images' | 'wavespeed' | 'kie'
@@ -42,6 +43,7 @@ export interface AppSettings {
   timeout: number
   apiMode: ApiMode
   codexCli: boolean
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
@@ -107,14 +109,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 // ===== 任务参数 =====
 
-export interface TaskParams {
-  size: string
-  quality: 'auto' | 'low' | 'medium' | 'high'
-  output_format: 'png' | 'jpeg' | 'webp'
-  output_compression: number | null
-  moderation: 'auto' | 'low'
-  n: number
-}
+export interface TaskParams extends ImageRequestParams {}
 
 export const DEFAULT_PARAMS: TaskParams = {
   size: 'auto',
@@ -147,6 +142,7 @@ export interface InputImage {
 }
 
 export interface MaskDraft {
+  kind?: 'markup'
   targetImageId: string
   maskDataUrl: string
   updatedAt: number

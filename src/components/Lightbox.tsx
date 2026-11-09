@@ -1,7 +1,8 @@
+import { t, getLocale } from '../lib/i18n'
 import { Suspense, lazy, useEffect, useState, useRef, useCallback, useMemo, useLayoutEffect } from 'react'
 import { useStore, getCachedImage, ensureTaskImageAvailable } from '../store'
 import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
-import { createMaskPreviewDataUrl } from '../lib/canvasImage'
+import { createMaskPreviewDataUrl, createMarkupPreviewDataUrl } from '../lib/canvasImage'
 import { resolveTaskImageDisplaySrc } from '../lib/resolveTaskImageDisplay'
 import {
   isLightboxSwipeTarget,
@@ -45,7 +46,7 @@ export default function Lightbox() {
 
   const syncSrc = useMemo(
     () => (lightboxImageId ? resolveTaskImageDisplaySrc(lightboxImageId, tasks) : ''),
-    [lightboxImageId, tasks],
+    [lightboxImageId, tasks, getLocale()],
   )
   const src = syncSrc || asyncSrc
 
@@ -90,11 +91,11 @@ export default function Lightbox() {
   const isReferenceImage = Boolean(lightboxImageId && inputImages.some((image) => image.id === lightboxImageId))
   const compareTarget = useMemo(
     () => (lightboxImageId ? resolveLightboxCompareTarget(lightboxImageId, tasks) : null),
-    [lightboxImageId, tasks],
+    [lightboxImageId, tasks, getLocale()],
   )
   const compareSyncSrc = useMemo(
     () => (compareTarget ? resolveTaskImageDisplaySrc(compareTarget.compareImageId, tasks) : ''),
-    [compareTarget, tasks],
+    [compareTarget, tasks, getLocale()],
   )
   const compareSrc = compareSyncSrc || compareAsyncSrc
 
@@ -169,6 +170,10 @@ export default function Lightbox() {
     }
   }, [lightboxImageId, maskDraft?.targetImageId, maskDraft?.maskDataUrl, tasks])
 
+  const isMarkupPreview = maskDraft?.targetImageId === lightboxImageId
+    ? maskDraft.kind === 'markup'
+    : tasks.some(task => task.maskTargetImageId === lightboxImageId && 'annotation_mode' in task.params && task.params.annotation_mode === 'markup')
+
   // 生成遮罩预览
   useEffect(() => {
     let cancelled = false
@@ -177,7 +182,7 @@ export default function Lightbox() {
       return
     }
 
-    createMaskPreviewDataUrl(src, maskImageSrc)
+    (isMarkupPreview ? createMarkupPreviewDataUrl : createMaskPreviewDataUrl)(src, maskImageSrc)
       .then((url) => {
         if (!cancelled) setMaskPreviewSrc(url)
       })
@@ -188,7 +193,7 @@ export default function Lightbox() {
     return () => {
       cancelled = true
     }
-  }, [src, maskImageSrc])
+  }, [src, maskImageSrc, isMarkupPreview])
 
   // 导航
   const currentIndex = lightboxImageId ? lightboxImageList.indexOf(lightboxImageId) : -1
@@ -228,8 +233,7 @@ export default function Lightbox() {
         <Suspense
           fallback={
             <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/55 backdrop-blur-md text-sm text-white/70">
-              正在加载编辑器...
-            </div>
+              {t("正在加载编辑器...")}</div>
           }
         >
           <ReferenceImageEditorModal
@@ -826,7 +830,7 @@ function LightboxInner({
             }}
             onDoubleClick={stopControlDoubleClick}
           >
-            {compareMode ? '退出对比' : '对比'}
+            {compareMode ? t("退出对比") : t("对比")}
           </button>
         ) : null}
         <button
@@ -842,7 +846,7 @@ function LightboxInner({
           }}
           onDoubleClick={stopControlDoubleClick}
         >
-          {isReferenceImage ? '高级编辑' : '高级编辑并加入参考图'}
+          {isReferenceImage ? t("高级编辑") : t("高级编辑并加入参考图")}
         </button>
       </div>
       <div
@@ -884,7 +888,7 @@ function LightboxInner({
                 left: lightboxNavAnchor.prevX,
                 top: lightboxNavAnchor.prevY,
               }}
-              aria-label="上一张"
+              aria-label={t("上一张")}
               onPointerDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
               onTouchEnd={(event) => event.stopPropagation()}
@@ -908,7 +912,7 @@ function LightboxInner({
                 left: lightboxNavAnchor.nextX,
                 top: lightboxNavAnchor.nextY,
               }}
-              aria-label="下一张"
+              aria-label={t("下一张")}
               onPointerDown={(event) => event.stopPropagation()}
               onTouchStart={(event) => event.stopPropagation()}
               onTouchEnd={(event) => event.stopPropagation()}

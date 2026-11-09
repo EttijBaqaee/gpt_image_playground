@@ -1,3 +1,7 @@
+import { imageExtensionError } from '../lib/imageCapabilities.js'
+import { validateMarkup } from '../lib/imageOutput.js'
+import { cleanupEmptyTaskMediaDirectories } from '../lib/mediaCleanup.js'
+import { deduplicateInputImageFile } from '../lib/inputImageStorage.js'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import crypto from 'node:crypto'
@@ -16,11 +20,16 @@ const USER_TASK_LIST_LIMIT = 500
 
 const taskParamsSchema = z.object({
   size: z.string().default('auto'),
-  quality: z.enum(['auto', 'low', 'medium', 'high']).default('auto'),
-  output_format: z.enum(['png', 'jpeg', 'webp']).default('png'),
+  quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).default('auto'),
+  output_format: z.enum(['png', 'jpeg', 'webp', 'svg', 'gif']).default('png'),
   output_compression: z.number().int().min(0).max(100).nullable().default(null),
   moderation: z.enum(['auto', 'low']).default('auto'),
   n: z.number().int().positive().max(16).default(1),
+  complexity: z.enum(['low', 'medium', 'high']).optional(),
+  annotation_mode: z.literal('markup').optional(),
+  frame_count: z.number().int().min(2).max(64).optional(),
+  frame_duration_ms: z.number().int().min(20).max(2000).optional(),
+  svg: z.object({ model: z.string().trim().min(1).max(256), reasoning: z.object({ effort: z.enum(['none','minimal','low','medium','high','xhigh','max']).optional() }).optional() }).optional(),
 })
 
 const videoParamsSchema = z.object({
@@ -210,7 +219,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
           try {
             parsedParams = taskParamsSchema.parse(JSON.parse(String(part.value ?? '{}')))
           } catch {
-            parsedParams = taskParamsSchema.parse({})
+            throw Object.assign(new Error('图片参数无效'), { statusCode: 400 })
           }
         }
         if (part.fieldname === 'taskType') {
@@ -299,7 +308,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       reservedImageCredits = taskType === 'video' ? 1 : parsedParams.n
     }
 
-    const inputImageCount = pendingFiles.filter((file) => file.fieldname !== 'mask').length
+    const inputImageCount = pendingFiles.filter((file) => file.fieldname !== 'mask' && file.fieldname !== 'markup').length
     if (taskType === 'image') {
       const capabilityError = getMultiModelImageCapabilityError(providerProfile, inputImageCount)
       if (capabilityError) {
@@ -318,13 +327,26 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       inputImageCount,
     })
 
+    const annotations = pendingFiles.filter(file => file.fieldname === 'mask' || file.fieldname === 'markup')
+    if (annotations.length > 1 || (taskType === 'video' && annotations.length)) return reply.code(400).send({ message: '每个图片任务只能使用一个遮罩或标注层' })
+    if (taskType === 'image') {
+      const markup = annotations[0]?.fieldname === 'markup'
+      if (markup !== (parsedParams.annotation_mode === 'markup')) return reply.code(400).send({ message: '标注附件与编辑模式不一致' })
+      const error = imageExtensionError(parsedParams, { ...providerProfile, model: providerProfileModel }, inputImageCount, annotations.length > 0)
+      if (error) return reply.code(400).send({ message: error })
+      if (markup) {
+        try { await validateMarkup(annotations[0].buffer, pendingFiles.find(file => file.fieldname !== 'markup' && file.fieldname !== 'mask')!.buffer) }
+        catch (error) { return reply.code(400).send({ message: error instanceof Error ? error.message : '标注层无效' }) }
+      }
+    }
+
     const images: Array<Parameters<typeof app.db.addTaskImage>[0]> = []
     const createdFiles: string[] = []
     let event: ReturnType<typeof app.db.appendTaskEvent>
     try {
       for (const file of pendingFiles) {
         const fileId = crypto.randomUUID()
-        const kind = file.fieldname === 'mask' ? 'masks' : 'uploads'
+        const kind = (file.fieldname === 'mask' || file.fieldname === 'markup') ? 'masks' : 'uploads'
         // Original filenames never participate in storage paths.
         const extension = ({ 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif', 'image/avif': '.avif' } as Record<string, string>)[file.mimetype] ?? '.bin'
         const relativePath = buildStoredPath(kind, taskId, fileId + extension)
@@ -337,12 +359,18 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         } finally {
           await handle.close()
         }
+        const sha256 = crypto.createHash('sha256').update(file.buffer).digest('hex')
+        if (kind === 'uploads') {
+          await deduplicateInputImageFile(app.db, app.config.mediaDir, relativePath, { sha256, bytes: file.buffer.byteLength }).catch((error) => {
+            app.log.warn({ err: error, taskId }, '输入图文件去重未完成，保留独立文件')
+          })
+        }
         images.push({
           id: fileId, taskId,
-          kind: file.fieldname === 'mask' ? 'mask' : taskType === 'video' ? 'video_input' : 'input',
+          kind: (file.fieldname === 'mask' || file.fieldname === 'markup') ? 'mask' : taskType === 'video' ? 'video_input' : 'input',
           filePath: relativePath, mimeType: file.mimetype,
           bytes: file.buffer.byteLength,
-          sha256: crypto.createHash('sha256').update(file.buffer).digest('hex'),
+          sha256,
         })
       }
       ;({ event } = app.db.createTaskWithAttachments({
@@ -617,6 +645,10 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         /* ignore */
       }
     }
+
+    await cleanupEmptyTaskMediaDirectories(app.config.mediaDir, params.taskId).catch((error) => {
+      request.log.warn({ err: error, taskId: params.taskId }, '清理任务空目录失败')
+    })
 
     return { ok: true }
   })

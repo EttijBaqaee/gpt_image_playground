@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 
 interface LightboxImageCompareProps {
@@ -205,8 +206,7 @@ export default function LightboxImageCompare({
 
       <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2">
         <span className="rounded-full bg-black/50 px-3 py-1.5 text-xs text-white/80 backdrop-blur-sm">
-          在图上左右滑动对比
-        </span>
+          {t("在图上左右滑动对比")}</span>
       </div>
     </div>
   )

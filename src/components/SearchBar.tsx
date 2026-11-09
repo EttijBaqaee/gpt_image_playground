@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useStore } from '../store'
 import Select from './Select'
 
@@ -61,7 +62,7 @@ export default function SearchBar() {
               ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-500'
               : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.06]'
           }`}
-          title={filterFavorite ? '取消只看收藏' : '只看收藏'}
+          title={filterFavorite ? t("取消只看收藏") : t("只看收藏")}
         >
           <svg className="w-5 h-5" fill={filterFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -78,7 +79,7 @@ export default function SearchBar() {
               ? 'border-slate-400 bg-slate-100 dark:bg-slate-500/10 text-slate-600 dark:text-slate-300'
               : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.06]'
           }`}
-          title={filterArchived ? '返回未归档记录' : '查看归档记录'}
+          title={filterArchived ? t("返回未归档记录") : t("查看归档记录")}
         >
           <svg className="w-5 h-5" fill={filterArchived ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="5" rx="1" />
@@ -93,7 +94,7 @@ export default function SearchBar() {
               ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300'
               : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.06]'
           }`}
-          title={blurLoadedImages ? '取消模糊已加载图片' : '模糊已加载图片'}
+          title={blurLoadedImages ? t("取消模糊已加载图片") : t("模糊已加载图片")}
         >
           {blurLoadedImages ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -111,9 +112,9 @@ export default function SearchBar() {
         </button>
         <div className="flex h-11 min-w-0 items-center rounded-xl border border-gray-200 bg-white p-1 dark:border-white/[0.08] dark:bg-gray-900">
           {[
-            { value: 'all', label: '全部' },
-            { value: 'image', label: '图片' },
-            { value: 'video', label: '视频' },
+            { value: 'all', label: t("全部") },
+            { value: 'image', label: t("图片") },
+            { value: 'video', label: t("视频") },
           ].map((item) => (
             <button
               key={item.value}
@@ -124,7 +125,7 @@ export default function SearchBar() {
                   ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300'
                   : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-white/[0.06]'
               }`}
-              title={`筛选${item.label}任务`}
+              title={t("筛选{0}任务", item.label)}
             >
               {item.label}
             </button>
@@ -140,9 +141,9 @@ export default function SearchBar() {
                 ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300'
                 : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/[0.06]'
             }`}
-            title={showUsageCodeTasksForAdmin ? '隐藏使用码图片' : '显示使用码图片'}
+            title={showUsageCodeTasksForAdmin ? t("隐藏使用码图片") : t("显示使用码图片")}
           >
-            {showUsageCodeTasksForAdmin ? '已显示使用码' : '未显示使用码'}
+            {showUsageCodeTasksForAdmin ? t("已显示使用码") : t("未显示使用码")}
           </button>
         )}
         <div className="relative h-11 min-w-0">
@@ -150,10 +151,10 @@ export default function SearchBar() {
             value={filterStatus}
             onChange={(val) => setFilterStatus(val as any)}
             options={[
-              { label: '全部状态', value: 'all' },
-              { label: '已完成', value: 'done' },
-              { label: '生成中', value: 'running' },
-              { label: '失败', value: 'error' },
+              { label: t("全部状态"), value: 'all' },
+              { label: t("已完成"), value: 'done' },
+              { label: t("生成中"), value: 'running' },
+              { label: t("失败"), value: 'error' },
             ]}
             className="flex h-11 items-center rounded-xl border border-gray-200 bg-white px-3 text-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 dark:border-white/[0.08] dark:bg-gray-900 dark:hover:bg-white/[0.06]"
           />
@@ -187,11 +188,11 @@ export default function SearchBar() {
           <div
             className="inline-flex shrink-0 items-center rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-white/[0.08] dark:bg-white/[0.04]"
             role="group"
-            aria-label="标签筛选模式"
+            aria-label={t("标签筛选模式")}
           >
             {([
-              { value: 'include', label: '包含' },
-              { value: 'exclude', label: '排除' },
+              { value: 'include', label: t("包含") },
+              { value: 'exclude', label: t("排除") },
             ] as const).map((item) => (
               <button
                 key={item.value}
@@ -207,7 +208,7 @@ export default function SearchBar() {
                       : 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
-                title={item.value === 'exclude' ? '排除命中标签的任务' : '只显示命中全部标签的任务'}
+                title={item.value === 'exclude' ? t("排除命中标签的任务") : t("只显示命中全部标签的任务")}
               >
                 {item.label}
               </button>
@@ -232,7 +233,7 @@ export default function SearchBar() {
                     ? 'text-rose-500 hover:bg-rose-100 hover:text-rose-700 dark:text-rose-200 dark:hover:bg-rose-400/20'
                     : 'text-blue-500 hover:bg-blue-100 hover:text-blue-700 dark:text-blue-200 dark:hover:bg-blue-400/20'
                 }`}
-                aria-label={`移除搜索标签 ${tag}`}
+                aria-label={t("移除搜索标签 {0}", tag)}
               >
                 <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
@@ -261,10 +262,10 @@ export default function SearchBar() {
               searchTags.length >= 2
                 ? ''
                 : searchTags.length > 0
-                  ? '继续输入并回车添加标签'
+                  ? t("继续输入并回车添加标签")
                   : isExcludeMode
-                    ? '输入排除标签，回车添加；命中任一标签的任务将被隐藏'
-                    : '搜索提示词、使用码、别名、参数、比例、分辨率...'
+                    ? t("输入排除标签，回车添加；命中任一标签的任务将被隐藏")
+                    : t("搜索提示词、使用码、别名、参数、比例、分辨率...")
             }
             className="min-w-[10rem] flex-1 shrink-0 bg-transparent py-1.5 text-sm outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
@@ -275,8 +276,8 @@ export default function SearchBar() {
             onPointerDown={(event) => event.preventDefault()}
             onClick={clearSearch}
             className="absolute right-3 top-5 -translate-y-1/2 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-white/[0.08] dark:hover:text-gray-300"
-            aria-label="清空搜索"
-            title="清空搜索"
+            aria-label={t("清空搜索")}
+            title={t("清空搜索")}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 18L18 6M6 6l12 12" />

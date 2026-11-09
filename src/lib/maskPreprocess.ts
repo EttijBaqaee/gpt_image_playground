@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { InputImage } from '../types'
 import { canvasToBlob, loadImage } from './canvasImage'
 
@@ -26,7 +27,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('图片导出失败'))
+    reader.onerror = () => reject(reader.error ?? new Error(t("图片导出失败")))
     reader.readAsDataURL(blob)
   })
 }
@@ -75,7 +76,7 @@ export async function prepareMaskTargetDataUrl(dataUrl: string): Promise<Prepare
   canvas.width = size.width
   canvas.height = size.height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('当前浏览器不支持 Canvas')
+  if (!ctx) throw new Error(t("当前浏览器不支持 Canvas"))
   ctx.drawImage(image, 0, 0, size.width, size.height)
 
   const blob = await canvasToBlob(canvas, 'image/png')

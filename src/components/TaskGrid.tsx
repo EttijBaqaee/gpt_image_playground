@@ -1,3 +1,4 @@
+import { t, getLocale } from '../lib/i18n'
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { useStore, reuseConfig, editOutputs, removeTask, refreshTasksFromServer } from '../store'
 import TaskCard from './TaskCard'
@@ -63,7 +64,7 @@ function buildPageOptions(totalPages: number, currentPage: number, visibleCount:
   return Array.from(pages)
     .sort((a, b) => a - b)
     .map((page) => ({
-      label: `第 ${page} 页`,
+      label: t("第 {0} 页", page),
       value: page,
     }))
 }
@@ -112,7 +113,7 @@ export default function TaskGrid() {
   const shouldDeferImageLoading = tasks.filter((task) => task.outputImages.length > 0).length > 20
   const pageOptions = useMemo(
     () => buildPageOptions(totalPages, safeCurrentPage, paginationLayout.pageOptionCount),
-    [paginationLayout.pageOptionCount, safeCurrentPage, totalPages],
+    [paginationLayout.pageOptionCount, safeCurrentPage, totalPages, getLocale()],
   )
 
   useEffect(() => {
@@ -168,8 +169,8 @@ export default function TaskGrid() {
 
   const handleDelete = (task: typeof tasks[0]) => {
     setConfirmDialog({
-      title: '删除记录',
-      message: '确定要删除这条记录吗？关联的图片资源也会被清理（如果没有其他任务引用）。',
+      title: t("删除记录"),
+      message: t("确定要删除这条记录吗？关联的图片资源也会被清理（如果没有其他任务引用）。"),
       action: () => removeTask(task),
     })
   }
@@ -305,9 +306,8 @@ export default function TaskGrid() {
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            共 {taskTotal} 条，每页 {taskPageSize} 条，第 {safeCurrentPage} / {totalPages} 页
-            {isRefreshingTasks && (
-              <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">刷新中</span>
+            {t("共 ")}{taskTotal} {t(" 条，每页 ")}{taskPageSize} {t(" 条，第 ")}{safeCurrentPage} / {totalPages} {t(" 页")}{isRefreshingTasks && (
+              <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{t("刷新中")}</span>
             )}
           </div>
           <div
@@ -323,8 +323,7 @@ export default function TaskGrid() {
               disabled={safeCurrentPage <= 1}
               className="pagination-button h-12 min-w-0 whitespace-nowrap rounded-xl border border-gray-200/70 bg-white/80 px-3 text-sm text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
             >
-              上一页
-            </button>
+              {t("上一页")}</button>
             <div className={paginationLayout.compact ? 'min-w-0' : 'w-32'}>
               <Select
                 value={safeCurrentPage}
@@ -334,7 +333,7 @@ export default function TaskGrid() {
               />
             </div>
             <label className="pagination-jump flex h-12 min-w-0 items-center gap-2 whitespace-nowrap rounded-xl border border-gray-200/70 bg-white/80 px-3 text-sm text-gray-700 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200">
-              <span className="pagination-jump-label text-xs text-gray-500 dark:text-gray-400">跳转</span>
+              <span className="pagination-jump-label text-xs text-gray-500 dark:text-gray-400">{t("跳转")}</span>
               <input
                 type="number"
                 min={1}
@@ -357,8 +356,7 @@ export default function TaskGrid() {
               disabled={safeCurrentPage >= totalPages}
               className="pagination-button h-12 min-w-0 whitespace-nowrap rounded-xl border border-gray-200/70 bg-white/80 px-3 text-sm text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-gray-200"
             >
-              下一页
-            </button>
+              {t("下一页")}</button>
           </div>
         </div>
       </div>
@@ -369,7 +367,7 @@ export default function TaskGrid() {
     return (
       <div className="text-center py-20 text-gray-400 dark:text-gray-500">
         {searchTags.length > 0 || filterFavorite || filterArchived || filterTaskType !== 'all' ? (
-          <p className="text-sm">没有找到匹配的记录</p>
+          <p className="text-sm">{t("没有找到匹配的记录")}</p>
         ) : (
           <>
             <svg
@@ -385,7 +383,7 @@ export default function TaskGrid() {
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="text-sm">输入提示词开始生成图片</p>
+            <p className="text-sm">{t("输入提示词开始生成图片")}</p>
           </>
         )}
       </div>

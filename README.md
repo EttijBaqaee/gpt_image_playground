@@ -1,4 +1,25 @@
-# Update 0.3.66.6
+# GPT Image Playground · 0.3.66.7
+
+[![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md)
+
+## Update 0.3.66.7
+
+**2026-11-09 · 中英文界面、图像扩展与输入图复用。**
+
+- **中英文切换**：登录页、主界面和设置窗口新增 EN / 中文按钮。首次访问根据浏览器首选语言自动选择，中文语言使用简体中文，其余语言使用英文。手动选择保存在当前浏览器，切换时保留正在编辑的表单与提示词。
+- **明暗主题**：默认跟随浏览器的系统配色，支持浅色、深色与跟随系统。切换使用柔和渐变；开启“减少动态效果”时直接切换。
+- **恢复自动设置**：在“设置 → 习惯配置”中，将“界面语言”改为“跟随浏览器”，或将“外观”改为“跟随系统”。语言与外观选择立即生效并保存在本机。
+- **英文文档**：新增 [English README](README.en.md)，两个页面顶部均提供语言切换入口。
+- **图像扩展能力**：在 Images API 配置中按“当前站点配置 + 完整模型名”手动勾选规划程度、扩展质量、透明标注层、SVG、GIF 和 SVG 编写模型。默认关闭，按供应商文档手动勾选；更换 URL 会清除扩展配置，更换模型不继承勾选。勾选仅允许发送参数，不保证供应商支持；OpenAI 兼容接口也可能接入 Seedream、Grok 等模型，不支持时可能报错或仍被计费，请先确认供应商文档。未勾选扩展时保留原参数。
+- **扩展参数与标注**：在“参数设置 → 扩展参数”中设置可用选项。添加参考图后可标注第一张图片，支持画笔、矩形、箭头、橡皮擦、撤销与清空。透明 PNG 标注层与原图分别提交，标注和遮罩互斥；缺少能力时会在提交前提示，不会把标注当作遮罩。
+- **SVG / GIF**：仅用于无参考图的文生图；SVG 数量为 1，二者均不使用压缩率。SVG 以静态矢量图片预览，GIF 在大图预览中播放，下载保留原格式。GIF 帧数上限默认 16，供应商明确支持时可设至 64；每帧时长支持 20–2000 毫秒。复用为参考图时转为位图，原始制品保留。
+- **输入图复用与去重**：修复相同图片重复上传及压缩后复用；启动时和备份恢复后自动处理历史输入图。内容相同的输入图通过硬链接共享磁盘数据，各任务的图片 ID、路径、权限、顺序和遮罩关联保持独立，删除最后一个引用后释放空间。不支持硬链接的文件系统保留独立文件。
+- **空目录清理**：删除任务时清理对应的空媒体目录，启动时清理已删除任务遗留的空目录，保留其他文件。
+- **参考图访问提示**：保留内网部署支持，新增红色提示，务必确保上游服务能够访问参考图地址；检测通过仅表示当前服务器可访问。
+
+官方已公布的完整模型名为 `gpt-image-2.6-sunburst`、`gpt-image-2.6-flare`。中转别名需按供应商实际值填写，再明确配置能力。详见 [OpenAI 图像文档](https://developers.openai.com/api/docs/guides/image-generation)。
+
+## Update 0.3.66.6
 
 **2026-11-03 · 新增供应商公网参考图，修复固定 5 分钟请求超时。**
 
@@ -17,7 +38,6 @@
 - **图片尚未读取完成**：已显示的图片可以继续排序；新图片读取、处理或下载完成后追加，不覆盖排序。全部参考图准备完成后才能点击生成，避免漏掉还没读完的图片；清空会取消未完成的添加。
 - **提交上传期间**：点击生成后，本次参考图顺序锁定，页面显示等待提示，暂停排序、删除与清空；提交成功或失败后恢复操作。此规则同时适用于手机和电脑网页版。
 
-此前发布的 `0.3.66.3` 镜像不包含以上修复。浏览器回归脚本为 `scripts/verify-touch-sort-async.mjs`，覆盖 Chromium 模拟触屏、电脑鼠标、16 张图连续调序、文件未读完、900 ms 网络延迟和限速上传，并逐张比对真实任务接口、SQLite、任务详情与 Worker 发给本地模拟供应商的图片内容。没有调用付费供应商 API；未使用实体手机验证。
 
 ## Update 0.3.66.3
 
@@ -58,12 +78,12 @@
 服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.6
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7
 # 跟随本 fork 的最新发布版本
 docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
 ```
 
-正式部署建议固定 `0.3.66.6`。本次发布镜像为 **Linux amd64**，从经过 Linux 容器验证的同一镜像导出并发布，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
+正式部署建议固定 `0.3.66.7`。本次发布镜像为 **Linux amd64**，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
 
 ### 首次创建持久化目录
 
@@ -81,12 +101,12 @@ chown 1000:1000 /opt/gpt-image-playground-data
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.6 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.7 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.6 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.6) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.7 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.7) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -105,7 +125,7 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 services:
   app:
     # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.6
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -270,7 +290,7 @@ location ^~ /r/references/ {
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.6`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。六项路径按第 6 节分别填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
@@ -280,7 +300,7 @@ location ^~ /r/references/ {
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.6
+image: gpt-image-playground-fork:0.3.66.7
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -315,7 +335,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.6`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.7`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 六项路径分别设置
 
@@ -658,17 +678,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.6-amd64.tar.gz` 是已验证的 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `gpt-image-playground-fork-0.3.66.7-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.6-amd64.tar.gz
+docker load -i gpt-image-playground-fork-0.3.66.7-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.6
+image: gpt-image-playground-fork:0.3.66.7
 pull_policy: never
 ```
 
@@ -677,6 +697,8 @@ pull_policy: never
 ## 10. 升级与数据保留
 
 升级前先停止应用，备份整个持久化数据目录，并保留原 `.env`。供应商设置、使用码额度、历史任务和媒体文件都依赖原数据目录。
+
+0.3.66.7 会在启动及备份恢复后自动检查历史输入图；新上传的输入图也参与去重。内容完全相同的输入图通过硬链接共享磁盘存储，各任务的图片 ID、路径、权限、顺序及遮罩关联保持不变，最后一个引用删除后释放存储空间。数据目录的文件系统需支持硬链接；不支持时保留原有独立文件。
 
 ### 从 0.3.66 升级：先迁移数据目录权限
 

@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useEffect, useState, useRef } from 'react'
 import type { TaskRecord, VideoTaskParams } from '../types'
 import {
@@ -348,10 +349,10 @@ export default function TaskCard({
   const taskModelLabel = isUsageCodeUser ? null : (task.providerProfileModel ?? null)
   const taskEndpointLabel = task.providerProfileApiMode ? formatTaskEndpointLabel(task.providerProfileApiMode) : null
   const taskEndpointTitle = task.providerProfileBaseUrl
-    ? `${taskEndpointLabel ?? '接口'} · ${task.providerProfileBaseUrl}`
+    ? `${taskEndpointLabel ?? t("接口")} · ${task.providerProfileBaseUrl}`
     : taskEndpointLabel
   const errorSummary = task.status === 'error'
-    ? (task.error?.trim() || '生成失败')
+    ? (task.error?.trim() || t("生成失败"))
     : ''
   const isSwipeReady = Math.abs(swipeOffset) >= 40
   const showSwipeAction = isSwipeReady || swipeActionActive
@@ -360,8 +361,8 @@ export default function TaskCard({
   const isCoverBlurred = Boolean(thumbSrc) && (taskImageBlurOverrides[task.id] ?? blurLoadedImages)
   const isQueued = task.serverStatus === 'queued'
   const runningStatusText = isQueued
-    ? (task.queuePosition && task.queuePosition > 0 ? `排队中 第 ${task.queuePosition} 位` : '排队中')
-    : (task.progressPercent != null ? `${task.progressPercent}%` : task.currentStep ? `${task.currentStep}...` : '生成中...')
+    ? (task.queuePosition && task.queuePosition > 0 ? t("排队中 第 {0} 位", task.queuePosition) : t("排队中"))
+    : (task.progressPercent != null ? `${task.progressPercent}%` : task.currentStep ? `${task.currentStep}...` : t("生成中..."))
   const swipeBgClass = showSwipeAction
     ? swipeStartedSelected
       ? 'bg-gray-500 dark:bg-gray-600'
@@ -447,7 +448,7 @@ export default function TaskCard({
               ? 'border-blue-300/70 bg-blue-500/80 text-white'
               : 'border-white/30 bg-black/40 text-white/80 hover:bg-black/55'
           }`}
-          title={isCoverBlurred ? '取消模糊预览图' : '模糊预览图'}
+          title={isCoverBlurred ? t("取消模糊预览图") : t("模糊预览图")}
         >
           {isCoverBlurred ? (
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -513,14 +514,13 @@ export default function TaskCard({
           {showThumbnailPlaceholder && (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-gray-100 text-gray-500 dark:bg-black/20 dark:text-gray-300"
-              title="点击卡片后再加载缩略图"
+              title={t("点击卡片后再加载缩略图")}
             >
               <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3v11m0 0l-4-4m4 4l4-4M5 17v1a2 2 0 002 2h10a2 2 0 002-2v-1" />
               </svg>
               <span className="rounded-full bg-white/85 px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm dark:bg-white/10 dark:text-gray-200">
-                点击查看
-              </span>
+                {t("点击查看")}</span>
             </div>
           )}
           {task.status === 'running' && !hasOutputImage && !hasOutputVideo && (
@@ -565,8 +565,7 @@ export default function TaskCard({
                 />
               </svg>
               <span className="text-xs font-medium text-red-400 leading-tight">
-                失败
-              </span>
+                {t("失败")}</span>
               <span
                 className="max-w-full break-words text-[11px] leading-4 text-red-500/90 dark:text-red-300/90"
                 title={errorSummary}
@@ -595,8 +594,7 @@ export default function TaskCard({
             {isVideoTask ? (
               <>
                 <span className="bg-black/50 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded backdrop-blur-sm">
-                  视频
-                </span>
+                  {t("视频")}</span>
               <span className="bg-black/50 text-white text-[10px] sm:text-xs px-1.5 py-0.5 rounded backdrop-blur-sm font-mono">
                 {videoParams?.aspect_ratio ?? 'auto'}
               </span>
@@ -623,7 +621,7 @@ export default function TaskCard({
                     className="absolute left-0 top-full z-20 mt-2 w-56 rounded-xl border border-gray-200/70 bg-white/95 px-3 py-2 text-left text-xs text-gray-700 shadow-[0_12px_36px_rgb(0,0,0,0.14)] ring-1 ring-black/5 backdrop-blur dark:border-white/[0.08] dark:bg-[#1d1d1f]/95 dark:text-gray-200 dark:ring-white/10"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <div className="text-[11px] text-gray-400 dark:text-gray-500">任务号</div>
+                    <div className="text-[11px] text-gray-400 dark:text-gray-500">{t("任务号")}</div>
                     <div className="mt-1 break-all">{task.id}</div>
                   </div>
                 )}
@@ -647,7 +645,7 @@ export default function TaskCard({
         <div className="flex-1 p-3 flex flex-col min-w-0">
           <div className="flex-1 min-h-0 mb-2 overflow-hidden">
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed line-clamp-3">
-              {task.prompt || '(无提示词)'}
+              {task.prompt || t("(无提示词)")}
             </p>
           </div>
           <div className="mt-auto flex flex-col gap-1.5">
@@ -682,7 +680,7 @@ export default function TaskCard({
               )}
               {isVideoTask ? (
                 <>
-                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">视频</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex-shrink-0">{t("视频")}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300 flex-shrink-0">{videoParams?.aspect_ratio ?? 'auto'}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300 flex-shrink-0">{videoParams?.resolution ?? '480p'}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300 flex-shrink-0">{videoParams?.duration ?? 6}s</span>
@@ -723,7 +721,7 @@ export default function TaskCard({
                     ? 'text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
                     : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
                 }`}
-                title={task.isFavorite ? '取消收藏' : '收藏记录'}
+                title={task.isFavorite ? t("取消收藏") : t("收藏记录")}
               >
                 <svg
                   className="w-4 h-4"
@@ -748,7 +746,7 @@ export default function TaskCard({
                     ? 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                     : 'text-gray-400 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                 }`}
-                title={task.isArchived ? '取消归档' : '归档记录'}
+                title={task.isArchived ? t("取消归档") : t("归档记录")}
               >
                 <svg className="w-4 h-4" fill={task.isArchived ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <rect x="4" y="4" width="16" height="5" rx="1" />
@@ -759,7 +757,7 @@ export default function TaskCard({
               <button
                 onClick={onReuse}
                 className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/30 text-gray-400 hover:text-blue-500 transition"
-                title="复用配置"
+                title={t("复用配置")}
               >
                 <svg
                   className="w-4 h-4"
@@ -778,7 +776,7 @@ export default function TaskCard({
               <button
                 onClick={onEditOutputs}
                 className="p-1.5 rounded-md hover:bg-green-50 dark:hover:bg-green-950/30 text-gray-400 hover:text-green-500 transition disabled:opacity-30"
-                title="编辑输出"
+                title={t("编辑输出")}
                 disabled={!task.outputImages?.length}
               >
                 <svg
@@ -798,7 +796,7 @@ export default function TaskCard({
               <button
                 onClick={onDelete}
                 className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-400 hover:text-red-500 transition"
-                title="删除记录"
+                title={t("删除记录")}
               >
                 <svg
                   className="w-4 h-4"

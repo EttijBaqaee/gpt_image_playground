@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { clearImages, clearTasks, getAllImages, getAllTasks, putImage, putTask } from './db'
 import { zipSync, unzipSync, strFromU8, strToU8 } from 'fflate'
 import { DEFAULT_SETTINGS, type AppSettings, type ExportData, type StoredImage, type TaskRecord } from '../types'
@@ -170,12 +171,12 @@ export async function snapshotFromManifest(
   readImageBytes: (path: string) => Promise<Uint8Array | null>,
 ): Promise<SyncSnapshot> {
   if (!isPlainObject(manifest)) {
-    throw new Error('无效的数据格式')
+    throw new Error(t("无效的数据格式"))
   }
 
   const raw = manifest as Partial<ExportData> & { version?: number }
   if (!raw.tasks || !raw.imageFiles || typeof raw.imageFiles !== 'object') {
-    throw new Error('无效的数据格式')
+    throw new Error(t("无效的数据格式"))
   }
 
   const exportedAt = parseExportedAt(raw.exportedAt)
@@ -234,11 +235,11 @@ export function sortTasksForDisplay(tasks: TaskRecord[]) {
 function readSnapshotFromBuffer(buffer: ArrayBuffer): SyncSnapshot {
   const unzipped = unzipSync(new Uint8Array(buffer))
   const manifestBytes = unzipped['manifest.json']
-  if (!manifestBytes) throw new Error('ZIP 中缺少 manifest.json')
+  if (!manifestBytes) throw new Error(t("ZIP 中缺少 manifest.json"))
 
   const raw = JSON.parse(strFromU8(manifestBytes)) as Partial<ExportData> & { version?: number }
   if (!raw.tasks || !raw.imageFiles) {
-    throw new Error('无效的数据格式')
+    throw new Error(t("无效的数据格式"))
   }
 
   const exportedAt = parseExportedAt(raw.exportedAt)

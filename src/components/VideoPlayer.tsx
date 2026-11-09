@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import {
   formatByteSize,
@@ -377,7 +378,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
       }
       try {
         await video.play()
-        showFeedback('play', '播放')
+        showFeedback('play', t("播放"))
       } catch {
         setIsPlaying(false)
       }
@@ -386,7 +387,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
 
     userPausedRef.current = true
     video.pause()
-    showFeedback('pause', '暂停')
+    showFeedback('pause', t("暂停"))
   }
 
   const handleSeek = (value: string) => {
@@ -412,7 +413,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
     setIsMuted(normalizedVolume <= 0)
     if (normalizedVolume > 0) previousVolumeRef.current = normalizedVolume
     if (!options?.silent) {
-      showFeedback('volume', `音量 ${Math.round(normalizedVolume * 100)}%`)
+      showFeedback('volume', t("音量 {0}%", Math.round(normalizedVolume * 100)))
     }
   }
 
@@ -430,7 +431,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
       }
       setVolume(restoredVolume)
       setIsMuted(false)
-      showFeedback('volume', `音量 ${Math.round(restoredVolume * 100)}%`)
+      showFeedback('volume', t("音量 {0}%", Math.round(restoredVolume * 100)))
       return
     }
 
@@ -440,7 +441,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
       video.muted = true
     }
     setIsMuted(true)
-    showFeedback('volume', '静音')
+    showFeedback('volume', t("静音"))
   }
 
   const handleVolumeButtonClick = () => {
@@ -719,13 +720,13 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
         <div className="pointer-events-none absolute inset-x-3 bottom-14 z-10 sm:bottom-16">
           <div className="rounded-xl bg-black/55 px-3 py-2 text-white backdrop-blur-sm">
             <div className="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
-              <span>{cacheProgress.stage === 'preparing' ? '准备缓存视频' : '边播边缓存'}</span>
+              <span>{cacheProgress.stage === 'preparing' ? t("准备缓存视频") : t("边播边缓存")}</span>
               <span className="tabular-nums text-white/80">
                 {resolveImageLoadPercent(cacheProgress) != null
                   ? `${resolveImageLoadPercent(cacheProgress)}%`
                   : cacheProgress.loadedBytes > 0
                     ? formatByteSize(cacheProgress.loadedBytes)
-                    : '连接中'}
+                    : t("连接中")}
               </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-white/20">
@@ -752,7 +753,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
             type="button"
             onClick={() => void togglePlay()}
             className="detail-video-play-button"
-            aria-label={isPlaying ? '暂停视频' : '播放视频'}
+            aria-label={isPlaying ? t("暂停视频") : t("播放视频")}
           >
             {isPlaying ? (
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -785,7 +786,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
                   onChange={(event) => handleVolumeChange(event.target.value)}
                   onInput={(event) => handleVolumeChange(event.currentTarget.value)}
                   className="detail-video-volume detail-video-volume-vertical"
-                  aria-label="视频音量"
+                  aria-label={t("视频音量")}
                 />
               </div>
             )}
@@ -793,7 +794,7 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
               type="button"
               onClick={handleVolumeButtonClick}
               className="detail-video-volume-button"
-              aria-label={showVolumeSlider ? (isMuted || volume <= 0 ? '恢复声音' : '静音') : '展开音量调节'}
+              aria-label={showVolumeSlider ? (isMuted || volume <= 0 ? t("恢复声音") : t("静音")) : t("展开音量调节")}
             >
               {volumeIcon === 'muted' ? (
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -827,13 +828,13 @@ export default function VideoPlayer({ src, poster, nativeControls = false, blurr
             onChange={(event) => handleSeek(event.target.value)}
             onInput={(event) => handleSeek(event.currentTarget.value)}
             className="detail-video-progress"
-            aria-label="视频播放进度"
+            aria-label={t("视频播放进度")}
           />
           <button
             type="button"
             onClick={toggleFullscreen}
             className="detail-video-fullscreen-button"
-            aria-label={isViewportFullscreen ? '退出全屏' : '进入全屏'}
+            aria-label={isViewportFullscreen ? t("退出全屏") : t("进入全屏")}
           >
             {isViewportFullscreen ? (
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

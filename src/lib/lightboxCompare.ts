@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import type { TaskRecord } from '../types'
 import { findTaskByImageId } from './resolveTaskImageDisplay'
 
@@ -23,8 +24,8 @@ export function resolveLightboxCompareTarget(
       : task.inputImageIds[0]
     return {
       compareImageId,
-      primaryLabel: '生成图',
-      compareLabel: '参考图',
+      primaryLabel: t("生成图"),
+      compareLabel: t("参考图"),
     }
   }
 
@@ -34,8 +35,8 @@ export function resolveLightboxCompareTarget(
     const compareImageId = task.outputImages[Math.min(inputIndex, task.outputImages.length - 1)]
     return {
       compareImageId,
-      primaryLabel: '参考图',
-      compareLabel: '生成图',
+      primaryLabel: t("参考图"),
+      compareLabel: t("生成图"),
     }
   }
 

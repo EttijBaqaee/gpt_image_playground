@@ -1,3 +1,5 @@
+import { normalizeImageExtensions } from "../lib/imageCapabilities.js"
+import { deduplicateStoredInputImages } from '../lib/inputImageStorage.js'
 import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -120,6 +122,15 @@ function normalizeProviderProxyFields<T extends { proxyEnabled?: boolean; proxyU
   }
 }
 
+const imageExtensionsSchema = z.object({
+  enabled: z.boolean().default(false),
+  models: z.record(z.string().min(1).max(256), z.object({
+    complexity: z.boolean().optional(), extendedQuality: z.boolean().optional(),
+    markup: z.boolean().optional(), svg: z.boolean().optional(), gif: z.boolean().optional(),
+    svgModelSelection: z.boolean().optional(), gifMaxFrames: z.number().int().min(2).max(64).optional(),
+  })).refine(value => Object.keys(value).length <= 64).default({}),
+}).optional()
+
 const providerProfileSchema = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(1),
@@ -141,6 +152,7 @@ const providerProfileSchema = z.object({
   apiMode: z.enum(['images', 'responses', 'videos', 'venice_images', 'wavespeed', 'kie']),
   timeoutSeconds: z.coerce.number().int().positive().max(1800),
   codexCli: z.boolean().default(false),
+  imageExtensions: imageExtensionsSchema,
   grokApiCompat: z.boolean().default(false),
   xaiImage2kEnabled: z.boolean().default(false),
   responseFormatB64Json: z.boolean().default(false),
@@ -165,6 +177,7 @@ const runtimeSettingsSchemaBase = z.object({
   apiMode: z.enum(['images', 'responses', 'videos', 'venice_images', 'wavespeed', 'kie']),
   timeoutSeconds: z.coerce.number().int().positive().max(1800),
   codexCli: z.boolean().default(false),
+  imageExtensions: imageExtensionsSchema,
   grokApiCompat: z.boolean().default(false),
   xaiImage2kEnabled: z.boolean().default(false),
   responseFormatB64Json: z.boolean().default(false),
@@ -274,6 +287,7 @@ const fullBackupProviderProfileSchema = z.object({
   apiMode: z.enum(['images', 'responses', 'videos', 'venice_images', 'wavespeed', 'kie']),
   timeoutSeconds: z.number().int().positive(),
   codexCli: z.boolean(),
+  imageExtensions: imageExtensionsSchema,
   grokApiCompat: z.boolean(),
   xaiImage2kEnabled: z.boolean(),
   responseFormatB64Json: z.boolean(),
@@ -1083,6 +1097,7 @@ function serializeProfile(app: Parameters<FastifyPluginAsync>[0], profile: Provi
     apiMode: profile.apiMode,
     timeoutSeconds: profile.timeoutSeconds,
     codexCli: Boolean(profile.codexCli),
+    imageExtensions: normalizeImageExtensions(profile.imageExtensions),
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
@@ -1125,6 +1140,7 @@ function serializeProviderOption(profile: ProviderProfileRecord) {
     autoAspectFromReference: profile.autoAspectFromReference !== 0,
     timeoutSeconds: profile.timeoutSeconds,
     codexCli: Boolean(profile.codexCli),
+    imageExtensions: normalizeImageExtensions(profile.imageExtensions),
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
@@ -1686,6 +1702,7 @@ function buildFullBackupManifest(app: Parameters<FastifyPluginAsync>[0]) {
     apiMode: profile.apiMode,
     timeoutSeconds: profile.timeoutSeconds,
     codexCli: Boolean(profile.codexCli),
+    imageExtensions: normalizeImageExtensions(profile.imageExtensions),
     grokApiCompat: Boolean(profile.grokApiCompat),
     xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
     responseFormatB64Json: Boolean(profile.responseFormatB64Json),
@@ -2994,6 +3011,7 @@ function buildLegacyImportPayload(app: Parameters<FastifyPluginAsync>[0], payloa
     apiMode: payload.runtimeSettings.apiMode,
     timeoutSeconds: payload.runtimeSettings.timeoutSeconds,
     codexCli: payload.runtimeSettings.codexCli ? 1 : 0,
+    imageExtensions: normalizeImageExtensions(payload.runtimeSettings.imageExtensions),
     grokApiCompat: payload.runtimeSettings.grokApiCompat ? 1 : 0,
     xaiImage2kEnabled: payload.runtimeSettings.xaiImage2kEnabled ? 1 : 0,
     responseFormatB64Json: payload.runtimeSettings.responseFormatB64Json ? 1 : 0,
@@ -3168,6 +3186,7 @@ function buildParsedPayloadFromFullManifest(
       apiMode: profile.apiMode,
       timeoutSeconds: profile.timeoutSeconds,
       codexCli: profile.codexCli ? 1 : 0,
+      imageExtensions: normalizeImageExtensions(profile.imageExtensions),
       grokApiCompat: profile.grokApiCompat ? 1 : 0,
       xaiImage2kEnabled: profile.xaiImage2kEnabled ? 1 : 0,
       responseFormatB64Json: profile.responseFormatB64Json ? 1 : 0,
@@ -3614,6 +3633,8 @@ async function restoreParsedBackupToServer(
       progressPercent: getRestoreProgressPercent('database', 0),
     })
     app.db.replaceFullBackup(parsed.payload)
+    const inputStorage = await deduplicateStoredInputImages(app.db, app.config.mediaDir)
+    app.log.info(inputStorage, '已检查备份恢复的输入图并合并重复文件')
     patchBackupJobState(app, {
       message: '正在写入数据库',
       progressPercent: getRestoreProgressPercent('database', 1),
@@ -3681,6 +3702,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
         apiMode: profile.apiMode,
         timeoutSeconds: profile.timeoutSeconds,
         codexCli: Boolean(profile.codexCli),
+        imageExtensions: normalizeImageExtensions(profile.imageExtensions),
         grokApiCompat: Boolean(profile.grokApiCompat),
         xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
         responseFormatB64Json: Boolean(profile.responseFormatB64Json),
@@ -3718,6 +3740,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: profile.apiMode,
       timeoutSeconds: profile.timeoutSeconds,
       codexCli: Boolean(profile.codexCli),
+      imageExtensions: normalizeImageExtensions(profile.imageExtensions),
       grokApiCompat: Boolean(profile.grokApiCompat),
       xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
       responseFormatB64Json: Boolean(profile.responseFormatB64Json),
@@ -3752,6 +3775,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: payload.apiMode,
       timeoutSeconds: payload.timeoutSeconds,
       codexCli: payload.codexCli,
+      imageExtensions: payload.imageExtensions,
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
@@ -3803,6 +3827,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? '',
       publicReferenceVerification: isPublicReferenceVerified(app.config, profile) ? profile.publicReferenceVerification : '',
       codexCli: Boolean(profile.codexCli),
+      imageExtensions: normalizeImageExtensions(profile.imageExtensions),
       grokApiCompat: Boolean(profile.grokApiCompat),
       xaiImage2kEnabled: Boolean(profile.xaiImage2kEnabled),
       videoMaxResolution: profile.videoMaxResolution,
@@ -3914,6 +3939,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: payload.apiMode,
       timeoutSeconds: payload.timeoutSeconds,
       codexCli: payload.codexCli,
+      imageExtensions: payload.imageExtensions,
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
@@ -3964,6 +3990,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: payload.apiMode,
       timeoutSeconds: payload.timeoutSeconds,
       codexCli: payload.codexCli,
+      imageExtensions: payload.imageExtensions,
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,
@@ -4031,6 +4058,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
       apiMode: payload.apiMode,
       timeoutSeconds: payload.timeoutSeconds,
       codexCli: payload.codexCli,
+      imageExtensions: payload.imageExtensions,
       grokApiCompat: payload.grokApiCompat,
       xaiImage2kEnabled: payload.xaiImage2kEnabled,
       responseFormatB64Json: payload.responseFormatB64Json,

@@ -151,7 +151,7 @@ export const publicReferenceRoutes: FastifyPluginAsync = async app => {
         }
       } finally { await reader.cancel().catch(() => {}) }
       if (!Buffer.concat(chunks).equals(bytes)) throw new Error('公网地址返回的图片与本次检测不一致')
-      return { publicReferenceBaseUrl: origin, publicReferenceVerification: publicReferenceVerification(app.config, origin), message: '公网图片访问检测通过' }
+      return { publicReferenceBaseUrl: origin, publicReferenceVerification: publicReferenceVerification(app.config, origin), message: '当前服务器图片访问检测通过' }
     } catch (error) {
       return reply.code(400).send({ message: `检测失败：${error instanceof Error ? error.message : '无法访问公网图片'}。请确认反代保留参考图路径和查询参数，且无需额外登录。` })
     } finally { probes.delete(nonce) }

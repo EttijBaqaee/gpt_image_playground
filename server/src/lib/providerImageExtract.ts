@@ -1,3 +1,4 @@
+import { prepareImageOutput } from './imageOutput.js'
 import { fetchWithProviderProxy } from './upstreamFetch.js'
 
 export type GeneratedImageResult = {
@@ -315,7 +316,7 @@ export async function parseProviderImageJsonResponse(response: Response, context
     json = JSON.parse(rawText) as unknown
   } catch {
     if (looksLikeBase64Image(rawText)) {
-      return [normalizeBase64Image(rawText)]
+      return [prepareImageOutput(normalizeBase64Image(rawText))]
     }
     const preview = rawText.slice(0, 180).replace(/\s+/g, ' ')
     throw new Error(`${context}：响应不是合法 JSON（可能被截断）。预览=${preview}`)
@@ -338,5 +339,5 @@ export async function parseProviderImageJsonResponse(response: Response, context
   if (!images.length) {
     throw new Error(`接口未返回图片数据：响应中缺少 b64_json/result（${context}；${summarizeResponseForError(json)}）`)
   }
-  return images.map(({ buffer, mimeType }) => ({ buffer, mimeType }))
+  return images.map(({ buffer, mimeType }) => prepareImageOutput({ buffer, mimeType }))
 }

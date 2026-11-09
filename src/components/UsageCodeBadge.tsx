@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { TaskRecord } from '../types'
@@ -42,9 +43,9 @@ export default function UsageCodeBadge({ task }: { task: TaskRecord }) {
     if (!copyText) return
     try {
       await copyTextToClipboard(copyText)
-      showToast('分发码已复制', 'success')
+      showToast(t("分发码已复制"), 'success')
     } catch (err) {
-      showToast(getClipboardFailureMessage('复制分发码失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制分发码失败"), err), 'error')
     }
   }
 
@@ -53,7 +54,7 @@ export default function UsageCodeBadge({ task }: { task: TaskRecord }) {
       <button
         ref={buttonRef}
         type="button"
-        title="点击复制分发码"
+        title={t("点击复制分发码")}
         onClick={(event) => {
           event.stopPropagation()
           void handleCopy()

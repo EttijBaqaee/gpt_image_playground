@@ -1,3 +1,4 @@
+import { normalizeImageExtensions, type ImageExtensionsConfig } from "./imageCapabilities.js"
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -17,6 +18,7 @@ export interface ProviderProfileRecord {
   apiMode: 'images' | 'responses' | 'videos' | 'venice_images' | 'wavespeed' | 'kie'
   timeoutSeconds: number
   codexCli: number
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: number
   xaiImage2kEnabled: number
   responseFormatB64Json: number
@@ -753,7 +755,7 @@ export class AppDatabase {
     if (!profileColumnNames.has('grok_api_compat')) {
       this.sqlite.exec('ALTER TABLE provider_profiles ADD COLUMN grok_api_compat INTEGER NOT NULL DEFAULT 0')
     }
-    for (const [name, type] of [['public_reference_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['public_reference_base_url', 'TEXT'], ['public_reference_verification', 'TEXT']]) {
+    for (const [name, type] of [['image_extensions_json', 'TEXT'], ['public_reference_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['public_reference_base_url', 'TEXT'], ['public_reference_verification', 'TEXT']]) {
       if (!profileColumnNames.has(name)) this.sqlite.exec(`ALTER TABLE provider_profiles ADD COLUMN ${name} ${type}`)
     }
     if (!profileColumnNames.has('response_format_b64_json')) {
@@ -968,6 +970,7 @@ export class AppDatabase {
       }).immediate()
     }
     this.sqlite.exec('CREATE INDEX IF NOT EXISTS idx_task_images_order ON task_images(task_id, sort_order)')
+    this.sqlite.exec("CREATE INDEX IF NOT EXISTS idx_task_images_input_hash ON task_images(sha256, bytes) WHERE kind IN ('input', 'video_input')")
     const usageQuotaEventColumns = this.sqlite.prepare('PRAGMA table_info(usage_quota_events)').all() as Array<{ name: string }>
     const usageQuotaEventColumnNames = new Set(usageQuotaEventColumns.map((column) => column.name))
     if (!usageQuotaEventColumnNames.has('provider_profile_id')) {
@@ -1066,6 +1069,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
           public_reference_enabled as publicReferenceEnabled,
@@ -1092,12 +1096,13 @@ export class AppDatabase {
         FROM provider_profiles
         ORDER BY is_default DESC, updated_at DESC
       `)
-      .all() as Array<ProviderProfileRecord & { modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }>
+      .all() as Array<ProviderProfileRecord & { imageExtensionsJson: string | null; modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }>
     return rows.map((row) => {
-      const { modelOptionsJson, videoResolutionOptionsJson, videoDurationOptionsJson, ...rest } = row
+      const { modelOptionsJson, imageExtensionsJson, videoResolutionOptionsJson, videoDurationOptionsJson, ...rest } = row
       return {
         ...rest,
         modelOptions: parseProviderModelOptions(modelOptionsJson, rest.apiMode),
+        imageExtensions: normalizeImageExtensions(imageExtensionsJson ? JSON.parse(imageExtensionsJson) : null),
         videoResolutionOptions: parseVideoResolutionOptions(videoResolutionOptionsJson, rest.videoMaxResolution),
         videoDurationOptions: parseVideoDurationOptions(videoDurationOptionsJson, rest.videoMaxDuration),
       }
@@ -1120,6 +1125,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
           public_reference_enabled as publicReferenceEnabled,
@@ -1146,11 +1152,12 @@ export class AppDatabase {
         FROM provider_profiles
         WHERE id = ?
       `)
-      .get(id) as (ProviderProfileRecord & { modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }) | undefined
+      .get(id) as (ProviderProfileRecord & { imageExtensionsJson: string | null; modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }) | undefined
     if (!row) return undefined
     return {
       ...row,
       modelOptions: parseProviderModelOptions(row.modelOptionsJson, row.apiMode),
+      imageExtensions: normalizeImageExtensions(row.imageExtensionsJson ? JSON.parse(row.imageExtensionsJson) : null),
       videoResolutionOptions: parseVideoResolutionOptions(row.videoResolutionOptionsJson, row.videoMaxResolution),
       videoDurationOptions: parseVideoDurationOptions(row.videoDurationOptionsJson, row.videoMaxDuration),
     }
@@ -1172,6 +1179,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
           public_reference_enabled as publicReferenceEnabled,
@@ -1199,11 +1207,12 @@ export class AppDatabase {
         WHERE is_default = 1
         LIMIT 1
       `)
-      .get() as (ProviderProfileRecord & { modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }) | undefined
+      .get() as (ProviderProfileRecord & { imageExtensionsJson: string | null; modelOptionsJson: string | null; videoResolutionOptionsJson: string | null; videoDurationOptionsJson: string | null }) | undefined
     if (!row) return undefined
     return {
       ...row,
       modelOptions: parseProviderModelOptions(row.modelOptionsJson, row.apiMode),
+      imageExtensions: normalizeImageExtensions(row.imageExtensionsJson ? JSON.parse(row.imageExtensionsJson) : null),
       videoResolutionOptions: parseVideoResolutionOptions(row.videoResolutionOptionsJson, row.videoMaxResolution),
       videoDurationOptions: parseVideoDurationOptions(row.videoDurationOptionsJson, row.videoMaxDuration),
     }
@@ -1221,6 +1230,7 @@ export class AppDatabase {
     apiMode: 'images' | 'responses' | 'videos' | 'venice_images' | 'wavespeed' | 'kie'
     timeoutSeconds: number
     codexCli?: boolean
+    imageExtensions?: ImageExtensionsConfig
     grokApiCompat?: boolean
     xaiImage2kEnabled?: boolean
     responseFormatB64Json?: boolean
@@ -1271,6 +1281,7 @@ export class AppDatabase {
           timeout_seconds,
           codex_cli,
           grok_api_compat,
+          image_extensions_json,
           xai_image_2k_enabled,
           response_format_b64_json,
           public_reference_enabled,
@@ -1308,6 +1319,7 @@ export class AppDatabase {
           @timeoutSeconds,
           @codexCli,
           @grokApiCompat,
+          @imageExtensionsJson,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
           @publicReferenceEnabled,
@@ -1344,6 +1356,7 @@ export class AppDatabase {
           timeout_seconds = excluded.timeout_seconds,
           codex_cli = excluded.codex_cli,
           grok_api_compat = excluded.grok_api_compat,
+          image_extensions_json = excluded.image_extensions_json,
           xai_image_2k_enabled = excluded.xai_image_2k_enabled,
           response_format_b64_json = excluded.response_format_b64_json,
           public_reference_enabled = excluded.public_reference_enabled,
@@ -1373,6 +1386,7 @@ export class AppDatabase {
         modelOptionsJson: serializeProviderModelOptions(input.model, input.modelOptions, input.apiMode),
         codexCli: input.codexCli ? 1 : 0,
         grokApiCompat: input.grokApiCompat ? 1 : 0,
+        imageExtensionsJson: JSON.stringify(normalizeImageExtensions(input.imageExtensions ?? (current?.baseUrl === input.baseUrl ? current?.imageExtensions : undefined))),
         xaiImage2kEnabled: input.xaiImage2kEnabled ? 1 : 0,
         responseFormatB64Json: input.responseFormatB64Json ? 1 : 0,
         publicReferenceEnabled: publicReferenceEnabled ? 1 : 0,
@@ -3794,6 +3808,7 @@ ${selectUsageCodeFields()}
           timeout_seconds,
           codex_cli,
           grok_api_compat,
+          image_extensions_json,
           xai_image_2k_enabled,
           response_format_b64_json,
           public_reference_enabled,
@@ -3831,6 +3846,7 @@ ${selectUsageCodeFields()}
           @timeoutSeconds,
           @codexCli,
           @grokApiCompat,
+          @imageExtensionsJson,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
           @publicReferenceEnabled,
@@ -4056,6 +4072,7 @@ ${selectUsageCodeFields()}
         insertProviderProfile.run({
           ...profile,
           remarkName: profile.remarkName ?? null,
+          imageExtensionsJson: JSON.stringify(normalizeImageExtensions(profile.imageExtensions)),
           publicReferenceEnabled: profile.publicReferenceEnabled ?? 0,
           publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? null,
           publicReferenceVerification: profile.publicReferenceVerification ?? null,
@@ -4207,6 +4224,28 @@ ${selectUsageCodeFields()}
     })
 
     tx()
+  }
+
+  listStoredInputImages() {
+    return this.sqlite.prepare(`
+      SELECT id, file_path as filePath, sha256, bytes FROM task_images
+      WHERE kind IN ('input', 'video_input') ORDER BY created_at, rowid
+    `).all() as Array<{ id: string; filePath: string; sha256: string; bytes: number }>
+  }
+
+  findInputImagePaths(sha256: string, bytes: number) {
+    return (this.sqlite.prepare(`
+      SELECT file_path as filePath FROM task_images
+      WHERE kind IN ('input', 'video_input') AND sha256 = ? AND bytes = ?
+      ORDER BY created_at, rowid
+    `).all(sha256, bytes) as Array<{ filePath: string }>).map(image => image.filePath)
+  }
+
+  updateInputImageFingerprint(id: string, filePath: string, sha256: string, bytes: number) {
+    this.sqlite.prepare(`
+      UPDATE task_images SET sha256 = ?, bytes = ?
+      WHERE id = ? AND file_path = ? AND kind IN ('input', 'video_input') AND (sha256 != ? OR bytes != ?)
+    `).run(sha256, bytes, id, filePath, sha256, bytes)
   }
 
   listTaskImages(taskId: string) {

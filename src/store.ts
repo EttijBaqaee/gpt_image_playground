@@ -1,3 +1,5 @@
+import { compatibleImageDraft, resolveImageCapabilities, imageExtensionError } from '../server/src/lib/imageCapabilities'
+import { t } from './lib/i18n'
 import { appUrl } from './lib/appUrl'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -497,6 +499,7 @@ export const useStore = create<AppState>()(
               ? s.apiMode
               : st.settings.apiMode ?? DEFAULT_SETTINGS.apiMode,
           codexCli: s.codexCli ?? st.settings.codexCli ?? DEFAULT_SETTINGS.codexCli,
+          imageExtensions: 'imageExtensions' in s ? s.imageExtensions : st.settings.imageExtensions,
           grokApiCompat: s.grokApiCompat ?? st.settings.grokApiCompat ?? DEFAULT_SETTINGS.grokApiCompat,
           responseFormatB64Json:
             s.responseFormatB64Json ?? st.settings.responseFormatB64Json ?? DEFAULT_SETTINGS.responseFormatB64Json,
@@ -551,7 +554,7 @@ export const useStore = create<AppState>()(
       addInputImage: (img) =>
         set((s) => {
           if (s.isSubmittingTask) return s
-          if (s.inputImages.find((i) => i.id === img.id)) return s
+          if (s.inputImages.some((i) => i.id === img.id || (img.dataUrl && i.dataUrl === img.dataUrl))) return s
           return { inputImages: [...s.inputImages, img] }
         }),
       removeInputImage: (idx) =>
@@ -853,16 +856,16 @@ export function getCodexCliPromptKey(settings: AppSettings): string {
   return `${settings.baseUrl}\n${settings.apiKey}`
 }
 
-export function showCodexCliPrompt(force = false, reason = '接口返回的提示词已被改写') {
+export function showCodexCliPrompt(force = false, reason = t("接口返回的提示词已被改写")) {
   const state = useStore.getState()
   const settings = state.settings
   const promptKey = getCodexCliPromptKey(settings)
   if (!force && (settings.codexCli || state.dismissedCodexCliPrompts.includes(promptKey))) return
 
   state.setConfirmDialog({
-    title: '检测到 Codex CLI API',
-    message: `${reason}，当前 API 来源很可能是 Codex CLI。\n\n是否开启 Codex CLI 兼容模式？开启后会禁用在此处无效的质量参数，并在 Images API 多图生成时使用并发请求，解决该 API 数量参数无效的问题。同时，提示词文本开头会加入简短的不改写要求，避免模型重写提示词，偏离原意。`,
-    confirmText: '开启',
+    title: t("检测到 Codex CLI API"),
+    message: t("{0}，当前 API 来源很可能是 Codex CLI。\n\n是否开启 Codex CLI 兼容模式？开启后会禁用在此处无效的质量参数，并在 Images API 多图生成时使用并发请求，解决该 API 数量参数无效的问题。同时，提示词文本开头会加入简短的不改写要求，避免模型重写提示词，偏离原意。", reason),
+    confirmText: t("开启"),
     action: () => {
       const state = useStore.getState()
       state.dismissCodexCliPrompt(promptKey)
@@ -915,7 +918,7 @@ export async function initStore() {
       usageCodes: [],
     })
     useStore.getState().showToast(
-      `读取登录状态失败：${err instanceof Error ? err.message : String(err)}`,
+      t("读取登录状态失败：{0}", err instanceof Error ? err.message : String(err)),
       'error',
     )
   } finally {
@@ -944,6 +947,7 @@ export async function initStore() {
         apiMode: runtimeSettings.apiMode,
         timeout: runtimeSettings.timeoutSeconds,
         codexCli: runtimeSettings.codexCli,
+        imageExtensions: runtimeSettings.imageExtensions,
         grokApiCompat: runtimeSettings.grokApiCompat,
         responseFormatB64Json: runtimeSettings.responseFormatB64Json,
         clearInputAfterSubmit: runtimeSettings.clearInputAfterSubmit,
@@ -955,7 +959,7 @@ export async function initStore() {
     }
   } catch (err) {
     useStore.getState().showToast(
-      `读取后端运行设置失败：${err instanceof Error ? err.message : String(err)}`,
+      t("读取后端运行设置失败：{0}", err instanceof Error ? err.message : String(err)),
       'error',
     )
   }
@@ -964,7 +968,7 @@ export async function initStore() {
     await refreshTasksFromServer({ silent: true })
   } catch (err) {
     useStore.getState().showToast(
-      `读取后端任务失败：${err instanceof Error ? err.message : String(err)}`,
+      t("读取后端任务失败：{0}", err instanceof Error ? err.message : String(err)),
       'error',
     )
   }
@@ -987,7 +991,7 @@ export async function refreshAuthStatus(options: { silent?: boolean } = {}) {
   } catch (err) {
     if (!options.silent) {
       useStore.getState().showToast(
-        `刷新登录状态失败：${err instanceof Error ? err.message : String(err)}`,
+        t("刷新登录状态失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }
@@ -1022,7 +1026,7 @@ export async function submitTask(options: { allowFullMask?: boolean; usageCodeId
   const state = useStore.getState()
   if (state.isSubmittingTask) return
   if (state.pendingInputImages > 0 || state.inputImages.some((image) => !image.dataUrl)) {
-    state.showToast('参考图仍在读取或处理，请等待完成后再提交', 'info')
+    state.showToast(t("参考图仍在读取或处理，请等待完成后再提交"), 'info')
     return
   }
   useStore.setState({ isSubmittingTask: true })
@@ -1038,19 +1042,19 @@ async function submitTaskSnapshot(options: { allowFullMask?: boolean; usageCodeI
     useStore.getState()
 
   if (!settings.providerProfileId) {
-    showToast(taskMode === 'video' ? '请先在设置中完成视频 API 配置' : '请先在设置中完成图片 API 配置', 'error')
+    showToast(taskMode === 'video' ? t("请先在设置中完成视频 API 配置") : t("请先在设置中完成图片 API 配置"), 'error')
     useStore.getState().setShowSettings(true)
     return
   }
 
   if (!prompt.trim()) {
-    showToast('请输入提示词', 'error')
+    showToast(t("请输入提示词"), 'error')
     return
   }
 
   if (taskMode === 'image' && (settings.apiMode === 'venice_images' || settings.apiMode === 'wavespeed' || settings.apiMode === 'kie') && inputImages.length > 3) {
     const providerLabel = settings.apiMode === 'wavespeed' ? 'WaveSpeed' : settings.apiMode === 'kie' ? 'Kie' : 'Venice'
-    showToast(`当前 ${providerLabel} 最多支持 3 张参考图`, 'error')
+    showToast(t("当前 {0} 最多支持 3 张参考图", providerLabel), 'error')
     return
   }
 
@@ -1061,12 +1065,12 @@ async function submitTaskSnapshot(options: { allowFullMask?: boolean; usageCodeI
   if (taskMode === 'image' && maskDraft) {
     try {
       orderedInputImages = orderInputImagesForMask(inputImages, maskDraft.targetImageId)
-      const coverage = await validateMaskMatchesImage(maskDraft.maskDataUrl, orderedInputImages[0].dataUrl)
+      const coverage = maskDraft.kind === 'markup' ? 'partial' : await validateMaskMatchesImage(maskDraft.maskDataUrl, orderedInputImages[0].dataUrl)
       if (coverage === 'full' && !options.allowFullMask) {
         setConfirmDialog({
-          title: '确认编辑整张图片？',
-          message: '当前遮罩覆盖了整张图片，提交后可能会重绘全部内容。是否继续？',
-          confirmText: '继续提交',
+          title: t("确认编辑整张图片？"),
+          message: t("当前遮罩覆盖了整张图片，提交后可能会重绘全部内容。是否继续？"),
+          confirmText: t("继续提交"),
           tone: 'warning',
           action: () => {
             void submitTask({ allowFullMask: true, usageCodeId: options.usageCodeId })
@@ -1092,18 +1096,24 @@ async function submitTaskSnapshot(options: { allowFullMask?: boolean; usageCodeI
   }
 
   const normalizedParams = {
-    ...params,
+    ...compatibleImageDraft(params, resolveImageCapabilities(settings), inputImages.length > 0),
+    annotation_mode: taskMode === 'image' && maskDraft?.kind === 'markup' ? 'markup' as const : undefined,
     size: normalizeImageSize(params.size) || DEFAULT_PARAMS.size,
-    quality: settings.codexCli ? DEFAULT_PARAMS.quality : params.quality,
+    ...(settings.codexCli ? { quality: DEFAULT_PARAMS.quality } : {}),
   }
   if (normalizedParams.size !== params.size || normalizedParams.quality !== params.quality) {
     useStore.getState().setParams({ size: normalizedParams.size, quality: normalizedParams.quality })
   }
 
+  if (taskMode === 'image') {
+    const error = imageExtensionError(normalizedParams, settings, inputImages.length, Boolean(maskDraft))
+    if (error) { showToast(t(error), 'error'); return }
+  }
+
   try {
     const inputDataUrls: string[] = []
     for (const img of orderedInputImages) {
-      const prepared = await prepareInputImageDataUrl(img.dataUrl)
+      const prepared = maskDraft && img.id === maskDraft.targetImageId ? { dataUrl: img.dataUrl } : await prepareInputImageDataUrl(img.dataUrl)
       inputDataUrls.push(prepared.dataUrl)
     }
     const result = await createBackendTask({
@@ -1125,14 +1135,14 @@ async function submitTaskSnapshot(options: { allowFullMask?: boolean; usageCodeI
       usageCodeId: options.usageCodeId,
     })
     const task = result.task
-    await cacheSubmittedTaskImages(task, orderedInputImages, taskMode === 'image' ? maskDraft?.maskDataUrl : undefined)
+    await cacheSubmittedTaskImages(task, orderedInputImages.map((image, index) => ({ ...image, dataUrl: inputDataUrls[index] })), taskMode === 'image' ? maskDraft?.maskDataUrl : undefined)
     if (result.auth) {
       useStore.getState().setAuthStatus(result.auth)
     }
 
     const latestTasks = useStore.getState().tasks
     useStore.getState().setTasks(sortTasksForDisplay([task, ...latestTasks.filter((item) => item.id !== task.id)]))
-    useStore.getState().showToast('任务已提交到后端队列', 'success')
+    useStore.getState().showToast(t("任务已提交到后端队列"), 'success')
     if (settings.clearInputAfterSubmit) {
       useStore.setState({ isSubmittingTask: false })
       useStore.getState().setPrompt('')
@@ -1162,7 +1172,7 @@ export function updateTaskInStore(taskId: string, patch: Partial<TaskRecord>) {
       ...('isFavorite' in normalizedPatch ? { isFavorite: normalizedPatch.isFavorite } : {}),
       ...('isArchived' in normalizedPatch ? { isArchived: normalizedPatch.isArchived } : {}),
     }).catch((err) => {
-      showToast(`同步任务状态失败：${err instanceof Error ? err.message : String(err)}`, 'error')
+      showToast(t("同步任务状态失败：{0}", err instanceof Error ? err.message : String(err)), 'error')
       void refreshTasksFromServer({ silent: true })
     })
   }
@@ -1170,57 +1180,80 @@ export function updateTaskInStore(taskId: string, patch: Partial<TaskRecord>) {
 
 /** 复用配置 */
 export async function reuseConfig(task: TaskRecord) {
-  const { setPrompt, setParams, setInputImages, setMaskDraft, clearMaskDraft, showToast, setTaskMode, setVideoAspectRatio } = useStore.getState()
-  setPrompt(task.prompt)
-  if (task.taskType === 'video') {
-    setTaskMode('video')
-    setVideoAspectRatio((task.params as VideoTaskParams).aspect_ratio ?? DEFAULT_VIDEO_PARAMS.aspect_ratio)
-  } else {
-    setTaskMode('image')
-    setParams(task.params as TaskParams)
+  if (useStore.getState().isSubmittingTask) return
+  // A new reuse replaces the draft. Cancel older imports/reuse requests, but
+  // keep the current draft intact until every reference and mask is ready.
+  inputImageImportEpoch++
+  useStore.setState({ pendingInputImages: 0 })
+  try {
+    await trackInputImageOperation(async (epoch) => {
+      const imgs: InputImage[] = []
+      const inputIds: Record<string, string> = {}
+      for (const imgId of task.inputImageIds) {
+        const dataUrl = await loadTaskImageDataUrl(task, imgId)
+        if (!dataUrl) throw new Error(t("参考图不存在，无法复用配置"))
+        // Task IDs belong to the server; draft IDs identify image content.
+        // Preserve the bytes, especially for a reference paired with a mask.
+        const contentId = await storeImage(dataUrl)
+        // Keep explicit repeated references in older tasks in their original
+        // positions; do not change the meaning of numbered prompt references.
+        const id = imgs.some((image) => image.id === contentId) ? imgId : contentId
+        cacheImage(id, dataUrl)
+        inputIds[imgId] = id
+        imgs.push({ id, dataUrl })
+        if (epoch !== inputImageImportEpoch) return
+      }
+      const maskTargetId = task.maskTargetImageId ?? (task.maskImageId ? task.inputImageIds[0] : null)
+      let maskDraft: MaskDraft | null = null
+      if (maskTargetId && task.maskImageId && inputIds[maskTargetId]) {
+        const maskDataUrl = await loadTaskImageDataUrl(task, task.maskImageId)
+        if (!maskDataUrl) throw new Error(t("遮罩不存在，无法复用配置"))
+        maskDraft = {
+          ...(task.params && 'annotation_mode' in task.params && task.params.annotation_mode === 'markup' ? { kind: 'markup' as const } : {}),
+          targetImageId: inputIds[maskTargetId], maskDataUrl, updatedAt: Date.now(),
+        }
+      }
+      if (epoch !== inputImageImportEpoch) return
+      const state = useStore.getState()
+      state.setInputImages(imgs)
+      state.clearMaskDraft()
+      if (maskDraft) state.setMaskDraft(maskDraft)
+      if (task.taskType === 'video') {
+        state.setTaskMode('video')
+        state.setVideoAspectRatio((task.params as VideoTaskParams).aspect_ratio ?? DEFAULT_VIDEO_PARAMS.aspect_ratio)
+      } else {
+        state.setTaskMode('image')
+        useStore.setState({ params: { ...DEFAULT_PARAMS, ...task.params as TaskParams } })
+      }
+      state.setPrompt(task.prompt)
+      state.showToast(t("已复用配置到输入框"), 'success')
+    })
+  } catch (error) {
+    useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error')
   }
-
-  // 恢复输入图片
-  const imgs: InputImage[] = []
-  for (const imgId of task.inputImageIds) {
-    const dataUrl = await loadTaskImageDataUrl(task, imgId)
-    if (dataUrl) imgs.push({ id: imgId, dataUrl })
-  }
-  setInputImages(imgs)
-  const maskTargetImageId = task.maskTargetImageId ?? (task.maskImageId ? task.inputImageIds[0] : null)
-  if (maskTargetImageId && task.maskImageId && imgs.some((img) => img.id === maskTargetImageId)) {
-    const maskDataUrl = await loadTaskImageDataUrl(task, task.maskImageId)
-    if (maskDataUrl) {
-      setMaskDraft({
-        targetImageId: maskTargetImageId,
-        maskDataUrl,
-        updatedAt: Date.now(),
-      })
-    } else {
-      clearMaskDraft()
-    }
-  } else {
-    clearMaskDraft()
-  }
-  showToast('已复用配置到输入框', 'success')
 }
 
 /** 编辑输出：将输出图加入输入 */
 export async function editOutputs(task: TaskRecord) {
-  const { inputImages, addInputImage, clearMaskDraft, showToast } = useStore.getState()
-  if (!task.outputImages?.length) return
-
-  clearMaskDraft()
-  let added = 0
-  for (const imgId of task.outputImages) {
-    if (inputImages.find((i) => i.id === imgId)) continue
-    const dataUrl = await loadTaskImageDataUrl(task, imgId)
-    if (dataUrl) {
-      addInputImage({ id: imgId, dataUrl })
-      added++
-    }
+  if (!task.outputImages?.length || useStore.getState().isSubmittingTask) return
+  try {
+    await trackInputImageOperation(async (epoch) => {
+      useStore.getState().clearMaskDraft()
+      let added = 0
+      for (const imgId of task.outputImages) {
+        const dataUrl = await loadTaskImageDataUrl(task, imgId)
+        if (!dataUrl) throw new Error(t("参考图不存在，无法复用配置"))
+        const image = await storePreparedInputImage(dataUrl)
+        if (epoch !== inputImageImportEpoch) return
+        const before = useStore.getState().inputImages.length
+        useStore.getState().addInputImage(image)
+        added += useStore.getState().inputImages.length - before
+      }
+      useStore.getState().showToast(t("已添加 {0} 张输出图到输入", added), 'success')
+    })
+  } catch (error) {
+    useStore.getState().showToast(error instanceof Error ? error.message : String(error), 'error')
   }
-  showToast(`已添加 ${added} 张输出图到输入`, 'success')
 }
 
 /** 删除多条任务 */
@@ -1279,7 +1312,7 @@ export async function removeMultipleTasks(taskIds: string[]) {
     useStore.getState().setSelectedTaskIds(newSelection)
   }
 
-  showToast(`已删除 ${taskIds.length} 条记录`, 'success')
+  showToast(t("已删除 {0} 条记录", taskIds.length), 'success')
 }
 
 /** 删除单条任务 */
@@ -1324,7 +1357,7 @@ export async function removeTask(task: TaskRecord) {
     }
   }
 
-  showToast('记录已删除', 'success')
+  showToast(t("记录已删除"), 'success')
 }
 
 /** 清空所有数据（含配置重置） */
@@ -1345,7 +1378,7 @@ export async function clearAllData(options: { silent?: boolean } = {}) {
   setSettings({ ...DEFAULT_SETTINGS })
   setParams({ ...DEFAULT_PARAMS })
   if (!options.silent) {
-    showToast('所有数据已清空', 'success')
+    showToast(t("所有数据已清空"), 'success')
   }
 }
 
@@ -1370,7 +1403,7 @@ export async function clearLocalTaskCache(options: { silent?: boolean } = {}) {
   setLightboxStartEditor(false)
 
   if (!options.silent) {
-    showToast('本地任务缓存已清空', 'success')
+    showToast(t("本地任务缓存已清空"), 'success')
   }
 }
 
@@ -1379,7 +1412,10 @@ async function storePreparedInputImage(
   options?: { notifyCompression?: boolean },
 ): Promise<{ id: string; dataUrl: string }> {
   const prepared = await prepareInputImageDataUrl(dataUrl)
-  const id = await storeImage(prepared.dataUrl)
+  // Older persisted drafts may still carry a server ID. Keep their identity
+  // when adding the same bytes, so callers receive the ID actually in use.
+  const existing = useStore.getState().inputImages.find((image) => image.dataUrl === prepared.dataUrl)
+  const id = existing?.id ?? await storeImage(prepared.dataUrl)
   cacheImage(id, prepared.dataUrl)
   if (options?.notifyCompression !== false) {
     const message = formatInputImageCompressionMessage(prepared)
@@ -1444,9 +1480,9 @@ export async function addInputImageWithDataUrl(dataUrl: string): Promise<string>
 export async function addImageFromUrl(src: string): Promise<void> {
   await trackInputImageOperation(async (epoch) => {
     const res = await fetch(src)
-    if (!res.ok) throw new Error(`图片下载失败：HTTP ${res.status}`)
+    if (!res.ok) throw new Error(t("图片下载失败：HTTP {0}", res.status))
     const blob = await res.blob()
-    if (!blob.type.startsWith('image/')) throw new Error('不是有效的图片')
+    if (!blob.type.startsWith('image/')) throw new Error(t("不是有效的图片"))
     const dataUrl = await blobToDataUrl(blob)
     const { id, dataUrl: preparedDataUrl } = await storePreparedInputImage(dataUrl)
     if (epoch === inputImageImportEpoch) useStore.getState().addInputImage({ id, dataUrl: preparedDataUrl })
@@ -1454,7 +1490,7 @@ export async function addImageFromUrl(src: string): Promise<void> {
 }
 
 async function trackInputImageOperation<T>(operation: (epoch: number) => Promise<T>): Promise<T> {
-  if (useStore.getState().isSubmittingTask) throw new Error('参考图正在上传，请等待提交完成')
+  if (useStore.getState().isSubmittingTask) throw new Error(t("参考图正在上传，请等待提交完成"))
   const epoch = inputImageImportEpoch
   useStore.setState((state) => ({ pendingInputImages: state.pendingInputImages + 1 }))
   try {
@@ -1592,7 +1628,9 @@ export async function cacheTaskImageForEditing(
 
   if (!dataUrl) {
     const res = await fetch(remoteUrl)
+    if (!res.ok) throw new Error(t("图片下载失败：HTTP {0}", res.status))
     const blob = await res.blob()
+    if (!blob.type.startsWith('image/')) throw new Error(t("不是有效的图片"))
     dataUrl = await blobToDataUrl(blob)
   }
 
@@ -1832,7 +1870,7 @@ export async function refreshTasksFromServer(options: {
   } catch (err) {
     if (!options.silent) {
       useStore.getState().showToast(
-        `刷新后端任务失败：${err instanceof Error ? err.message : String(err)}`,
+        t("刷新后端任务失败：{0}", err instanceof Error ? err.message : String(err)),
         'error',
       )
     }

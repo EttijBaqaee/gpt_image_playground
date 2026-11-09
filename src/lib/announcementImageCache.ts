@@ -1,3 +1,4 @@
+import { t } from './i18n'
 import { useEffect, useState } from 'react'
 
 const resolvedImageSrcCache = new Map<string, string>()
@@ -21,7 +22,7 @@ async function warmImageElement(url: string) {
     const image = new Image()
     image.decoding = 'async'
     image.onload = () => resolve()
-    image.onerror = () => reject(new Error('图片预加载失败'))
+    image.onerror = () => reject(new Error(t("图片预加载失败")))
     image.src = url
   })
 }

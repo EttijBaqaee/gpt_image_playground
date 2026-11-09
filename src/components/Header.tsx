@@ -1,6 +1,7 @@
+import { t } from '../lib/i18n'
 import { useEffect, useState } from 'react'
 import { logout, useStore } from '../store'
-import { cycleThemeMode, getThemeModeLabel } from '../lib/theme'
+import AppearanceControls from './AppearanceControls'
 import { useVersionCheck } from '../hooks/useVersionCheck'
 import { fetchAdminBackendReminders } from '../lib/backendSettings'
 import { hasUnreadCompletedReminders, REMINDER_COMPLETED_STATE_CHANGED_EVENT } from '../lib/announcement'
@@ -8,8 +9,6 @@ import { hasUnreadCompletedReminders, REMINDER_COMPLETED_STATE_CHANGED_EVENT } f
 export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: () => void }) {
   const setShowSettings = useStore((s) => s.setShowSettings)
   const showSettings = useStore((s) => s.showSettings)
-  const themeMode = useStore((s) => s.themeMode)
-  const setThemeMode = useStore((s) => s.setThemeMode)
   const authStatus = useStore((s) => s.authStatus)
   const settings = useStore((s) => s.settings)
   const taskMode = useStore((s) => s.taskMode)
@@ -97,7 +96,7 @@ export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: (
               rel="noopener noreferrer"
               onClick={dismiss}
               className="mt-0.5 inline-flex items-center rounded-md bg-red-500 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-90"
-              title={`发现新版本 ${latestRelease.tag}`}
+              title={t("发现新版本 {0}", latestRelease.tag)}
             >
               NEW
             </a>
@@ -110,59 +109,15 @@ export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: (
               onClick={openSettings}
               className="inline-flex max-w-[5.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600 transition hover:bg-gray-200 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.12]"
             >
-              {currentUsageRemaining == null ? '额度不限' : `剩余 ${currentUsageRemaining}`}
+              {currentUsageRemaining == null ? t("额度不限") : t("剩余 {0}", currentUsageRemaining)}
             </button>
           )}
-          <button
-            onClick={() => setThemeMode(cycleThemeMode(themeMode))}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-            title={`主题：${getThemeModeLabel(themeMode)}`}
-          >
-            {themeMode === 'system' ? (
-              <svg
-                className="w-5 h-5 text-gray-600 dark:text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <rect x="3" y="4" width="18" height="12" rx="2" />
-                <path d="M8 20h8M12 16v4" />
-              </svg>
-            ) : themeMode === 'dark' ? (
-              <svg
-                className="w-5 h-5 text-gray-600 dark:text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <path d="M21 12.79A9 9 0 1111.21 3c0 .31 0 .61.02.91A7 7 0 0021 12.79z" />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5 text-gray-600 dark:text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="12" cy="12" r="4" />
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-              </svg>
-            )}
-          </button>
+          <AppearanceControls />
           <button
             onClick={onOpenAnnouncements}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-            title="公告"
-            aria-label="公告"
+            title={t("公告")}
+            aria-label={t("公告")}
           >
             <svg
               className="w-5 h-5 text-gray-600 dark:text-gray-400"
@@ -180,7 +135,7 @@ export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: (
           <button
             onClick={openSettings}
             className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-            title="设置"
+            title={t("设置")}
           >
             {authStatus?.role === 'admin' && hasUnreadReminderDot && (
               <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
@@ -210,7 +165,7 @@ export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: (
               void logout()
             }}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-            title="退出登录"
+            title={t("退出登录")}
           >
             <svg
               className="w-5 h-5 text-gray-600 dark:text-gray-400"

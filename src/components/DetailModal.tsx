@@ -1,3 +1,4 @@
+import { t, getLocale, getLocaleTag } from '../lib/i18n'
 import { useCallback, useEffect, useState, useMemo, useRef, type SyntheticEvent } from 'react'
 import { useStore, cacheTaskImageForEditing, cacheTaskVideoForPlayback, getCachedImage, getCachedVideoUrl, ensureTaskImageAvailable, ensureTaskVideoAvailable, reuseConfig, removeTask, updateTaskInStore, showCodexCliPrompt, getCodexCliPromptKey } from '../store'
 import { useVideoLoadProgress } from '../hooks/useVideoLoadProgress'
@@ -9,10 +10,10 @@ import type { ImageCarouselHandle } from '../lib/touchGesture'
 import { formatImageRatio } from '../lib/size'
 import { ActualValueBadge, DetailParamValue } from '../lib/paramDisplay'
 import { copyBlobToClipboard, copyTextToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
-import { createMaskPreviewDataUrl } from '../lib/canvasImage'
+import { createMaskPreviewDataUrl, createMarkupPreviewDataUrl } from '../lib/canvasImage'
 import UsageCodeBadge from './UsageCodeBadge'
 import VideoPlayer from './VideoPlayer'
-import type { VideoTaskParams } from '../types'
+import type { VideoTaskParams, TaskParams } from '../types'
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -69,7 +70,7 @@ export default function DetailModal() {
 
   const task = useMemo(
     () => tasks.find((t) => t.id === detailTaskId) ?? null,
-    [tasks, detailTaskId],
+    [tasks, detailTaskId, getLocale()],
   )
   const isUsageCodeUser = authStatus?.role === 'user'
 
@@ -204,6 +205,7 @@ export default function DetailModal() {
   const maskTargetSrc = maskTargetId ? imageSrcs[maskTargetId] || '' : ''
   const maskSrc = task?.maskImageId ? imageSrcs[task.maskImageId] || '' : ''
   const allInputImageIds = task?.inputImageIds ?? []
+  const isMarkup = Boolean(task && 'annotation_mode' in task.params && task.params.annotation_mode === 'markup')
 
   const handleActiveImageReady = useCallback((imageId: string, image: HTMLImageElement) => {
     if (imageId !== currentOutputImageId) return
@@ -224,7 +226,7 @@ export default function DetailModal() {
     setMaskPreviewSrc('')
     if (!maskTargetSrc || !maskSrc) return
 
-    createMaskPreviewDataUrl(maskTargetSrc, maskSrc)
+    (isMarkup ? createMarkupPreviewDataUrl : createMaskPreviewDataUrl)(maskTargetSrc, maskSrc)
       .then((url) => {
         if (!cancelled) setMaskPreviewSrc(url)
       })
@@ -235,7 +237,7 @@ export default function DetailModal() {
     return () => {
       cancelled = true
     }
-  }, [maskTargetSrc, maskSrc])
+  }, [maskTargetSrc, maskSrc, isMarkup])
 
   if (!task) return null
 
@@ -256,12 +258,12 @@ export default function DetailModal() {
   const hasRenderedOutput = isVideoTask ? Boolean(currentOutputVideoSrc) || hasOutputVideo : hasOutputImages
   const isTaskBlurred = (isVideoTask ? Boolean(currentOutputVideoSrc) : hasOutputImages) && (taskImageBlurOverrides[task.id] ?? blurLoadedImages)
   const runningStepText = task.serverStatus === 'queued'
-    ? (task.queuePosition && task.queuePosition > 0 ? `排队中，前方还有 ${task.queueAhead ?? Math.max(task.queuePosition - 1, 0)} 个任务` : '排队中')
-    : (task.currentStep || '正在继续生成剩余图片')
+    ? (task.queuePosition && task.queuePosition > 0 ? t("排队中，前方还有 {0} 个任务", task.queueAhead ?? Math.max(task.queuePosition - 1, 0)) : t("排队中"))
+    : (task.currentStep || t("正在继续生成剩余图片"))
 
   const formatTime = (ts: number | null) => {
     if (!ts) return ''
-    return new Date(ts).toLocaleString('zh-CN')
+    return new Date(ts).toLocaleString(getLocaleTag())
   }
 
   const formatDuration = () => {
@@ -304,8 +306,8 @@ export default function DetailModal() {
   const handleDelete = () => {
     setDetailTaskId(null)
     setConfirmDialog({
-      title: '删除记录',
-      message: '确定要删除这条记录吗？关联的图片资源也会被清理（如果没有其他任务引用）。',
+      title: t("删除记录"),
+      message: t("确定要删除这条记录吗？关联的图片资源也会被清理（如果没有其他任务引用）。"),
       action: () => removeTask(task),
     })
   }
@@ -322,12 +324,12 @@ export default function DetailModal() {
   }
 
   const handleCopyError = async () => {
-    const errorText = task.error || '生成失败'
+    const errorText = task.error || t("生成失败")
     try {
       await copyTextToClipboard(errorText)
-      showToast('完整报错已复制', 'success')
+      showToast(t("完整报错已复制"), 'success')
     } catch (err) {
-      showToast(getClipboardFailureMessage('复制报错失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制报错失败"), err), 'error')
     }
   }
 
@@ -335,25 +337,25 @@ export default function DetailModal() {
     if (!task.prompt) return
     try {
       await copyTextToClipboard(task.prompt)
-      showToast('提示词已复制', 'success')
+      showToast(t("提示词已复制"), 'success')
     } catch (err) {
-      showToast(getClipboardFailureMessage('复制提示词失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制提示词失败"), err), 'error')
     }
   }
 
   const handleShowPromptWarning = () => {
     showCodexCliPrompt(
       true,
-      currentRevisedPrompt ? '接口返回的提示词已被改写' : '接口没有返回官方 API 会返回的部分信息',
+      currentRevisedPrompt ? t("接口返回的提示词已被改写") : t("接口没有返回官方 API 会返回的部分信息"),
     )
   }
 
   const handleCopyTaskId = async () => {
     try {
       await copyTextToClipboard(task.id)
-      showToast('任务号已复制', 'success')
+      showToast(t("任务号已复制"), 'success')
     } catch (err) {
-      showToast(getClipboardFailureMessage('复制任务号失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制任务号失败"), err), 'error')
     }
   }
 
@@ -365,10 +367,10 @@ export default function DetailModal() {
       const res = await fetch(src)
       const blob = await res.blob()
       await copyBlobToClipboard(blob)
-      showToast('参考图已复制', 'success')
+      showToast(t("参考图已复制"), 'success')
     } catch (err) {
       console.error(err)
-      showToast(getClipboardFailureMessage('复制参考图失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制参考图失败"), err), 'error')
     }
   }
 
@@ -393,7 +395,7 @@ export default function DetailModal() {
             type="button"
             onClick={() => setDetailTaskId(null)}
             className="detail-modal-control-top detail-modal-control-top-right absolute z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-black/45 text-white/90 backdrop-blur transition hover:bg-black/60 md:hidden"
-            aria-label="关闭"
+            aria-label={t("关闭")}
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -446,7 +448,7 @@ export default function DetailModal() {
                     ? 'border-blue-300/70 bg-blue-500/80 text-white'
                     : 'border-white/30 bg-black/40 text-white/80 hover:bg-black/55 md:right-4'
                 }`}
-                title={isTaskBlurred ? '解除当前任务模糊' : '模糊当前任务'}
+                title={isTaskBlurred ? t("解除当前任务模糊") : t("模糊当前任务")}
               >
                 {isTaskBlurred ? (
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -501,7 +503,7 @@ export default function DetailModal() {
                       data-no-carousel-swipe
                       onClick={() => carouselRef.current?.animatePrev()}
                       className="absolute left-1.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60 sm:left-2"
-                      aria-label="上一张"
+                      aria-label={t("上一张")}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -514,7 +516,7 @@ export default function DetailModal() {
                       data-no-carousel-swipe
                       onClick={() => carouselRef.current?.animateNext()}
                       className="absolute right-1.5 top-1/2 z-20 -translate-y-1/2 rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm transition hover:bg-black/60 sm:right-2"
-                      aria-label="下一张"
+                      aria-label={t("下一张")}
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -543,7 +545,7 @@ export default function DetailModal() {
                                 ? 'border-blue-400 ring-2 ring-blue-400/80'
                                 : 'border-white/30 opacity-70 hover:opacity-100'
                             }`}
-                            aria-label={`查看第 ${index + 1} 张图片`}
+                            aria-label={t("查看第 {0} 张图片", index + 1)}
                           >
                             {src ? (
                               <img
@@ -596,14 +598,14 @@ export default function DetailModal() {
                   WebkitLineClamp: 4,
                 }}
               >
-                {task.error || '生成失败'}
+                {task.error || t("生成失败")}
               </p>
               <button
                 type="button"
                 onClick={handleCopyError}
                 className="mt-3 inline-flex items-center justify-center rounded-full border border-red-200/80 bg-white/80 px-3 py-1.5 text-red-500 transition hover:bg-red-50 dark:border-red-400/20 dark:bg-white/[0.04] dark:hover:bg-red-500/10"
-                aria-label="复制完整报错"
-                title="复制完整报错"
+                aria-label={t("复制完整报错")}
+                title={t("复制完整报错")}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
@@ -626,7 +628,7 @@ export default function DetailModal() {
           <button
             onClick={() => setDetailTaskId(null)}
             className="absolute top-3 right-3 hidden p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/[0.06] transition text-gray-400 z-10 md:block"
-            aria-label="关闭"
+            aria-label={t("关闭")}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -636,13 +638,12 @@ export default function DetailModal() {
           <div className="flex-1">
             <div className="flex items-center gap-1.5 mb-2">
               <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                输入内容
-              </h3>
+                {t("输入内容")}</h3>
               {task.prompt && (
                 <button
                   onClick={handleCopyPrompt}
                   className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
-                  title="复制提示词"
+                  title={t("复制提示词")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -655,7 +656,7 @@ export default function DetailModal() {
                     type="button"
                     className="p-1 rounded text-amber-500 hover:bg-amber-50 dark:text-yellow-300 dark:hover:bg-yellow-500/10 transition"
                     onClick={handleShowPromptWarning}
-                    aria-label="提示词已被改写"
+                    aria-label={t("提示词已被改写")}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -665,7 +666,7 @@ export default function DetailModal() {
               )}
             </div>
             <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
-              {task.prompt || '(无提示词)'}
+              {task.prompt || t("(无提示词)")}
             </p>
             {showRevisedPrompt && currentRevisedPrompt && (
               <div className="mb-4">
@@ -681,12 +682,11 @@ export default function DetailModal() {
               <div className="mb-4">
                 <div className="flex items-center gap-1.5 mb-2">
                   <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    参考图
-                  </h3>
+                    {t("参考图")}</h3>
                   <button
                     onClick={handleCopyInputImage}
                     className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-white/[0.06] transition"
-                    title="复制参考图"
+                    title={t("复制参考图")}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -719,7 +719,7 @@ export default function DetailModal() {
                           />
                           {isMaskTarget && (
                             <span className="absolute left-1 top-1 rounded bg-blue-500/90 px-1.5 py-0.5 text-[8px] leading-none text-white font-bold tracking-wider backdrop-blur-sm z-10 pointer-events-none">
-                              MASK
+                              {isMarkup ? 'MARKUP' : 'MASK'}
                             </span>
                           )}
                         </div>
@@ -732,28 +732,27 @@ export default function DetailModal() {
 
             {/* 参数 */}
             <h3 className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
-              参数配置
-            </h3>
+              {t("参数配置")}</h3>
             <div className="grid grid-cols-2 gap-2 text-xs mb-4">
               {isVideoTask ? (
                 <>
                   <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                    <span className="text-gray-400 dark:text-gray-500">类型</span>
+                    <span className="text-gray-400 dark:text-gray-500">{t("类型")}</span>
                     <br />
-                    <span className="font-medium">视频</span>
+                    <span className="font-medium">{t("视频")}</span>
                   </div>
                   <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                    <span className="text-gray-400 dark:text-gray-500">比例</span>
+                    <span className="text-gray-400 dark:text-gray-500">{t("比例")}</span>
                     <br />
                     <span className="font-medium">{videoParams?.aspect_ratio ?? 'auto'}</span>
                   </div>
                   <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                    <span className="text-gray-400 dark:text-gray-500">分辨率</span>
+                    <span className="text-gray-400 dark:text-gray-500">{t("分辨率")}</span>
                     <br />
                     <span className="font-medium">{videoParams?.resolution ?? '480p'}</span>
                   </div>
                   <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                    <span className="text-gray-400 dark:text-gray-500">时长</span>
+                    <span className="text-gray-400 dark:text-gray-500">{t("时长")}</span>
                     <br />
                     <span className="font-medium">{videoParams?.duration ?? 6}s</span>
                   </div>
@@ -761,54 +760,59 @@ export default function DetailModal() {
               ) : (
                 <>
               <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-gray-400 dark:text-gray-500">尺寸</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("尺寸")}</span>
                 <br />
                 <DetailParamValue task={task} paramKey="size" className="font-medium" actualParams={currentActualParams} />
               </div>
               <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-gray-400 dark:text-gray-500">质量</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("质量")}</span>
                 <br />
                 <DetailParamValue task={task} paramKey="quality" className="font-medium" actualParams={currentActualParams} />
               </div>
               <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-gray-400 dark:text-gray-500">格式</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("格式")}</span>
                 <br />
                 <DetailParamValue task={task} paramKey="output_format" className="font-medium" actualParams={currentActualParams} />
               </div>
               <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-gray-400 dark:text-gray-500">审核</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("审核")}</span>
                 <br />
                 <DetailParamValue task={task} paramKey="moderation" className="font-medium" actualParams={currentActualParams} />
               </div>
               <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                <span className="text-gray-400 dark:text-gray-500">数量</span>
+                <span className="text-gray-400 dark:text-gray-500">{t("数量")}</span>
                 <br />
                 <DetailParamValue task={task} paramKey="n" className="font-medium" actualParams={aggregateActualParams} />
               </div>
+              {!isVideoTask && (['complexity', 'frame_count', 'frame_duration_ms'] as const).map(key => {
+                const params = task.params as TaskParams
+                if (params[key] == null) return null
+                return <div key={key} className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/[0.03]"><span className="text-gray-400">{key === 'complexity' ? t('规划程度') : key === 'frame_count' ? t('帧数') : t('每帧毫秒')}</span><br /><span className="font-medium">{String(params[key])}</span></div>
+              })}
               {task.providerProfileName && (
                 <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                  <span className="text-gray-400 dark:text-gray-500">API 配置</span>
+                  <span className="text-gray-400 dark:text-gray-500">{t("API 配置")}</span>
                   <br />
                   <span className="font-medium break-all">{task.providerProfileName}</span>
                 </div>
               )}
               {!isVideoTask && currentOutputImageBytes != null && (
                 <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                  <span className="text-gray-400 dark:text-gray-500">图片大小</span>
+                  <span className="text-gray-400 dark:text-gray-500">{t("图片大小")}</span>
                   <br />
                   <span className="font-medium break-all">{formatBytes(currentOutputImageBytes)}</span>
                 </div>
               )}
               {task.providerProfileModel && !isUsageCodeUser && (
                 <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                  <span className="text-gray-400 dark:text-gray-500">模型</span>
+                  <span className="text-gray-400 dark:text-gray-500">{t("模型")}</span>
                   <br />
                   <span className="font-medium break-all">{task.providerProfileModel}</span>
                 </div>
               )}
               {(task.params as { output_compression?: number | null }).output_compression != null && (
                 <div className="bg-gray-50 dark:bg-white/[0.03] rounded-lg px-3 py-2">
-                  <span className="text-gray-400 dark:text-gray-500">压缩率</span>
+                  <span className="text-gray-400 dark:text-gray-500">{t("压缩率")}</span>
                   <br />
                   <DetailParamValue task={task} paramKey="output_compression" className="font-medium" actualParams={currentActualParams} />
                 </div>
@@ -825,24 +829,23 @@ export default function DetailModal() {
                   onClick={() => setIsTaskIdPopoverOpen((prev) => !prev)}
                   className="rounded-md transition hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  创建于 {formatTime(task.createdAt)}
+                  {t("创建于 ")}{formatTime(task.createdAt)}
                 </button>
                 {isTaskIdPopoverOpen && (
                   <div className="absolute left-0 top-full z-20 mt-2 w-[min(22rem,calc(100vw-4rem))] rounded-2xl border border-gray-200/70 bg-white/95 p-3 text-left shadow-[0_12px_36px_rgb(0,0,0,0.14)] ring-1 ring-black/5 backdrop-blur dark:border-white/[0.08] dark:bg-[#1d1d1f]/95 dark:ring-white/10">
-                    <div className="text-[11px] text-gray-400 dark:text-gray-500">任务号</div>
+                    <div className="text-[11px] text-gray-400 dark:text-gray-500">{t("任务号")}</div>
                     <div className="mt-1 break-all text-xs text-gray-700 dark:text-gray-200">{task.id}</div>
                     <button
                       type="button"
                       onClick={handleCopyTaskId}
                       className="mt-3 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20"
                     >
-                      复制任务号
-                    </button>
+                      {t("复制任务号")}</button>
                   </div>
                 )}
               </div>
-              {formatDuration() && <span> · 耗时 {formatDuration()}</span>}
-              {task.ownerLabel && <span> · 来源 </span>}
+              {formatDuration() && <span> {t(" · 耗时 ")}{formatDuration()}</span>}
+              {task.ownerLabel && <span> {t(" · 来源 ")}</span>}
               {task.ownerLabel && <UsageCodeBadge task={task} />}
             </div>
           </div>
@@ -856,8 +859,7 @@ export default function DetailModal() {
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
-              复用配置
-            </button>
+              {t("复用配置")}</button>
             <button
               onClick={handleMaskEditCurrentOutput}
               disabled={!outputLen || isVideoTask}
@@ -866,8 +868,7 @@ export default function DetailModal() {
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M4 20h4.586a1 1 0 00.707-.293l10.414-10.414a2 2 0 000-2.828l-2.172-2.172a2 2 0 00-2.828 0L4.293 14.707A1 1 0 004 15.414V20z" />
               </svg>
-              遮罩编辑
-            </button>
+              {t("遮罩编辑")}</button>
             <button
               onClick={handleQuickEditOutput}
               disabled={!outputLen || isVideoTask}
@@ -876,8 +877,7 @@ export default function DetailModal() {
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
-              高级编辑
-            </button>
+              {t("高级编辑")}</button>
             {isVideoTask && currentOutputVideoSrc && (
               <a
                 href={currentOutputVideoSrc}
@@ -887,8 +887,7 @@ export default function DetailModal() {
                 <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v11m0 0l4-4m-4 4l-4-4M4 17v1a2 2 0 002 2h12a2 2 0 002-2v-1" />
                 </svg>
-                下载视频
-              </a>
+                {t("下载视频")}</a>
             )}
             <button
               onClick={handleDelete}
@@ -897,8 +896,7 @@ export default function DetailModal() {
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              删除记录
-            </button>
+              {t("删除记录")}</button>
             <button
               onClick={handleToggleFavorite}
               className={`flex min-h-10 w-full items-center justify-center rounded-xl transition ${
@@ -906,7 +904,7 @@ export default function DetailModal() {
                   ? 'bg-yellow-50 text-yellow-500 hover:bg-yellow-100 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20'
                   : 'bg-gray-50 text-gray-400 hover:bg-yellow-50 hover:text-yellow-500 dark:bg-white/[0.04] dark:hover:bg-yellow-500/10'
               }`}
-              title={task.isFavorite ? '取消收藏' : '收藏记录'}
+              title={task.isFavorite ? t("取消收藏") : t("收藏记录")}
             >
               <svg className="w-5 h-5" fill={task.isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -919,7 +917,7 @@ export default function DetailModal() {
                   ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/[0.08] dark:text-slate-200 dark:hover:bg-white/[0.12]'
                   : 'bg-gray-50 text-gray-400 hover:bg-slate-100 hover:text-slate-600 dark:bg-white/[0.04] dark:hover:bg-white/[0.08]'
               }`}
-              title={task.isArchived ? '取消归档' : '归档记录'}
+              title={task.isArchived ? t("取消归档") : t("归档记录")}
             >
               <svg className="w-5 h-5" fill={task.isArchived ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="5" rx="1" />

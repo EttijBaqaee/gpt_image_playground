@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
@@ -38,13 +39,12 @@ export default function HelpModal({ onClose }: HelpModalProps) {
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
               <path d="M12 17h.01" />
             </svg>
-            操作指南
-          </h3>
+            {t("操作指南")}</h3>
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
               className="rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-              aria-label="关闭"
+              aria-label={t("关闭")}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -61,10 +61,9 @@ export default function HelpModal({ onClose }: HelpModalProps) {
                   <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
                   </svg>
-                  多选记录
-                </h4>
+                  {t("多选记录")}</h4>
                 <div className="space-y-4">
-                  <p>在历史记录卡片上<strong className="text-blue-500 dark:text-blue-400 font-medium">左右滑动</strong>或<strong className="text-blue-500 dark:text-blue-400 font-medium">长按</strong>即可选中或取消选中该卡片。</p>
+                  <p>{t("在历史记录卡片上")}<strong className="text-blue-500 dark:text-blue-400 font-medium">{t("左右滑动")}</strong>{t("或")}<strong className="text-blue-500 dark:text-blue-400 font-medium">{t("长按")}</strong>{t("即可选中或取消选中该卡片。")}</p>
                 </div>
               </section>
               <section>
@@ -72,10 +71,9 @@ export default function HelpModal({ onClose }: HelpModalProps) {
                   <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  批量操作
-                </h4>
+                  {t("批量操作")}</h4>
                 <div className="space-y-4">
-                  <p>选中一条或多条记录后，页面底部会出现操作栏，支持<strong className="text-yellow-500 dark:text-yellow-400 font-medium">批量收藏</strong>、<strong className="text-red-500 dark:text-red-400 font-medium">批量删除</strong>，或<strong className="text-blue-500 dark:text-blue-400 font-medium">全选当前可见记录</strong>。</p>
+                  <p>{t("选中一条或多条记录后，页面底部会出现操作栏，支持")}<strong className="text-yellow-500 dark:text-yellow-400 font-medium">{t("批量收藏")}</strong>、<strong className="text-red-500 dark:text-red-400 font-medium">{t("批量删除")}</strong>{t("，或")}<strong className="text-blue-500 dark:text-blue-400 font-medium">{t("全选当前可见记录")}</strong>。</p>
                 </div>
               </section>
             </>
@@ -86,14 +84,13 @@ export default function HelpModal({ onClose }: HelpModalProps) {
                   <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
                   </svg>
-                  多选记录
-                </h4>
+                  {t("多选记录")}</h4>
                 <div className="space-y-4">
                   <ul className="list-disc pl-4 space-y-2">
-                    <li>使用鼠标在空白处<strong className="text-blue-500 dark:text-blue-400 font-medium">拖拽框选</strong>。</li>
-                    <li>按住 <kbd className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-sans">Ctrl</kbd> 或 <kbd className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-sans">⌘</kbd> 并点击卡片，可添加或移除单项。</li>
-                    <li>再次框选已选中的卡片会将其取消选中。</li>
-                    <li>点击卡片外任意空白处可取消所有选择。</li>
+                    <li>{t("使用鼠标在空白处")}<strong className="text-blue-500 dark:text-blue-400 font-medium">{t("拖拽框选")}</strong>。</li>
+                    <li>{t("按住 ")}<kbd className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-sans">Ctrl</kbd> {t(" 或 ")}<kbd className="px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-xs font-sans">⌘</kbd> {t(" 并点击卡片，可添加或移除单项。")}</li>
+                    <li>{t("再次框选已选中的卡片会将其取消选中。")}</li>
+                    <li>{t("点击卡片外任意空白处可取消所有选择。")}</li>
                   </ul>
                 </div>
               </section>
@@ -102,10 +99,9 @@ export default function HelpModal({ onClose }: HelpModalProps) {
                   <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  批量操作
-                </h4>
+                  {t("批量操作")}</h4>
                 <div className="space-y-4">
-                  <p>选中一条或多条记录后，页面底部会出现操作栏，支持<strong className="text-yellow-500 dark:text-yellow-400 font-medium">批量收藏</strong>、<strong className="text-red-500 dark:text-red-400 font-medium">批量删除</strong>，或<strong className="text-blue-500 dark:text-blue-400 font-medium">全选当前可见记录</strong>。</p>
+                  <p>{t("选中一条或多条记录后，页面底部会出现操作栏，支持")}<strong className="text-yellow-500 dark:text-yellow-400 font-medium">{t("批量收藏")}</strong>、<strong className="text-red-500 dark:text-red-400 font-medium">{t("批量删除")}</strong>{t("，或")}<strong className="text-blue-500 dark:text-blue-400 font-medium">{t("全选当前可见记录")}</strong>。</p>
                 </div>
               </section>
             </>

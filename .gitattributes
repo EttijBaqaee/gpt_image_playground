@@ -1,0 +1,7 @@
+**/*.test.* export-ignore
+**/*.spec.* export-ignore
+**/tests/** export-ignore
+**/test-results/** export-ignore
+**/playwright-report/** export-ignore
+scripts/verify* export-ignore
+vitest.config.* export-ignore

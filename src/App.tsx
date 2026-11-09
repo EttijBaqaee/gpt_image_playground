@@ -1,3 +1,4 @@
+import { t, useLocale } from './lib/i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearAllData, clearLocalTaskCache, initStore, refreshAuthStatus, refreshTasksFromServer } from './store'
 import { useStore } from './store'
@@ -35,27 +36,27 @@ function formatBytes(value: number) {
 }
 
 function getMaintenanceTitle(isAdmin: boolean, operation: MaintenanceStatus['operation'], phase: string) {
-  if (!isAdmin && operation !== 'usage_code_media_export') return '管理员正在维护服务器'
-  if (operation === 'backup_import') return phase === 'failed' ? '服务器恢复失败' : phase === 'completed' ? '服务器恢复已完成' : '服务器恢复进行中'
-  if (operation === 'backup_export') return phase === 'failed' ? '服务器备份失败' : phase === 'completed' ? '服务器备份已完成' : '服务器备份进行中'
-  if (operation === 'usage_code_media_export') return phase === 'failed' ? '导出失败' : phase === 'completed' ? '导出已完成' : '导出进行中'
-  if (operation === 'remote_reset_usage_code') return phase === 'failed' ? '使用码任务清理失败' : phase === 'completed' ? '使用码任务清理已完成' : '正在清理使用码任务'
-  if (operation === 'remote_reset_admin') return phase === 'failed' ? '管理员任务清理失败' : phase === 'completed' ? '管理员任务清理已完成' : '正在清理管理员任务'
-  if (operation === 'remote_reset_all') return phase === 'failed' ? '远端全部清空失败' : phase === 'completed' ? '远端全部已清空' : '正在清空远端全部'
-  if (operation === 'remote_reset_tasks') return phase === 'failed' ? '远端记录清空失败' : phase === 'completed' ? '远端记录已清空' : '正在清空远端记录'
-  return '服务器维护进行中'
+  if (!isAdmin && operation !== 'usage_code_media_export') return t("管理员正在维护服务器")
+  if (operation === 'backup_import') return phase === 'failed' ? t("服务器恢复失败") : phase === 'completed' ? t("服务器恢复已完成") : t("服务器恢复进行中")
+  if (operation === 'backup_export') return phase === 'failed' ? t("服务器备份失败") : phase === 'completed' ? t("服务器备份已完成") : t("服务器备份进行中")
+  if (operation === 'usage_code_media_export') return phase === 'failed' ? t("导出失败") : phase === 'completed' ? t("导出已完成") : t("导出进行中")
+  if (operation === 'remote_reset_usage_code') return phase === 'failed' ? t("使用码任务清理失败") : phase === 'completed' ? t("使用码任务清理已完成") : t("正在清理使用码任务")
+  if (operation === 'remote_reset_admin') return phase === 'failed' ? t("管理员任务清理失败") : phase === 'completed' ? t("管理员任务清理已完成") : t("正在清理管理员任务")
+  if (operation === 'remote_reset_all') return phase === 'failed' ? t("远端全部清空失败") : phase === 'completed' ? t("远端全部已清空") : t("正在清空远端全部")
+  if (operation === 'remote_reset_tasks') return phase === 'failed' ? t("远端记录清空失败") : phase === 'completed' ? t("远端记录已清空") : t("正在清空远端记录")
+  return t("服务器维护进行中")
 }
 
 function getMaintenanceStage(operation: MaintenanceStatus['operation'], phase: string) {
-  if (operation === 'usage_code_media_export') return phase === 'preparing' ? '正在整理导出文件' : '正在生成导出文件'
-  if (phase === 'preparing') return '等待队列完成'
-  if (operation === 'backup_import') return '正在恢复备份'
-  if (operation === 'backup_export') return '正在生成备份包'
-  if (operation === 'remote_reset_usage_code') return '正在清理使用码任务'
-  if (operation === 'remote_reset_admin') return '正在清理管理员任务'
-  if (operation === 'remote_reset_all') return '正在清空远端全部'
-  if (operation === 'remote_reset_tasks') return '正在清空远端记录'
-  return '正在处理中'
+  if (operation === 'usage_code_media_export') return phase === 'preparing' ? t("正在整理导出文件") : t("正在生成导出文件")
+  if (phase === 'preparing') return t("等待队列完成")
+  if (operation === 'backup_import') return t("正在恢复备份")
+  if (operation === 'backup_export') return t("正在生成备份包")
+  if (operation === 'remote_reset_usage_code') return t("正在清理使用码任务")
+  if (operation === 'remote_reset_admin') return t("正在清理管理员任务")
+  if (operation === 'remote_reset_all') return t("正在清空远端全部")
+  if (operation === 'remote_reset_tasks') return t("正在清空远端记录")
+  return t("正在处理中")
 }
 
 const USAGE_CODE_EXPORT_NOTICE_SEEN_KEY = 'gpt-image-playground-usage-code-export-notice-seen'
@@ -80,10 +81,10 @@ function MaintenanceOverlay() {
   const isImport = maintenance.operation === 'backup_import'
   const isReset = maintenance.operation?.startsWith('remote_reset_')
   const detailText = maintenance.phase === 'preparing'
-    ? `当前仍有执行中 ${maintenance.waitingRunningTasks} 个，排队中 ${maintenance.waitingPendingTasks} 个。`
+    ? t("当前仍有执行中 {0} 个，排队中 {1} 个。", maintenance.waitingRunningTasks, maintenance.waitingPendingTasks)
     : isReset
-      ? `已处理 ${maintenance.processedFiles}/${maintenance.totalFiles} 个步骤，${formatBytes(maintenance.processedBytes)}/${formatBytes(maintenance.totalBytes)}。`
-      : `已处理 ${maintenance.processedFiles}/${maintenance.totalFiles} 个文件，${formatBytes(maintenance.processedBytes)}/${formatBytes(maintenance.totalBytes)}。`
+      ? t("已处理 {0}/{1} 个步骤，{2}/{3}。", maintenance.processedFiles, maintenance.totalFiles, formatBytes(maintenance.processedBytes), formatBytes(maintenance.totalBytes))
+      : t("已处理 {0}/{1} 个文件，{2}/{3}。", maintenance.processedFiles, maintenance.totalFiles, formatBytes(maintenance.processedBytes), formatBytes(maintenance.totalBytes))
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
@@ -92,10 +93,10 @@ function MaintenanceOverlay() {
           {getMaintenanceTitle(isAdmin, maintenance.operation, maintenance.phase)}
         </div>
         <p className="mt-2 text-sm leading-6 text-gray-300">
-          {isAdmin ? '写入操作已暂停。维护结束后会自动恢复。' : '请稍等几分钟后再试。'}
+          {isAdmin ? t("写入操作已暂停。维护结束后会自动恢复。") : t("请稍等几分钟后再试。")}
         </p>
         {isAdmin && (
-          <p className="mt-2 text-sm leading-6 text-gray-400">{maintenance.message || '正在处理中'}</p>
+          <p className="mt-2 text-sm leading-6 text-gray-400">{maintenance.message || t("正在处理中")}</p>
         )}
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
           <div
@@ -128,6 +129,7 @@ function MaintenanceOverlay() {
 }
 
 export default function App() {
+  useLocale()
   const themeMode = useStore((s) => s.themeMode)
   const authStatus = useStore((s) => s.authStatus)
   const authInitialized = useStore((s) => s.authInitialized)
@@ -168,7 +170,7 @@ export default function App() {
       })
       .catch((err) => {
         setAnnouncementListItems([])
-        setAnnouncementListError(`读取公告失败：${err instanceof Error ? err.message : String(err)}`)
+        setAnnouncementListError(t("读取公告失败：{0}", err instanceof Error ? err.message : String(err)))
       })
       .finally(() => {
         setAnnouncementListLoading(false)
@@ -265,13 +267,13 @@ export default function App() {
       }
       const showToast = useStore.getState().showToast
       if (maintenance.operation === 'remote_reset_usage_code') {
-        showToast('使用码任务与产物已清理完成', 'success')
+        showToast(t("使用码任务与产物已清理完成"), 'success')
       } else if (maintenance.operation === 'remote_reset_admin') {
-        showToast('管理员任务与产物已清理完成', 'success')
+        showToast(t("管理员任务与产物已清理完成"), 'success')
       } else if (maintenance.operation === 'remote_reset_tasks') {
-        showToast('远端记录已清空', 'success')
+        showToast(t("远端记录已清空"), 'success')
       } else if (maintenance.operation === 'remote_reset_all') {
-        showToast('远端全部数据已清空', 'success')
+        showToast(t("远端全部数据已清空"), 'success')
       }
     }
     if (previous.active && !maintenance.active && maintenance.phase === 'failed' && maintenance.error) {
@@ -299,16 +301,16 @@ export default function App() {
         markUsageCodeExportNoticeSeen(maintenance.finishedAt ?? '')
         const singleFile = files.length === 1 ? files[0] : null
         setConfirmDialog({
-          title: '导出文件已生成',
+          title: t("导出文件已生成"),
           message: singleFile
-            ? `导出文件 ${singleFile.fileName} 已生成。\n\n点击“立即下载”开始保存。`
-            : `导出文件已生成，共 ${files.length} 个文件。\n\n点击“打开下载列表”查看并下载全部分包。`,
-          confirmText: singleFile ? '立即下载' : '打开下载列表',
+            ? t("导出文件 {0} 已生成。\n\n点击“立即下载”开始保存。", singleFile.fileName)
+            : t("导出文件已生成，共 {0} 个文件。\n\n点击“打开下载列表”查看并下载全部分包。", files.length),
+          confirmText: singleFile ? t("立即下载") : t("打开下载列表"),
           action: () => {
             if (singleFile) {
               void downloadUsageCodeMediaExportFile(singleFile.fileName).catch((error) => {
                 useStore.getState().showToast(
-                  `下载导出文件失败：${error instanceof Error ? error.message : String(error)}`,
+                  t("下载导出文件失败：{0}", error instanceof Error ? error.message : String(error)),
                   'error',
                 )
               })
@@ -362,8 +364,7 @@ export default function App() {
   if (!authInitialized) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500 dark:bg-gray-950 dark:text-gray-400">
-        正在读取登录状态...
-      </main>
+        {t("正在读取登录状态...")}</main>
     )
   }
 

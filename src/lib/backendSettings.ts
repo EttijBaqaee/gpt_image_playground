@@ -1,3 +1,4 @@
+import type { ImageExtensionsConfig } from "../../server/src/lib/imageCapabilities"
 import { appFetch } from './appUrl'
 import { normalizeBaseUrl } from './devProxy'
 import type { AppSettings, VideoDurationOption, VideoResolutionOption } from '../types'
@@ -14,6 +15,7 @@ export interface BackendRuntimeSettings {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
@@ -75,6 +77,7 @@ export interface BackendProviderProfile {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
@@ -114,6 +117,7 @@ export interface BackendProviderOption {
   veniceSkipResolution?: boolean
   timeoutSeconds: number
   codexCli: boolean
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean
@@ -380,6 +384,7 @@ export async function saveBackendRuntimeSettings(settings: {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
   responseFormatB64Json: boolean

@@ -1,3 +1,4 @@
+import { t } from './i18n'
 export type ImageLoadStage = 'idle' | 'preparing' | 'downloading' | 'decoding' | 'done' | 'error'
 
 export interface ImageLoadProgress {
@@ -40,9 +41,9 @@ export function resolveImageLoadPercent(progress: ImageLoadProgress) {
 export function getImageLoadStageLabel(progress: ImageLoadProgress, mediaKind: 'image' | 'video' = 'image') {
   const percent = resolveImageLoadPercent(progress)
   const total = progress.totalBytes ?? progress.expectedBytes
-  const downloadingLabel = mediaKind === 'video' ? '下载视频' : '下载原图'
-  const preparingLabel = mediaKind === 'video' ? '准备加载视频...' : '准备加载...'
-  const decodingLabel = mediaKind === 'video' ? '准备播放...' : '解码图片...'
+  const downloadingLabel = mediaKind === 'video' ? t("下载视频") : t("下载原图")
+  const preparingLabel = mediaKind === 'video' ? t("准备加载视频...") : t("准备加载...")
+  const decodingLabel = mediaKind === 'video' ? t("准备播放...") : t("解码图片...")
 
   if (progress.stage === 'preparing') return preparingLabel
   if (progress.stage === 'downloading') {
@@ -53,7 +54,7 @@ export function getImageLoadStageLabel(progress: ImageLoadProgress, mediaKind: '
     return `${downloadingLabel} ${formatByteSize(progress.loadedBytes)}`
   }
   if (progress.stage === 'decoding') return decodingLabel
-  if (progress.stage === 'error') return '加载失败'
+  if (progress.stage === 'error') return t("加载失败")
   return ''
 }
 
@@ -65,7 +66,7 @@ export function decodeImageUrl(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve()
-    image.onerror = () => reject(new Error('图片解码失败'))
+    image.onerror = () => reject(new Error(t("图片解码失败")))
     image.src = url
   })
 }
@@ -86,7 +87,7 @@ export async function fetchImageBlobWithProgress(
 
   const response = await fetch(url, { signal })
   if (!response.ok) {
-    throw new Error(`图片下载失败 (${response.status})`)
+    throw new Error(t("图片下载失败 ({0})", response.status))
   }
 
   const headerTotal = Number(response.headers.get('Content-Length') || 0)

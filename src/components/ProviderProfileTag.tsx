@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { AppSettings } from '../types'
@@ -44,12 +45,12 @@ export function formatProviderProfileTagText(input: {
 }) {
   const parts: string[] = []
   if (input.includeDefault !== false && input.isDefault) {
-    parts.push('默认')
+    parts.push(t("默认"))
   }
   if (input.includeMode !== false && input.apiMode) {
     parts.push(
       input.apiMode === 'videos'
-        ? '视频'
+        ? t("视频")
         : input.apiMode === 'responses'
           ? 'Responses'
           : input.apiMode === 'venice_images'
@@ -58,7 +59,7 @@ export function formatProviderProfileTagText(input: {
               ? 'WaveSpeed'
               : input.apiMode === 'kie'
                 ? 'Kie'
-                : '图片',
+                : t("图片"),
     )
   }
   parts.push(input.preferRemarkName && input.remarkName ? input.remarkName : input.name)

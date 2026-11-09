@@ -7,3 +7,14 @@ server/data/
 server/.env
 .playwright-mcp/
 docker-data/
+
+**/*.test.*
+**/*.spec.*
+**/tests/
+**/test-results/
+**/playwright-report/
+scripts/verify*
+vitest.config.*
+coverage/
+work/
+outputs/

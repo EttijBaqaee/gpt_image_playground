@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n'
 import React, { useEffect, useState, useRef } from 'react'
 import { useStore, addImageFromUrl, ensureTaskImageAvailable } from '../store'
 import { copyBlobToClipboard, getClipboardFailureMessage } from '../lib/clipboard'
@@ -99,10 +100,10 @@ export default function ImageContextMenu() {
       const res = await fetch(imageSrc)
       const blob = await res.blob()
       await copyBlobToClipboard(blob)
-      showToast('图片已复制', 'success')
+      showToast(t("图片已复制"), 'success')
     } catch (err) {
       console.error(err)
-      showToast(getClipboardFailureMessage('复制失败', err), 'error')
+      showToast(getClipboardFailureMessage(t("复制失败"), err), 'error')
     }
   }
 
@@ -116,16 +117,16 @@ export default function ImageContextMenu() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const ext = blob.type.split('/')[1] || 'png'
+      const ext = blob.type === 'image/svg+xml' ? 'svg' : blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png'
       a.download = `image-${Date.now()}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      showToast('开始下载', 'success')
+      showToast(t("开始下载"), 'success')
     } catch (err) {
       console.error(err)
-      showToast('下载失败', 'error')
+      showToast(t("下载失败"), 'error')
     }
   }
 
@@ -134,7 +135,7 @@ export default function ImageContextMenu() {
     setMenuInfo(null)
     const maxImages = (settings.apiMode === 'venice_images' || settings.apiMode === 'wavespeed' || settings.apiMode === 'kie') ? 3 : 16
     if (inputImages.length >= maxImages) {
-      showToast(`参考图数量已达上限（${maxImages} 张），无法继续添加`, 'error')
+      showToast(t("参考图数量已达上限（{0} 张），无法继续添加", maxImages), 'error')
       return
     }
 
@@ -144,10 +145,10 @@ export default function ImageContextMenu() {
       setDetailTaskId(null)
       setLightboxImageId(null)
       setMaskEditorImageId(null)
-      showToast('已加入参考图', 'success')
+      showToast(t("已加入参考图"), 'success')
     } catch (err) {
       console.error(err)
-      showToast(`加入参考图失败：${err instanceof Error ? err.message : String(err)}`, 'error')
+      showToast(t("加入参考图失败：{0}", err instanceof Error ? err.message : String(err)), 'error')
     }
   }
 
@@ -178,8 +179,7 @@ export default function ImageContextMenu() {
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
-        复制
-      </button>
+        {t("复制")}</button>
       <button
         onClick={handleDownload}
         className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2 transition-colors"
@@ -187,8 +187,7 @@ export default function ImageContextMenu() {
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
-        下载
-      </button>
+        {t("下载")}</button>
       <button
         onClick={handleEdit}
         className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 flex items-center gap-2 transition-colors"
@@ -196,8 +195,7 @@ export default function ImageContextMenu() {
         <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
-        编辑
-      </button>
+        {t("编辑")}</button>
     </div>
   )
 }
