@@ -513,17 +513,19 @@ async function callImagesApi(
 
   const runSingleEdit = async () => {
     if (payload.provider.publicReferenceEnabled) {
-      if (payload.provider.apiMode !== 'images' || payload.provider.codexCli || payload.provider.grokApiCompat) {
-        throw new Error('公网参考图仅支持标准 Images 模式')
+      if (payload.provider.apiMode !== 'images' || payload.provider.codexCli) {
+        throw new Error('公网参考图仅支持 Images 模式，请关闭 Codex CLI 模式')
       }
       if (!options.publicReferenceImageUrl) throw new Error('公网参考图链接生成器不可用')
+    }
+    if (payload.provider.publicReferenceEnabled && !payload.provider.grokApiCompat) {
       const response = await fetchWithTimeout(buildApiUrl(payload.provider.baseUrl, 'images/edits'), {
         method: 'POST',
         headers: { ...buildHeaders(apiKey), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: payload.provider.model, prompt,
           images: payload.inputImages.map(image => ({ image_url: options.publicReferenceImageUrl!(image) })),
-          ...(payload.maskImage ? { [payload.params.annotation_mode === 'markup' ? 'markup' : 'mask']: { image_url: options.publicReferenceImageUrl(payload.maskImage) } } : {}),
+          ...(payload.maskImage ? { [payload.params.annotation_mode === 'markup' ? 'markup' : 'mask']: { image_url: options.publicReferenceImageUrl!(payload.maskImage) } } : {}),
           ...imageExtensionFields(payload.params, payload.provider),
           size: payload.params.size, quality: payload.params.quality,
           output_format: payload.params.output_format, moderation: payload.params.moderation,
@@ -537,7 +539,7 @@ async function callImagesApi(
       return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
     }
 
-    if (shouldUseVeniceCompat(payload) && isVeniceProvider(payload)) {
+    if (!payload.provider.publicReferenceEnabled && shouldUseVeniceCompat(payload) && isVeniceProvider(payload)) {
       if (payload.maskImage) {
         throw new Error('Venice 兼容模式暂不支持遮罩编辑')
       }
@@ -584,9 +586,9 @@ async function callImagesApi(
         throw new Error('Grok Images API 兼容模式暂不支持遮罩编辑')
       }
 
-      const inputImageDataUrls = await Promise.all(
-        payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType)),
-      )
+      const inputImageUrls = payload.provider.publicReferenceEnabled
+        ? payload.inputImages.map((image) => options.publicReferenceImageUrl!(image))
+        : await Promise.all(payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType)))
 
       const response = await fetchWithTimeout(
         buildApiUrl(payload.provider.baseUrl, 'images/edits'),
@@ -599,20 +601,20 @@ async function callImagesApi(
           body: JSON.stringify({
             model: payload.provider.model,
             prompt,
-            ...(grokSize.aspectRatio ? { aspect_ratio: grokSize.aspectRatio } : {}),
+            ...(inputImageUrls.length > 1 && grokSize.aspectRatio ? { aspect_ratio: grokSize.aspectRatio } : {}),
             ...(grokSize.resolution ? { resolution: grokSize.resolution } : {}),
             ...(payload.provider.responseFormatB64Json ? { response_format: 'b64_json' } : {}),
             ...(!shouldUseConcurrentSingles && payload.params.n > 1 ? { n: payload.params.n } : {}),
-            ...(inputImageDataUrls.length <= 1
+            ...(inputImageUrls.length <= 1
               ? {
                   image: {
-                    url: inputImageDataUrls[0],
+                    url: inputImageUrls[0],
                     type: 'image_url',
                   },
                 }
               : {
-                  images: inputImageDataUrls.map((dataUrl) => ({
-                    url: dataUrl,
+                  images: inputImageUrls.map((url) => ({
+                    url,
                     type: 'image_url',
                   })),
                 }),

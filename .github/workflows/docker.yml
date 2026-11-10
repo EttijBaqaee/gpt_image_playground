@@ -8,7 +8,7 @@ on:
       release_tag:
         description: Published release tag containing the Docker archive
         required: true
-        default: v0.3.66.7
+        default: v0.3.66.8
         type: string
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || 'v0.3.66.7' }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag || 'v0.3.66.8' }}
     steps:
       - name: Load the release image
         shell: bash

@@ -1,6 +1,15 @@
-# GPT Image Playground · 0.3.66.7
+# GPT Image Playground · 0.3.66.8
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md)
+
+## Update 0.3.66.8
+
+**2026-11-10 · Grok 公网参考图适配。**
+
+- **Grok 公网参考图**：Images 模式下可同时开启“Grok API 兼容”和“参考图使用公网 URL”。单图使用 `image.url`，多图按排列顺序使用 `images[].url`，提交到 `/v1/images/edits`。
+- **传图方式切换**：Grok 兼容模式关闭公网 URL 时继续使用 Base64；标准 Images 模式保留原有 JSON 公网链接和文件上传格式。公网 URL 开关保留已有的 xAI 2K 设置。
+- **单图编辑比例**：Grok 单图编辑由参考图决定比例，不附带 `aspect_ratio`；多图编辑继续按所选尺寸提交比例。分辨率仍由“允许 xAI 2K 图片”和尺寸选择控制。
+- **配置与升级**：继续使用原有参考图地址检测、临时签名链接和访问提示，无需调整数据目录或 Docker 编排参数。Grok 编辑仍不支持遮罩。
 
 ## Update 0.3.66.7
 
@@ -78,12 +87,12 @@
 服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7
+docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8
 # 跟随本 fork 的最新发布版本
 docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
 ```
 
-正式部署建议固定 `0.3.66.7`。本次发布镜像为 **Linux amd64**，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
+正式部署建议固定 `0.3.66.8`。本次发布镜像为 **Linux amd64**，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
 
 ### 首次创建持久化目录
 
@@ -101,12 +110,12 @@ chown 1000:1000 /opt/gpt-image-playground-data
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.7 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.8 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.7 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.7) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.8 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.8) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -125,7 +134,7 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 services:
   app:
     # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7
+    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -254,8 +263,8 @@ UPLOAD_MAX_TOTAL_MB=128
 需要公网参考图的供应商，可在管理员的 API 配置中开启“参考图使用公网 URL”。开关位于“返回 Base64 图片数据”下方，开启后填写“公网访问地址”，然后点击“检测公网访问”；检测通过后才允许保存。无需在 Docker 编排中添加 `PUBLIC_BASE_URL`。
 
 - 支持 `https://example.com`、`https://example.com:8443`，也支持无证书的 `http://公网IP:端口`。只填写协议、域名或 IP、可选端口，不填主页或媒体路径。供应商必须能从外网访问该地址；部分供应商自身可能只允许 HTTPS。
-- 只对标准 Images 模式生效，与 Grok API 兼容、Codex CLI 模式互斥。没有参考图时继续使用原来的文生图请求；关闭开关后继续使用文件上传。
-- 有参考图时，后端按 OpenAI 官方格式，以 JSON 请求 `/v1/images/edits`，使用 `images: [{"image_url":"临时公网链接"}]`。多图按最终排列提交；遮罩使用 `mask.image_url`。第三方接口是否完整支持该格式及遮罩，仍由供应商决定。
+- 对 Images 模式生效，可与“Grok API 兼容”同时开启，与 Codex CLI 模式互斥。没有参考图时继续使用原来的文生图请求；关闭开关后，标准 Images 使用文件上传，Grok 兼容模式使用 Base64。
+- 有参考图时，后端以 JSON 请求 `/v1/images/edits`。标准 Images 使用 `images: [{"image_url":"临时公网链接"}]`，遮罩使用 `mask.image_url`；Grok 兼容模式单图使用 `image: {"url":"临时公网链接"}`，多图使用 `images: [{"url":"临时公网链接"}]`，不支持遮罩。多图均按最终排列提交，具体能力由供应商决定。
 - 公网参考图使用独立的 `REFERENCE_BASE_PATH`，不继承主页或媒体前缀。编排中填 `REFERENCE_BASE_PATH: "r"`，公网地址填 `https://example.com`，生成链接就是 `https://example.com/r/references/uploads/…?ref_provider=…&ref_expires=…&ref_signature=…`；留空使用 `/references/…`。`references` 末尾段保留。
 - 检测由应用后端通过所填地址读取本次随机生成的临时图片，最多等待 10 秒，并核对图片内容；不调用供应商 API。公网地址、参考图路径反代、签名查询参数或额外登录有误时无法通过。更换公网地址、重新开启开关或更换 `REFERENCE_BASE_PATH` 后需要重新检测；它验证当前服务器能通过该地址访问图片，不能保证供应商所在网络也允许访问。
 - 浏览器能访问，但检测仍超时时，请检查应用容器能否回访所填公网地址和端口。防火墙、Docker 桥接网络或路由器不支持 NAT 回环时，容器可能无法访问自身映射端口；应调整回访网络或使用容器可回访的 Nginx 反代入口，再重新检测。HTTP 地址不需要证书。
@@ -290,7 +299,7 @@ location ^~ /r/references/ {
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。六项路径按第 6 节分别填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
@@ -300,7 +309,7 @@ location ^~ /r/references/ {
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.7
+image: gpt-image-playground-fork:0.3.66.8
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -335,7 +344,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.7`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.8`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 六项路径分别设置
 
@@ -678,17 +687,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.7-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `gpt-image-playground-fork-0.3.66.8-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.7-amd64.tar.gz
+docker load -i gpt-image-playground-fork-0.3.66.8-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.7
+image: gpt-image-playground-fork:0.3.66.8
 pull_policy: never
 ```
 

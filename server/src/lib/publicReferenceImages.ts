@@ -44,8 +44,8 @@ export function isPublicReferenceVerified(config: Config, settings: PublicRefere
 }
 export function assertPublicReferenceSettings(config: Config, settings: PublicReferenceSettings & { apiMode: string; codexCli?: boolean; grokApiCompat?: boolean }) {
   if (!settings.publicReferenceEnabled) return
-  if (settings.apiMode !== 'images' || settings.codexCli || settings.grokApiCompat) {
-    throw configurationError('公网参考图仅支持标准 Images 模式，请关闭 Grok API 兼容和 Codex CLI 模式')
+  if (settings.apiMode !== 'images' || settings.codexCli) {
+    throw configurationError('公网参考图仅支持 Images 模式，请关闭 Codex CLI 模式')
   }
   normalizePublicReferenceBaseUrl(settings.publicReferenceBaseUrl || '')
   if (!isPublicReferenceVerified(config, settings)) throw configurationError('请先检测公网参考图地址，检测通过后才能保存')

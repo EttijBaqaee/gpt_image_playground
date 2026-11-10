@@ -610,6 +610,7 @@ export const englishMessages: Record<string, string> = {
   "，尝试让接口直接返回 Base64 图片。": " to request Base64 image data.",
   "参考图使用公网 URL": "Use public reference URLs",
   "按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。": "Submit temporary reference URLs as OpenAI JSON to /v1/images/edits. When disabled, upload image files.",
+  "按 Grok JSON 格式向 /v1/images/edits 提交参考图临时链接，支持单图和多图。关闭时使用 Base64 图片。": "Submit temporary reference URLs as Grok JSON to /v1/images/edits for single or multiple images. When disabled, send Base64 images.",
   "公网访问地址": "Public base URL",
   "支持 https://域名 或 http://公网IP:端口，无需证书。只填公网地址，不填路径；参考图独立使用编排中的 REFERENCE_BASE_PATH，默认 /references/。临时链接至少有效 1 小时，长请求按两倍请求超时加 60 秒延长；过期后需重新提交任务。": "Accepts https://domain or http://public-ip:port without a certificate. Enter only the origin. References use REFERENCE_BASE_PATH (default /references/). Links last at least one hour; long requests use twice the timeout plus 60 seconds. Submit again after expiry.",
   "检测中...": "Checking...",

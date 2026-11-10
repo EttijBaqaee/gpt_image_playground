@@ -1680,7 +1680,7 @@ const hasUnreadEndedReminders = useMemo(
       if (next.publicReferenceBaseUrl !== prev.publicReferenceBaseUrl || next.publicReferenceEnabled !== prev.publicReferenceEnabled) {
         next.publicReferenceVerification = ''
       }
-      if (next.apiMode !== 'images' || next.grokApiCompat || next.codexCli) {
+      if (next.apiMode !== 'images' || next.codexCli) {
         next.publicReferenceEnabled = false
         next.publicReferenceVerification = ''
       }
@@ -3464,11 +3464,13 @@ const hasUnreadEndedReminders = useMemo(
                   <>
                     <PreferenceRow
                       title={t("参考图使用公网 URL")}
-                      description={t("按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。")}
+                      description={profileDraft.grokApiCompat
+                        ? t("按 Grok JSON 格式向 /v1/images/edits 提交参考图临时链接，支持单图和多图。关闭时使用 Base64 图片。")
+                        : t("按 OpenAI JSON 格式向 /v1/images/edits 提交参考图临时链接。关闭时继续上传图片文件。")}
                       checked={profileDraft.publicReferenceEnabled === true}
                       onChange={(checked) => updateProfileDraft({
                         publicReferenceEnabled: checked,
-                        ...(checked ? { grokApiCompat: false, codexCli: false, xaiImage2kEnabled: false } : {}),
+                        ...(checked ? { codexCli: false } : {}),
                       })}
                     />
                     {profileDraft.publicReferenceEnabled && (

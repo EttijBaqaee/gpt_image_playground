@@ -104,7 +104,7 @@ function validatePublicReferenceProfile(app: Parameters<FastifyPluginAsync>[0], 
   payload.publicReferenceEnabled ??= Boolean(current?.publicReferenceEnabled)
   payload.publicReferenceBaseUrl ??= current?.publicReferenceBaseUrl ?? ''
   payload.publicReferenceVerification ??= current?.publicReferenceVerification ?? ''
-  if (payload.apiMode !== 'images' || payload.codexCli || payload.grokApiCompat) payload.publicReferenceEnabled = false
+  if (payload.apiMode !== 'images' || payload.codexCli) payload.publicReferenceEnabled = false
   assertPublicReferenceSettings(app.config, payload)
   if (payload.publicReferenceEnabled) payload.publicReferenceBaseUrl = normalizePublicReferenceBaseUrl(payload.publicReferenceBaseUrl || '')
 }

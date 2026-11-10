@@ -1,6 +1,13 @@
-# GPT Image Playground · 0.3.66.7
+# GPT Image Playground · 0.3.66.8
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md)
+
+## What changes in 0.3.66.8
+
+- Images profiles can enable **Grok API compatibility** and **Use public reference URLs** together. Single-image edits send `image.url`; multiple references use `images[].url` in their selected order at `/v1/images/edits`.
+- Disabling public URLs preserves Base64 transport for Grok. Standard Images profiles retain their existing JSON URL and file-upload formats. Toggling public URLs preserves the xAI 2K setting.
+- Grok single-image edits follow the reference image's aspect ratio and omit `aspect_ratio`. Multiple-image edits retain the selected aspect ratio. Resolution still follows the xAI 2K option and requested size.
+- Existing origin checks, signed temporary URLs, access reminders, data directories, and Compose settings continue to apply. Grok image edits do not support masks.
 
 ## What changes in 0.3.66.7
 
@@ -44,7 +51,7 @@ docker compose pull app
 docker compose up -d
 ```
 
-Pin the image to `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.7` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
+Pin the image to `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
 
 For offline installation, load the release archive with `docker load -i <archive.tar.gz>`, then use its image tag in Compose. Release downloads are available on the [releases page](https://github.com/EttijBaqaee/gpt_image_playground/releases).
 
@@ -133,7 +140,9 @@ Confirmed official model IDs include `gpt-image-2.6-sunburst` and `gpt-image-2.6
 
 ### Public reference URLs
 
-For providers that require JSON image URLs, enable **Use public URLs for reference images** in a standard Images profile and enter the public origin, such as `https://example.com` or `http://public-ip:port`. Do not include a path.
+For providers that require JSON image URLs, enable **Use public reference URLs** in an Images profile and enter the public origin, such as `https://example.com` or `http://public-ip:port`. Do not include a path. Grok profiles can also enable **Grok API compatibility**; Codex CLI mode remains mutually exclusive with public reference URLs.
+
+Standard Images profiles send `images[].image_url` and optional `mask.image_url`. Grok profiles send `image.url` for one reference or `images[].url` for multiple references in their selected order, without masks. Both use `/v1/images/edits`. Disabling public URLs restores file uploads for standard Images or Base64 images for Grok. Without references, text-to-image behavior is unchanged.
 
 Use **Check public access**, then save the profile. The application retrieves a temporary image through that origin and checks its contents without calling the provider. The reverse proxy must preserve the reference path and signed query string and must not add an extra login requirement. The check confirms access from this server; provider network access may differ.
 

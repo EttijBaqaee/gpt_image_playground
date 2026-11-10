@@ -1,7 +1,7 @@
 {
   "name": "gpt-image-playground-server",
   "private": true,
-  "version": "0.3.66.7",
+  "version": "0.3.66.8",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",

@@ -1257,7 +1257,7 @@ export class AppDatabase {
     const now = new Date().toISOString()
     const current = this.getProviderProfile(input.id)
     const publicReferenceEnabled = (input.publicReferenceEnabled ?? Boolean(current?.publicReferenceEnabled))
-      && input.apiMode === 'images' && !input.codexCli && !input.grokApiCompat
+      && input.apiMode === 'images' && !input.codexCli
     const videoResolutionOptions = normalizeVideoResolutionOptions(input.videoResolutionOptions ?? [input.videoMaxResolution ?? '480p'])
     const videoMaxResolution = videoResolutionOptions[videoResolutionOptions.length - 1] ?? '480p'
     const videoDurationOptions = normalizeVideoDurationOptions(input.videoDurationOptions ?? [input.videoMaxDuration ?? 6])
