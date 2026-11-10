@@ -1,4 +1,4 @@
-import { assertReferenceModeSupported, readOutgoingReference } from './outgoingReferenceImages.js'
+import { assertReferenceModeSupported, readOutgoingReference, withOutgoingReferenceRequest } from './outgoingReferenceImages.js'
 import { imageExtensionError, imageExtensionFields, resolveImageCapabilities, type ImageRequestParams } from './imageCapabilities.js'
 import { prepareImageOutput } from './imageOutput.js'
 import fs from 'node:fs/promises'
@@ -512,7 +512,7 @@ async function callImagesApi(
     },
   )
 
-  const runSingleEdit = async () => {
+  const runSingleEdit = () => withOutgoingReferenceRequest(payload.provider.publicReferenceEnabled ? [] : [...payload.inputImages, ...(payload.maskImage ? [payload.maskImage] : [])], async () => {
     if (payload.provider.publicReferenceEnabled) {
       if (payload.provider.apiMode !== 'images' || payload.provider.codexCli) {
         throw new Error('公网参考图仅支持 Images 模式，请关闭 Codex CLI 模式')
@@ -681,7 +681,7 @@ async function callImagesApi(
     }
 
     return parseProviderImageJsonResponse(response, 'Images API', resolveImageTimeoutSeconds(payload))
-  }
+  })
 
   const runSingleGeneration = async () => {
     if (shouldUseVeniceCompat(payload) && isVeniceProvider(payload)) {
@@ -801,7 +801,7 @@ async function callResponsesApi(
   }
 
   const timeoutSeconds = resolveImageTimeoutSeconds(payload)
-  const runSingle = async () => {
+  const runSingle = () => withOutgoingReferenceRequest([...payload.inputImages, ...(payload.maskImage ? [payload.maskImage] : [])], async () => {
     const inputImageDataUrls = await Promise.all(
       payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType, payload.provider.referenceImageMode)),
     )
@@ -847,7 +847,7 @@ async function callResponsesApi(
     }
 
     return parseProviderImageJsonResponse(response, 'Responses API', timeoutSeconds)
-  }
+  })
 
   if (payload.params.n === 1) {
     return runSingle()
@@ -887,6 +887,7 @@ export async function executeImageTask(
 ) {
   void db
   for (const image of payload.inputImages) await assertReferenceModeSupported(image, payload.provider.referenceImageMode)
+  if (payload.maskImage && payload.provider.referenceImageMode && payload.provider.referenceImageMode !== 'original') await assertReferenceModeSupported(payload.maskImage, payload.provider.referenceImageMode === 'pixel' ? 'lossless' : payload.provider.referenceImageMode)
   const extensionError = imageExtensionError(payload.params, payload.provider, payload.inputImages.length, Boolean(payload.maskImage))
   if (extensionError) throw new Error(extensionError)
   const maxImages = resolveEffectiveMaxReferenceImages(payload.provider)

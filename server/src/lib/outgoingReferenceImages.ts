@@ -3,8 +3,50 @@ import fs from 'node:fs/promises'
 import sharp from 'sharp'
 import { normalizeReferenceImageMode, type ReferenceImageMode } from './referenceImageMode.js'
 
+// libvips operation caching can retain task-scoped raw reference buffers.
+sharp.cache(false)
+
 const extensions: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif', 'image/svg+xml': 'svg' }
 export function referenceExtension(mimeType: string) { return extensions[mimeType] || 'bin' }
+export function outgoingReferenceMime(mimeType: string, mode: ReferenceImageMode) {
+  return mode === 'pixel' && ['image/png', 'image/jpeg', 'image/webp', 'image/avif'].includes(mimeType) ? 'image/webp' : mimeType
+}
+
+// Bound decoded raster memory across tasks, n>1 submissions and public downloads.
+// Hand a released slot directly to the oldest waiter so new work cannot overtake it.
+let activeReferenceJobs = 0
+const referenceWaiters: Array<() => void> = []
+async function withReferenceProcessing<T>(run: () => Promise<T>): Promise<T> {
+  if (activeReferenceJobs < 1) activeReferenceJobs++
+  else await new Promise<void>(resolve => referenceWaiters.push(resolve))
+  try { return await run() }
+  finally {
+    const next = referenceWaiters.shift()
+    if (next) next()
+    else activeReferenceJobs--
+  }
+}
+
+// Reference bodies can remain alive while a slow upstream responds. Reserve
+// their serialized size before reading files, independently of decoder slots.
+const referenceRequestBudget = 96 * 1024 * 1024
+let reservedReferenceBytes = 0
+const referenceRequests: Array<{ bytes: number; resolve: () => void }> = []
+function drainReferenceRequests() {
+  while (referenceRequests.length && reservedReferenceBytes + referenceRequests[0].bytes <= referenceRequestBudget) {
+    const next = referenceRequests.shift()!
+    reservedReferenceBytes += next.bytes
+    next.resolve()
+  }
+}
+export async function withOutgoingReferenceRequest<T>(images: Array<{ filePath: string }>, run: () => Promise<T>) {
+  if (!images.length) return run()
+  const sizes = await Promise.all(images.map(async image => (await fs.stat(image.filePath)).size))
+  const bytes = Math.min(referenceRequestBudget, Math.max(256 * 1024, sizes.reduce((sum, size) => sum + Math.max(size, 16 * 1024), 0) * 6))
+  await new Promise<void>(resolve => { referenceRequests.push({ bytes, resolve }); drainReferenceRequests() })
+  try { return await run() }
+  finally { reservedReferenceBytes -= bytes; drainReferenceRequests() }
+}
 
 function isAnimatedPng(source: Buffer) {
   for (let offset = 8; offset + 12 <= source.length;) {
@@ -16,17 +58,42 @@ function isAnimatedPng(source: Buffer) {
   return false
 }
 
+async function referenceMetadata(source: Buffer, mimeType: string) {
+  try {
+    const metadata = await sharp(source, { animated: true }).metadata()
+    const expected: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpeg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'heif', 'image/svg+xml': 'svg' }
+    if (!metadata.width || !metadata.height || metadata.format !== expected[mimeType]) throw new Error('图片格式与声明的 MIME 类型不一致')
+    if (mimeType === 'image/png') {
+      let complete = false
+      for (let offset = 8; offset + 12 <= source.length;) {
+        const size = source.readUInt32BE(offset)
+        if (offset + size + 12 > source.length) break
+        if (source.toString('ascii', offset + 4, offset + 8) === 'IEND') { complete = size === 0; break }
+        offset += size + 12
+      }
+      if (!complete) throw new Error('PNG 文件不完整')
+    }
+    if (mimeType === 'image/jpeg' && source.lastIndexOf(Buffer.from([0xff, 0xd9])) < 2) throw new Error('JPEG 文件不完整')
+    if (mimeType === 'image/webp' && (source.length < 12 || source.readUInt32LE(4) + 8 > source.length)) throw new Error('WebP 文件不完整')
+    return metadata
+  } catch (error) {
+    throw new Error(`参考图无效，无法生成扰动副本：${error instanceof Error ? error.message : '图片损坏'}`)
+  }
+}
+
 export async function assertReferenceModeSupported(image: { filePath: string; mimeType: string }, mode: unknown) {
   const selected = normalizeReferenceImageMode(mode)
   if (selected === 'original') return
   if (!extensions[image.mimeType]) throw new Error('此参考图格式暂不支持扰动，请使用原版方案或转换为 PNG、JPEG、WebP、GIF、AVIF')
-  if (selected === 'pixel' && image.mimeType === 'image/svg+xml') throw new Error('SVG 参考图请使用原版或无损方案；轻微像素扰动需先转换为位图')
-  if (selected === 'pixel' && image.mimeType === 'image/png' && isAnimatedPng(await fs.readFile(image.filePath))) throw new Error('APNG 参考图请使用原版或无损方案，避免丢失动画帧')
-  if (selected === 'pixel' && image.mimeType === 'image/avif') {
+  await withReferenceProcessing(async () => {
     const source = await fs.readFile(image.filePath)
-    const metadata = await sharp(source, { animated: true }).metadata()
-    if ((metadata.pages || 1) > 1 || source.subarray(8, 64).includes(Buffer.from('avis'))) throw new Error('动画 AVIF 请使用原版或无损方案，避免丢失动画帧')
-  }
+    const metadata = await referenceMetadata(source, image.mimeType)
+    if (selected === 'pixel' && image.mimeType === 'image/svg+xml') throw new Error('SVG 参考图请使用原版或无损方案；轻微像素扰动需先转换为位图')
+    if (selected === 'pixel' && image.mimeType === 'image/png' && isAnimatedPng(source)) throw new Error('APNG 参考图请使用原版或无损方案，避免丢失动画帧')
+    if (selected === 'pixel' && image.mimeType === 'image/avif') {
+      if ((metadata.pages || 1) > 1 || source.subarray(8, 64).includes(Buffer.from('avis'))) throw new Error('动画 AVIF 请使用原版或无损方案，避免丢失动画帧')
+    }
+  })
 }
 
 function crc32(bytes: Buffer) {
@@ -131,13 +198,13 @@ function varyFile(source: Buffer, mimeType: string, seed: Buffer): Buffer {
   throw new Error('此参考图格式暂不支持扰动，请选择原版不变或转换为 PNG、JPEG、WebP、GIF、AVIF')
 }
 
-export async function varyReferenceImage(source: Buffer, mimeType: string, mode: ReferenceImageMode, seed = crypto.randomBytes(32)) {
+async function transformReferenceImage(source: Buffer, mimeType: string, mode: ReferenceImageMode, seed: Buffer) {
   if (mode === 'original') return { buffer: source, mimeType }
+  const metadata = await referenceMetadata(source, mimeType)
   if (mode === 'lossless') return { buffer: varyFile(source, mimeType, seed), mimeType }
   if (mimeType === 'image/gif') return { buffer: gifVariant(source, seed, true), mimeType }
   if (mimeType === 'image/svg+xml') throw new Error('SVG 参考图请使用原版或无损方案；轻微像素扰动需先转换为位图')
   if (mimeType === 'image/png' && isAnimatedPng(source)) throw new Error('APNG 参考图请使用原版或无损方案，避免丢失动画帧')
-  const metadata = await sharp(source, { animated: true }).metadata()
   if (mimeType === 'image/avif' && (metadata.pages && metadata.pages > 1 || source.subarray(8, 64).includes(Buffer.from('avis')))) throw new Error('动画 AVIF 请使用原版或无损方案，避免丢失动画帧')
   const { data, info } = await sharp(source, { animated: true }).toColourspace('srgb').ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const noise = crypto.createHash('sha256').update(seed).digest()
@@ -150,17 +217,38 @@ export async function varyReferenceImage(source: Buffer, mimeType: string, mode:
     data[offset] = value === 0 ? 1 : value === 255 ? 254 : value + (noise[(pixel + 7) % noise.length] & 1 ? 1 : -1)
   }
   const pages = metadata.pages || 1
-  let pipeline = sharp(data, { raw: { width: info.width, height: info.height, channels: 4, ...(pages > 1 ? { pageHeight: metadata.pageHeight } : {}) } })
-  if (metadata.orientation) pipeline = pipeline.withMetadata({ orientation: metadata.orientation })
-  // Lossless output avoids introducing JPEG/AVIF re-compression artifacts.
-  const outputMime = mimeType === 'image/webp' ? 'image/webp' : 'image/png'
-  const output = outputMime === 'image/webp'
-    ? await pipeline.webp({ lossless: true, effort: 4, loop: metadata.loop, delay: metadata.delay }).toBuffer()
-    : await pipeline.png().toBuffer()
-  return { buffer: varyFile(output, outputMime, seed), mimeType: outputMime }
+  const pipeline = () => {
+    let image = sharp(data, { raw: { width: info.width, height: info.height, channels: 4, ...(pages > 1 ? { pageHeight: metadata.pageHeight } : {}) } })
+    if (metadata.orientation) image = image.withMetadata({ orientation: metadata.orientation })
+    return image
+  }
+  // Apply the size budget to the final transmitted bytes, including the nonce.
+  // Small files have a 16 KiB floor for container overhead. Never inflate a
+  // compressed photo back into a large lossless raster or silently resize it.
+  const maxBytes = Math.max(16 * 1024, Math.min(source.length, 2 * 1024 * 1024))
+  const encode = async (lossless: boolean, quality = 84) => varyFile(await pipeline().webp({
+    lossless, quality, effort: 0, alphaQuality: 100, loop: metadata.loop, delay: metadata.delay,
+  }).toBuffer(), 'image/webp', seed)
+  // Lossless is cheap for small/flat images and preserves the exact RGB deltas.
+  // Large photographic inputs go straight to bounded lossy encoding.
+  if (source.length <= 128 * 1024) {
+    const output = await encode(true)
+    if (output.length <= maxBytes) return { buffer: output, mimeType: 'image/webp' }
+  }
+  for (const quality of [84, 80, 76, 72]) {
+    const output = await encode(false, quality)
+    if (output.length <= maxBytes) return { buffer: output, mimeType: 'image/webp' }
+  }
+  throw new Error('像素扰动后的参考图无法压入体积上限，请先压缩参考图或选择无损文件扰动方案')
 }
 
-export async function readOutgoingReference(image: { filePath: string; mimeType: string }, mode: unknown) {
-  const result = await varyReferenceImage(await fs.readFile(image.filePath), image.mimeType, normalizeReferenceImageMode(mode))
-  return { ...result, fileName: `${crypto.randomUUID()}.${referenceExtension(result.mimeType)}` }
+export async function varyReferenceImage(source: Buffer, mimeType: string, mode: ReferenceImageMode, seed = crypto.randomBytes(32)) {
+  return withReferenceProcessing(() => transformReferenceImage(source, mimeType, mode, seed))
+}
+
+export async function readOutgoingReference(image: { filePath: string; mimeType: string }, mode: unknown, seed = crypto.randomBytes(32)) {
+  return withReferenceProcessing(async () => {
+    const result = await transformReferenceImage(await fs.readFile(image.filePath), image.mimeType, normalizeReferenceImageMode(mode), seed)
+    return { ...result, fileName: `${crypto.randomUUID()}.${referenceExtension(result.mimeType)}` }
+  })
 }

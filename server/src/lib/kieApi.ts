@@ -1,4 +1,4 @@
-import { readOutgoingReference } from './outgoingReferenceImages.js'
+import { readOutgoingReference, withOutgoingReferenceRequest } from './outgoingReferenceImages.js'
 import crypto from 'node:crypto'
 import path from 'node:path'
 import sharp from 'sharp'
@@ -428,29 +428,31 @@ async function uploadLocalImage(
   mimeType: string,
   index: number,
 ) {
-  const response = await fetchWithRetry(
-    joinUrl(KIE_UPLOAD_BASE_URL, 'api/file-stream-upload'),
-    async () => {
-      const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
-      const original = !provider.referenceImageMode || provider.referenceImageMode === 'original'
-      const fileName = original ? `kie-input-${Date.now()}-${index + 1}.${guessExtension(mimeType, filePath)}` : prepared.fileName
-      const form = new FormData()
-      form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || 'application/octet-stream' }), fileName)
-      form.append('uploadPath', original ? 'images/gpt-image-playground' : `images/gpt-image-playground/${crypto.randomUUID()}`)
-      form.append('fileName', fileName)
-      return { method: 'POST', headers: buildHeaders(apiKey), body: form }
-    },
-    Math.max(60, provider.timeoutSeconds), provider,
-  )
-  if (!response.ok) throw new Error(await readErrorMessage(response))
+  return withOutgoingReferenceRequest([{ filePath }], async () => {
+    const response = await fetchWithRetry(
+      joinUrl(KIE_UPLOAD_BASE_URL, 'api/file-stream-upload'),
+      async () => {
+        const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
+        const original = !provider.referenceImageMode || provider.referenceImageMode === 'original'
+        const fileName = original ? `kie-input-${Date.now()}-${index + 1}.${guessExtension(mimeType, filePath)}` : prepared.fileName
+        const form = new FormData()
+        form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || 'application/octet-stream' }), fileName)
+        form.append('uploadPath', original ? 'images/gpt-image-playground' : `images/gpt-image-playground/${crypto.randomUUID()}`)
+        form.append('fileName', fileName)
+        return { method: 'POST', headers: buildHeaders(apiKey), body: form }
+      },
+      Math.max(60, provider.timeoutSeconds), provider,
+    )
+    if (!response.ok) throw new Error(await readErrorMessage(response))
 
-  const payload = await response.json() as KieUploadResponse
-  if (payload.code != null && payload.code !== 200) {
-    throw new Error(payload.msg || payload.message || 'Kie 上传失败')
-  }
-  const url = payload.data?.downloadUrl || payload.data?.fileUrl
-  if (!url) throw new Error('Kie 上传未返回 downloadUrl')
-  return url
+    const payload = await response.json() as KieUploadResponse
+    if (payload.code != null && payload.code !== 200) {
+      throw new Error(payload.msg || payload.message || 'Kie 上传失败')
+    }
+    const url = payload.data?.downloadUrl || payload.data?.fileUrl
+    if (!url) throw new Error('Kie 上传未返回 downloadUrl')
+    return url
+  })
 }
 
 async function uploadInputImages(

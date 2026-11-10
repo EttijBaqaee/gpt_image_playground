@@ -1,8 +1,8 @@
 import { normalizeReferenceImageMode, type ReferenceImageMode } from './referenceImageMode.js'
-import { referenceExtension, varyReferenceImage } from './outgoingReferenceImages.js'
+import { readOutgoingReference, referenceExtension, outgoingReferenceMime } from './outgoingReferenceImages.js'
 import crypto from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { stat, readFile } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
@@ -107,7 +107,7 @@ export function createPublicReferenceImageUrl(config: Config, provider: Provider
   if (mode === 'original') return signedReferenceUrl(config, origin, filePath, provider.id, expires)
   const mimeType = options.mimeType || 'image/png'
   const effectiveMode = options.mask && mode === 'pixel' ? 'lossless' : mode
-  const outputMime = effectiveMode === 'pixel' && ['image/jpeg', 'image/avif'].includes(mimeType) ? 'image/png' : mimeType
+  const outputMime = outgoingReferenceMime(mimeType, effectiveMode)
   const route = `.variants/${crypto.randomUUID()}/${crypto.randomUUID()}.${referenceExtension(outputMime)}`
   const url = new URL(signedReferenceUrl(config, origin, route, provider.id, expires))
   url.searchParams.set('ref_variant', encodeVariant(config, route, { filePath, mimeType, mode: effectiveMode, seed: crypto.randomBytes(32).toString('hex') }))
@@ -134,6 +134,9 @@ export function canReadPublicReference(app: FastifyInstance, rawUrl: string, ima
 }
 
 export const publicReferenceRoutes: FastifyPluginAsync = async app => {
+  // Only coalesce in-flight reads. The source and transformation seed remain
+  // authoritative, and completed buffers are released rather than cached.
+  const pendingVariants = new Map<string, ReturnType<typeof readOutgoingReference>>()
   app.get(`${app.config.referenceBasePath}/references/.check/:nonce`, async (request, reply) => {
     const bytes = publicReferenceProbe(app.config, request.url)
     if (!bytes) return reply.code(404).send({ message: '检测图片不存在或已失效' })
@@ -155,9 +158,18 @@ export const publicReferenceRoutes: FastifyPluginAsync = async app => {
       // The token carries the immutable mode and seed. Changing the profile's
       // mode never invalidates a URL, including across a server restart.
       if (!image || !['input', 'mask'].includes(image.kind) || task?.providerProfileId !== providerId || !provider?.publicReferenceEnabled || !isPublicReferenceVerified(app.config, provider) || image.mimeType !== variant.mimeType || image.kind === 'mask' && variant.mode === 'pixel') return reply.code(401).send({ message: '参考图链接无效或已过期' })
-      const bytes = await readFile(path.join(app.config.mediaDir, variant.filePath)).catch(() => null)
-      if (!bytes) return reply.code(404).send({ message: '参考图不存在' })
-      const result = await varyReferenceImage(bytes, variant.mimeType, variant.mode, Buffer.from(variant.seed, 'hex'))
+      const key = relativePath + ':' + url.searchParams.get('ref_variant')
+      let pending = pendingVariants.get(key)
+      if (!pending) {
+        pending = readOutgoingReference({ filePath: path.join(app.config.mediaDir, variant.filePath), mimeType: variant.mimeType }, variant.mode, Buffer.from(variant.seed, 'hex'))
+          .finally(() => { pendingVariants.delete(key) })
+        pendingVariants.set(key, pending)
+      }
+      const result = await pending.catch((error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') return null
+        throw error
+      })
+      if (!result) return reply.code(404).send({ message: '参考图不存在' })
       return reply.header('Content-Length', result.buffer.length).header('X-Content-Type-Options', 'nosniff').type(result.mimeType).send(result.buffer)
     }
     if (!isReferenceFilePath(relativePath)) return reply.code(404).send({ message: '参考图不存在' })

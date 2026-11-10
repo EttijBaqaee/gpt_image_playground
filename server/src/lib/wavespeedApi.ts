@@ -1,4 +1,4 @@
-import { readOutgoingReference } from './outgoingReferenceImages.js'
+import { readOutgoingReference, withOutgoingReferenceRequest } from './outgoingReferenceImages.js'
 import path from 'node:path'
 import sharp from 'sharp'
 import type { ProviderProfileRecord } from './db.js'
@@ -211,35 +211,37 @@ async function uploadBinary(
   filePath: string,
   mimeType: string,
 ) {
-  const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
-  const form = new FormData()
-  const fileName = !provider.referenceImageMode || provider.referenceImageMode === 'original' ? path.basename(filePath) || 'input.png' : prepared.fileName
-  form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || guessMimeType(filePath, mimeType) }), fileName)
+  return withOutgoingReferenceRequest([{ filePath }], async () => {
+    const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
+    const form = new FormData()
+    const fileName = !provider.referenceImageMode || provider.referenceImageMode === 'original' ? path.basename(filePath) || 'input.png' : prepared.fileName
+    form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || guessMimeType(filePath, mimeType) }), fileName)
 
-  const response = await fetchWithTimeout(
-    joinUrl(provider.baseUrl, 'media/upload/binary'),
-    {
-      method: 'POST',
-      headers: buildHeaders(apiKey),
-      body: form,
-    },
-    provider.timeoutSeconds,
-    provider,
-  )
-  if (!response.ok) throw new Error(await readErrorMessage(response))
-  const payload = await response.json() as {
-    code?: number
-    message?: string
-    data?: { download_url?: string; url?: string }
-    download_url?: string
-    url?: string
-  }
-  if (payload.code != null && payload.code !== 200) {
-    throw new Error(payload.message || 'WaveSpeed 上传失败')
-  }
-  const url = payload.data?.download_url || payload.data?.url || payload.download_url || payload.url
-  if (!url) throw new Error('WaveSpeed 上传未返回 download_url')
-  return url
+    const response = await fetchWithTimeout(
+      joinUrl(provider.baseUrl, 'media/upload/binary'),
+      {
+        method: 'POST',
+        headers: buildHeaders(apiKey),
+        body: form,
+      },
+      provider.timeoutSeconds,
+      provider,
+    )
+    if (!response.ok) throw new Error(await readErrorMessage(response))
+    const payload = await response.json() as {
+      code?: number
+      message?: string
+      data?: { download_url?: string; url?: string }
+      download_url?: string
+      url?: string
+    }
+    if (payload.code != null && payload.code !== 200) {
+      throw new Error(payload.message || 'WaveSpeed 上传失败')
+    }
+    const url = payload.data?.download_url || payload.data?.url || payload.download_url || payload.url
+    if (!url) throw new Error('WaveSpeed 上传未返回 download_url')
+    return url
+  })
 }
 
 async function submitPrediction(

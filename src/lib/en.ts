@@ -5,7 +5,7 @@ export const englishMessages: Record<string, string> = {
   "轻微像素扰动": "Slight pixel variation",
   "适用于公网链接和直接上传。无损方案只改变文件字节，像素保持不变；像素方案轻微调整颜色，透明度保持不变。原图和本地复用不受影响。": "Applies to public links and direct uploads. Lossless mode changes file bytes without changing pixels. Pixel mode slightly adjusts colors while preserving transparency. Originals and local reuse are unaffected.",
   "方案在任务创建时固定，切换只影响新任务。每次重新提交生成独立副本，同一链接重复下载内容保持一致。遮罩和标注层不做像素扰动。": "The mode is fixed when a task is created. Changes apply only to new tasks. Each resubmission creates a fresh copy; repeat downloads of the same link return identical bytes. Masks and markup layers receive no pixel changes.",
-  "不能保证阻止感知哈希或图像相似度识别。像素方案将 JPEG、AVIF 转为 PNG；SVG、APNG 和动画 AVIF 请使用原版或无损方案。": "This does not guarantee protection from perceptual hashes or image similarity detection. Pixel mode converts JPEG and AVIF to PNG. Use original or lossless mode for SVG, APNG and animated AVIF.",
+  "不能保证阻止感知哈希或图像相似度识别；极小、全透明或少色图片的像素哈希也可能重复。像素方案将静态位图及 WebP 编码为 WebP，必要时有损压缩以限制体积；SVG、APNG 和动画 AVIF 请使用原版或无损方案。": "This cannot guarantee protection from perceptual hashes or image similarity detection. Very small, fully transparent or limited-color images may also repeat pixel hashes. Pixel mode encodes static rasters and WebP as WebP, using lossy compression when needed to limit size. Use original or lossless mode for SVG, APNG and animated AVIF.",
 
   '参考图不存在，无法复用配置': 'A reference image is missing. The configuration could not be reused.',
   '遮罩不存在，无法复用配置': 'The mask is missing. The configuration could not be reused.',

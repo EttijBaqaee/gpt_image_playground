@@ -35,6 +35,7 @@ ENV PORT=8787
 ENV HOST=0.0.0.0
 ENV DATA_DIR=/app/data
 ENV WEB_DIST_DIR=/app/dist
+ENV MALLOC_ARENA_MAX=2
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg \

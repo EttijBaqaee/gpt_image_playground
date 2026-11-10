@@ -3394,7 +3394,7 @@ const hasUnreadEndedReminders = useMemo(
                   </select>
                   <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t("适用于公网链接和直接上传。无损方案只改变文件字节，像素保持不变；像素方案轻微调整颜色，透明度保持不变。原图和本地复用不受影响。")}</p>
                   <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t("方案在任务创建时固定，切换只影响新任务。每次重新提交生成独立副本，同一链接重复下载内容保持一致。遮罩和标注层不做像素扰动。")}</p>
-                  <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">{t("不能保证阻止感知哈希或图像相似度识别。像素方案将 JPEG、AVIF 转为 PNG；SVG、APNG 和动画 AVIF 请使用原版或无损方案。")}</p>
+                  <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">{t("不能保证阻止感知哈希或图像相似度识别；极小、全透明或少色图片的像素哈希也可能重复。像素方案将静态位图及 WebP 编码为 WebP，必要时有损压缩以限制体积；SVG、APNG 和动画 AVIF 请使用原版或无损方案。")}</p>
                 </div>
               )}
               {profileDraft.apiMode === 'images' && !profileDraft.codexCli && !profileDraft.grokApiCompat && <ImageExtensionSettings model={profileDraft.model} value={profileDraft.imageExtensions} onChange={imageExtensions => updateProfileDraft({ imageExtensions })} />}
