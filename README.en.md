@@ -9,6 +9,17 @@
 - Grok single-image edits follow the reference image's aspect ratio and omit `aspect_ratio`. Multiple-image edits retain the selected aspect ratio. Resolution still follows the xAI 2K option and requested size.
 - Existing origin checks, signed temporary URLs, access reminders, data directories, and Compose settings continue to apply. Grok image edits do not support masks.
 
+## What changes in 0.3.66.7
+
+- Chinese and English interfaces, with a language button on the login screen, main page, and Settings. The initial language follows the browser: Chinese for Chinese locales, English otherwise. Manual preferences are saved in the current browser.
+- System, light, and dark appearance controls. System is the default. Theme changes use a gentle crossfade and respect reduced-motion preferences.
+- Image extensions configured separately for each API profile and exact model ID. An OpenAI-compatible endpoint alone does not enable newer model features.
+- Optional complexity, extended quality, transparent markup edits, SVG output, and animated GIF output. Availability follows the administrator’s manual selections for each provider and model.
+- SVG remains a vector file, GIF retains animation, and downloads preserve their formats. SVG is displayed as an image after static-content checks. GIF playback is available in the full image preview.
+- Repeated uploads and compressed reference reuse are fixed. Historical and new identical inputs share disk storage through hard links while keeping separate task references; deleting the last reference releases the storage. Filesystems without hard-link support retain separate files.
+- Deleting tasks removes their empty media directories. Startup also removes empty directories belonging to deleted tasks, preserving other files.
+- Reference URL settings retain support for private networks and display a red reminder to ensure the upstream service can access the address. A successful check confirms access from the current server only.
+
 This fork provides image/video generation, reference images, masks, task history, usage-code access, quotas, and a server-managed provider configuration. Provider keys stay on the server. Supported modes include Images, Responses, Videos, Venice, WaveSpeed, and Kie, with a separate Grok compatibility option where applicable.
 
 ## Docker deployment
