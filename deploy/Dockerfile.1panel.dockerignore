@@ -8,3 +8,15 @@ dist
 server/dist
 *.log
 chromium-install.log
+
+**/*.test.*
+**/*.spec.*
+**/tests
+**/test-results
+**/playwright-report
+scripts/verify*
+vitest.config.*
+.github
+docs
+work
+outputs

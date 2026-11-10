@@ -235,10 +235,17 @@ async function transformReferenceImage(source: Buffer, mimeType: string, mode: R
     const output = await encode(true)
     if (output.length <= maxBytes) return { buffer: output, mimeType: 'image/webp' }
   }
+  let smallestOutput: Buffer | undefined
   for (const quality of [84, 80, 76, 72]) {
     const output = await encode(false, quality)
     if (output.length <= maxBytes) return { buffer: output, mimeType: 'image/webp' }
+    if (!smallestOutput || output.length < smallestOutput.length) smallestOutput = output
   }
+  // A format change can need a little container/codec overhead even when its
+  // visible content is unchanged. Allow at most 5%, never beyond 2 MiB, rather
+  // than lowering the quality floor or randomly failing near the size budget.
+  const toleratedBytes = Math.max(16 * 1024, Math.min(Math.ceil(source.length * 1.05), 2 * 1024 * 1024))
+  if (smallestOutput && smallestOutput.length <= toleratedBytes) return { buffer: smallestOutput, mimeType: 'image/webp' }
   throw new Error('像素扰动后的参考图无法压入体积上限，请先压缩参考图或选择无损文件扰动方案')
 }
 

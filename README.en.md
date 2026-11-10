@@ -1,6 +1,13 @@
-# GPT Image Playground · 0.3.66.8
+# GPT Image Playground · 0.3.66.9
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md)
+
+## What changes in 0.3.66.9
+
+- Each API profile can choose **Original**, **Lossless file variation**, or **Slight pixel variation**. Original is the default. Tasks capture their mode when created; later changes apply only to new tasks.
+- Variation modes create fresh transmission copies for each submission and retry. Public references use random paths and filenames, while repeated downloads of the same link return identical bytes. The selected mode applies to file uploads, Base64, and public URLs.
+- Lossless file variation preserves decoded pixels. Pixel mode slightly changes RGB while preserving transparency; static rasters and WebP are encoded as WebP with a final size budget, using lossy compression when needed. GIF retains animation. Use Original or Lossless for SVG, APNG, and animated AVIF. Masks and markup layers receive no pixel changes.
+- Variation cannot guarantee protection from perceptual hashes or image similarity detection; very small, fully transparent, or limited-color images may also repeat pixel hashes. Original inputs, historical tasks, and existing deduplication links are preserved. Keep the existing data directory and Compose settings when upgrading.
 
 ## What changes in 0.3.66.8
 
@@ -51,7 +58,7 @@ docker compose pull app
 docker compose up -d
 ```
 
-Pin the image to `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
+Pin the image to `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.9` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
 
 For offline installation, load the release archive with `docker load -i <archive.tar.gz>`, then use its image tag in Compose. Release downloads are available on the [releases page](https://github.com/EttijBaqaee/gpt_image_playground/releases).
 
