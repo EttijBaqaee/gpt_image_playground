@@ -211,6 +211,7 @@ function createEmptyProfile(): BackendProviderProfile {
     grokApiCompat: false,
     xaiImage2kEnabled: false,
     responseFormatB64Json: false,
+    referenceImageMode: 'original',
     publicReferenceEnabled: false,
     publicReferenceBaseUrl: '',
     publicReferenceVerification: '',
@@ -1489,6 +1490,7 @@ const hasUnreadEndedReminders = useMemo(
             apiMode: runtimeSettings.apiMode,
             timeout: runtimeSettings.timeoutSeconds,
             codexCli: runtimeSettings.codexCli,
+            referenceImageMode: runtimeSettings.referenceImageMode,
             imageExtensions: runtimeSettings.imageExtensions,
             grokApiCompat: runtimeSettings.grokApiCompat,
             xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
@@ -1522,6 +1524,7 @@ const hasUnreadEndedReminders = useMemo(
           apiMode: runtimeSettings.apiMode,
           timeoutSeconds: runtimeSettings.timeoutSeconds,
           codexCli: runtimeSettings.codexCli,
+          referenceImageMode: runtimeSettings.referenceImageMode,
           imageExtensions: runtimeSettings.imageExtensions,
           grokApiCompat: runtimeSettings.grokApiCompat,
           xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
@@ -1741,6 +1744,7 @@ const hasUnreadEndedReminders = useMemo(
         apiMode: runtimeSettings.apiMode,
         timeout: runtimeSettings.timeoutSeconds,
         codexCli: runtimeSettings.codexCli,
+        referenceImageMode: runtimeSettings.referenceImageMode,
         imageExtensions: runtimeSettings.imageExtensions,
         grokApiCompat: runtimeSettings.grokApiCompat,
         xaiImage2kEnabled: runtimeSettings.xaiImage2kEnabled,
@@ -1822,6 +1826,7 @@ const hasUnreadEndedReminders = useMemo(
             model: selectedOption.model,
             timeout: selectedOption.timeoutSeconds,
             codexCli: selectedOption.codexCli,
+            referenceImageMode: selectedOption.referenceImageMode,
             imageExtensions: selectedOption.imageExtensions,
             grokApiCompat: selectedOption.grokApiCompat,
             xaiImage2kEnabled: selectedOption.xaiImage2kEnabled,
@@ -1898,6 +1903,7 @@ const hasUnreadEndedReminders = useMemo(
                 ? 'kie'
                 : 'images',
       codexCli: (profileDraft.apiMode === 'videos' || profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie') ? false : profileDraft.codexCli,
+      referenceImageMode: profileDraft.referenceImageMode ?? 'original',
       imageExtensions: profileDraft.imageExtensions,
       grokApiCompat: (profileDraft.apiMode === 'wavespeed' || profileDraft.apiMode === 'kie') ? false : profileDraft.grokApiCompat,
       xaiImage2kEnabled: (
@@ -1980,6 +1986,7 @@ const hasUnreadEndedReminders = useMemo(
           apiMode: activeProviderOption.apiMode,
           timeout: activeProviderOption.timeoutSeconds,
           codexCli: activeProviderOption.codexCli,
+          referenceImageMode: activeProviderOption.referenceImageMode,
           imageExtensions: activeProviderOption.imageExtensions,
           grokApiCompat: activeProviderOption.grokApiCompat,
           xaiImage2kEnabled: activeProviderOption.xaiImage2kEnabled,
@@ -3377,6 +3384,19 @@ const hasUnreadEndedReminders = useMemo(
                 />
               </div>
 
+              {profileDraft.apiMode !== 'videos' && (
+                <div className="space-y-2 rounded-2xl border border-gray-200/70 bg-gray-50/60 p-3 dark:border-white/[0.08] dark:bg-white/[0.03]">
+                  <label htmlFor="reference-image-mode" className="block text-sm font-medium">{t("参考图传输方案")}</label>
+                  <select id="reference-image-mode" value={profileDraft.referenceImageMode ?? 'original'} onChange={event => updateProfileDraft({ referenceImageMode: event.target.value as 'original' | 'lossless' | 'pixel' })} className="w-full rounded-xl border border-gray-200/70 bg-white px-3 py-2 text-sm dark:border-white/[0.08] dark:bg-gray-900">
+                    <option value="original">{t("原版不变（默认）")}</option>
+                    <option value="lossless">{t("无损文件扰动")}</option>
+                    <option value="pixel">{t("轻微像素扰动")}</option>
+                  </select>
+                  <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t("适用于公网链接和直接上传。无损方案只改变文件字节，像素保持不变；像素方案轻微调整颜色，透明度保持不变。原图和本地复用不受影响。")}</p>
+                  <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t("方案在任务创建时固定，切换只影响新任务。每次重新提交生成独立副本，同一链接重复下载内容保持一致。遮罩和标注层不做像素扰动。")}</p>
+                  <p className="text-xs leading-5 text-amber-600 dark:text-amber-400">{t("不能保证阻止感知哈希或图像相似度识别。像素方案将 JPEG、AVIF 转为 PNG；SVG、APNG 和动画 AVIF 请使用原版或无损方案。")}</p>
+                </div>
+              )}
               {profileDraft.apiMode === 'images' && !profileDraft.codexCli && !profileDraft.grokApiCompat && <ImageExtensionSettings model={profileDraft.model} value={profileDraft.imageExtensions} onChange={imageExtensions => updateProfileDraft({ imageExtensions })} />}
               <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200/70 bg-gray-50/60 px-3 dark:divide-white/[0.08] dark:border-white/[0.08] dark:bg-white/[0.03]">
                 <PreferenceRow

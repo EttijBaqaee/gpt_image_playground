@@ -1,3 +1,4 @@
+import { normalizeReferenceImageMode } from '../lib/referenceImageMode.js'
 import { imageExtensionError } from '../lib/imageCapabilities.js'
 import { validateMarkup } from '../lib/imageOutput.js'
 import { cleanupEmptyTaskMediaDirectories } from '../lib/mediaCleanup.js'
@@ -375,7 +376,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       }
       ;({ event } = app.db.createTaskWithAttachments({
         id: taskId, prompt, taskType,
-        paramsJson: JSON.stringify(taskType === 'video' ? parsedVideoParams : parsedParams),
+        paramsJson: JSON.stringify(taskType === 'video' ? parsedVideoParams : { ...parsedParams, reference_image_mode: normalizeReferenceImageMode(providerProfile.referenceImageMode) }),
         providerProfileId: providerProfile.id, providerProfileModel,
         ownerUsageCodeId: auth.role === 'user' ? selectedUsageCodeId : null,
         ownerKind: auth.role === 'user' ? 'usage_code' : 'admin', reservedImageCredits,

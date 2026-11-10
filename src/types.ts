@@ -1,3 +1,4 @@
+import type { ReferenceImageMode } from '../server/src/lib/referenceImageMode'
 import type { ImageExtensionsConfig, ImageRequestParams } from "../server/src/lib/imageCapabilities"
 // ===== 设置 =====
 
@@ -43,6 +44,7 @@ export interface AppSettings {
   timeout: number
   apiMode: ApiMode
   codexCli: boolean
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean

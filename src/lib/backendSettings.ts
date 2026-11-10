@@ -1,3 +1,4 @@
+import type { ReferenceImageMode } from '../../server/src/lib/referenceImageMode'
 import type { ImageExtensionsConfig } from "../../server/src/lib/imageCapabilities"
 import { appFetch } from './appUrl'
 import { normalizeBaseUrl } from './devProxy'
@@ -15,6 +16,7 @@ export interface BackendRuntimeSettings {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
@@ -77,6 +79,7 @@ export interface BackendProviderProfile {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
@@ -117,6 +120,7 @@ export interface BackendProviderOption {
   veniceSkipResolution?: boolean
   timeoutSeconds: number
   codexCli: boolean
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean
@@ -384,6 +388,7 @@ export async function saveBackendRuntimeSettings(settings: {
   apiMode: AppSettings['apiMode']
   timeoutSeconds: number
   codexCli: boolean
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: boolean
   xaiImage2kEnabled: boolean

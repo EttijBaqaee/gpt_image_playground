@@ -1,3 +1,4 @@
+import { normalizeReferenceImageMode } from './referenceImageMode.js'
 import type { ImageRequestParams } from './imageCapabilities.js'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -243,6 +244,8 @@ export class TaskWorker {
         ? { ...provider, model: task.providerProfileModel.trim() }
         : provider
 
+      // Freeze the reference mode recorded at creation, including queued tasks from older versions.
+      runtimeProvider = { ...runtimeProvider, referenceImageMode: normalizeReferenceImageMode(params.reference_image_mode) }
       const images = await executeImageTask(
         this.db,
         {
@@ -265,6 +268,7 @@ export class TaskWorker {
           publicReferenceImageUrl: (image) => createPublicReferenceImageUrl(
             { appSecret: this.config.appSecret, referenceBasePath: this.config.referenceBasePath ?? '' }, runtimeProvider,
             path.relative(this.config.mediaDir, image.filePath).split(path.sep).join('/'),
+            { mode: runtimeProvider.referenceImageMode, mimeType: image.mimeType, mask: image.filePath === (maskImage ? path.join(this.config.mediaDir, maskImage.filePath) : '') },
           ),
           onUpstreamRequestId: (requestId) => {
             this.db.updateTaskProgress({

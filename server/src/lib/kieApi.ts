@@ -1,4 +1,5 @@
-import fs from 'node:fs/promises'
+import { readOutgoingReference } from './outgoingReferenceImages.js'
+import crypto from 'node:crypto'
 import path from 'node:path'
 import sharp from 'sharp'
 import type { ProviderProfileRecord } from './db.js'
@@ -134,7 +135,7 @@ async function fetchWithTimeout(
 
 async function fetchWithRetry(
   url: string,
-  init: RequestInit,
+  init: RequestInit | (() => Promise<RequestInit>),
   timeoutSeconds: number,
   provider?: ProviderProfileRecord,
   attempts = 4,
@@ -142,7 +143,7 @@ async function fetchWithRetry(
   let lastError: unknown
   for (let i = 1; i <= attempts; i += 1) {
     try {
-      const response = await fetchWithTimeout(url, init, timeoutSeconds, provider)
+      const response = await fetchWithTimeout(url, typeof init === 'function' ? await init() : init, timeoutSeconds, provider)
       if (!response.ok && isTransientHttpStatus(response.status) && i < attempts) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * i))
         continue
@@ -275,14 +276,14 @@ function resolveTaskKind(imageCount: number): KieTaskKind {
   return 'multi-edit'
 }
 
-async function createTask(provider: ProviderProfileRecord, apiKey: string, body: Record<string, unknown>) {
+async function createTask(provider: ProviderProfileRecord, apiKey: string, body: () => Promise<Record<string, unknown>>) {
   const response = await fetchWithRetry(
     joinUrl(provider.baseUrl, 'jobs/createTask'),
-    {
+    async () => ({
       method: 'POST',
       headers: buildHeaders(apiKey, 'application/json'),
-      body: JSON.stringify(body),
-    },
+      body: JSON.stringify(await body()),
+    }),
     provider.timeoutSeconds,
     provider,
   )
@@ -427,23 +428,19 @@ async function uploadLocalImage(
   mimeType: string,
   index: number,
 ) {
-  const buffer = await fs.readFile(filePath)
-  const ext = guessExtension(mimeType, filePath)
-  const fileName = `kie-input-${Date.now()}-${index + 1}.${ext}`
-  const form = new FormData()
-  form.append('file', new Blob([Uint8Array.from(buffer)], { type: mimeType || 'application/octet-stream' }), fileName)
-  form.append('uploadPath', 'images/gpt-image-playground')
-  form.append('fileName', fileName)
-
   const response = await fetchWithRetry(
     joinUrl(KIE_UPLOAD_BASE_URL, 'api/file-stream-upload'),
-    {
-      method: 'POST',
-      headers: buildHeaders(apiKey),
-      body: form,
+    async () => {
+      const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
+      const original = !provider.referenceImageMode || provider.referenceImageMode === 'original'
+      const fileName = original ? `kie-input-${Date.now()}-${index + 1}.${guessExtension(mimeType, filePath)}` : prepared.fileName
+      const form = new FormData()
+      form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || 'application/octet-stream' }), fileName)
+      form.append('uploadPath', original ? 'images/gpt-image-playground' : `images/gpt-image-playground/${crypto.randomUUID()}`)
+      form.append('fileName', fileName)
+      return { method: 'POST', headers: buildHeaders(apiKey), body: form }
     },
-    Math.max(60, provider.timeoutSeconds),
-    provider,
+    Math.max(60, provider.timeoutSeconds), provider,
   )
   if (!response.ok) throw new Error(await readErrorMessage(response))
 
@@ -506,18 +503,13 @@ async function runSingleKie(
     nsfw_checker: Number(payload.provider.nsfwChecker ?? 1) !== 0,
   }
 
-  if (kind === 'generate') {
-    // 文生图不需要 image_urls
-  } else {
-    // 图生图必须先上传本地文件，再传公网 URL
-    const imageUrls = await uploadInputImages(payload.provider, apiKey, payload.inputImages)
-    input.image_urls = imageUrls
-    input.output_format = mapOutputFormat(payload.params.output_format)
-  }
-
-  const taskId = await createTask(payload.provider, apiKey, {
-    model,
-    input,
+  const taskId = await createTask(payload.provider, apiKey, async () => {
+    const submissionInput = { ...input }
+    if (kind !== 'generate') {
+      submissionInput.image_urls = await uploadInputImages(payload.provider, apiKey, payload.inputImages)
+      submissionInput.output_format = mapOutputFormat(payload.params.output_format)
+    }
+    return { model, input: submissionInput }
   })
   options.onUpstreamRequestId?.(taskId)
   options.onUpstreamMeta?.({ requestId: taskId })

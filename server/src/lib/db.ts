@@ -1,3 +1,4 @@
+import { normalizeReferenceImageMode, type ReferenceImageMode } from './referenceImageMode.js'
 import { normalizeImageExtensions, type ImageExtensionsConfig } from "./imageCapabilities.js"
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -18,6 +19,7 @@ export interface ProviderProfileRecord {
   apiMode: 'images' | 'responses' | 'videos' | 'venice_images' | 'wavespeed' | 'kie'
   timeoutSeconds: number
   codexCli: number
+  referenceImageMode?: ReferenceImageMode
   imageExtensions?: ImageExtensionsConfig
   grokApiCompat: number
   xaiImage2kEnabled: number
@@ -755,7 +757,7 @@ export class AppDatabase {
     if (!profileColumnNames.has('grok_api_compat')) {
       this.sqlite.exec('ALTER TABLE provider_profiles ADD COLUMN grok_api_compat INTEGER NOT NULL DEFAULT 0')
     }
-    for (const [name, type] of [['image_extensions_json', 'TEXT'], ['public_reference_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['public_reference_base_url', 'TEXT'], ['public_reference_verification', 'TEXT']]) {
+    for (const [name, type] of [['reference_image_mode', "TEXT NOT NULL DEFAULT 'original'"], ['image_extensions_json', 'TEXT'], ['public_reference_enabled', 'INTEGER NOT NULL DEFAULT 0'], ['public_reference_base_url', 'TEXT'], ['public_reference_verification', 'TEXT']]) {
       if (!profileColumnNames.has(name)) this.sqlite.exec(`ALTER TABLE provider_profiles ADD COLUMN ${name} ${type}`)
     }
     if (!profileColumnNames.has('response_format_b64_json')) {
@@ -1069,6 +1071,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          reference_image_mode as referenceImageMode,
           image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
@@ -1125,6 +1128,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          reference_image_mode as referenceImageMode,
           image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
@@ -1179,6 +1183,7 @@ export class AppDatabase {
           timeout_seconds as timeoutSeconds,
           codex_cli as codexCli,
           grok_api_compat as grokApiCompat,
+          reference_image_mode as referenceImageMode,
           image_extensions_json as imageExtensionsJson,
           xai_image_2k_enabled as xaiImage2kEnabled,
           response_format_b64_json as responseFormatB64Json,
@@ -1230,6 +1235,7 @@ export class AppDatabase {
     apiMode: 'images' | 'responses' | 'videos' | 'venice_images' | 'wavespeed' | 'kie'
     timeoutSeconds: number
     codexCli?: boolean
+    referenceImageMode?: ReferenceImageMode
     imageExtensions?: ImageExtensionsConfig
     grokApiCompat?: boolean
     xaiImage2kEnabled?: boolean
@@ -1281,6 +1287,7 @@ export class AppDatabase {
           timeout_seconds,
           codex_cli,
           grok_api_compat,
+          reference_image_mode,
           image_extensions_json,
           xai_image_2k_enabled,
           response_format_b64_json,
@@ -1319,6 +1326,7 @@ export class AppDatabase {
           @timeoutSeconds,
           @codexCli,
           @grokApiCompat,
+          @referenceImageMode,
           @imageExtensionsJson,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
@@ -1356,6 +1364,7 @@ export class AppDatabase {
           timeout_seconds = excluded.timeout_seconds,
           codex_cli = excluded.codex_cli,
           grok_api_compat = excluded.grok_api_compat,
+          reference_image_mode = excluded.reference_image_mode,
           image_extensions_json = excluded.image_extensions_json,
           xai_image_2k_enabled = excluded.xai_image_2k_enabled,
           response_format_b64_json = excluded.response_format_b64_json,
@@ -1386,6 +1395,7 @@ export class AppDatabase {
         modelOptionsJson: serializeProviderModelOptions(input.model, input.modelOptions, input.apiMode),
         codexCli: input.codexCli ? 1 : 0,
         grokApiCompat: input.grokApiCompat ? 1 : 0,
+        referenceImageMode: normalizeReferenceImageMode(input.referenceImageMode ?? current?.referenceImageMode),
         imageExtensionsJson: JSON.stringify(normalizeImageExtensions(input.imageExtensions ?? (current?.baseUrl === input.baseUrl ? current?.imageExtensions : undefined))),
         xaiImage2kEnabled: input.xaiImage2kEnabled ? 1 : 0,
         responseFormatB64Json: input.responseFormatB64Json ? 1 : 0,
@@ -3808,6 +3818,7 @@ ${selectUsageCodeFields()}
           timeout_seconds,
           codex_cli,
           grok_api_compat,
+          reference_image_mode,
           image_extensions_json,
           xai_image_2k_enabled,
           response_format_b64_json,
@@ -3846,6 +3857,7 @@ ${selectUsageCodeFields()}
           @timeoutSeconds,
           @codexCli,
           @grokApiCompat,
+          @referenceImageMode,
           @imageExtensionsJson,
           @xaiImage2kEnabled,
           @responseFormatB64Json,
@@ -4072,6 +4084,7 @@ ${selectUsageCodeFields()}
         insertProviderProfile.run({
           ...profile,
           remarkName: profile.remarkName ?? null,
+          referenceImageMode: normalizeReferenceImageMode(profile.referenceImageMode),
           imageExtensionsJson: JSON.stringify(normalizeImageExtensions(profile.imageExtensions)),
           publicReferenceEnabled: profile.publicReferenceEnabled ?? 0,
           publicReferenceBaseUrl: profile.publicReferenceBaseUrl ?? null,

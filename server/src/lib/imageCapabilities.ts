@@ -1,3 +1,4 @@
+import type { ReferenceImageMode } from './referenceImageMode.js'
 // Pure capability rules shared by the browser and server. No network or platform dependencies.
 export const IMAGE_FEATURES = ['complexity', 'extendedQuality', 'markup', 'svg', 'gif', 'svgModelSelection'] as const
 export type ImageFeature = typeof IMAGE_FEATURES[number]
@@ -14,6 +15,7 @@ export interface ImageCapabilityProvider {
   imageExtensions?: ImageExtensionsConfig | null
 }
 export interface ImageRequestParams {
+  reference_image_mode?: ReferenceImageMode
   size: string
   quality: 'auto' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   output_format: 'png' | 'jpeg' | 'webp' | 'svg' | 'gif'

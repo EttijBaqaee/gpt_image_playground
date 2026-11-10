@@ -1,3 +1,4 @@
+import { assertReferenceModeSupported, readOutgoingReference } from './outgoingReferenceImages.js'
 import { imageExtensionError, imageExtensionFields, resolveImageCapabilities, type ImageRequestParams } from './imageCapabilities.js'
 import { prepareImageOutput } from './imageOutput.js'
 import fs from 'node:fs/promises'
@@ -181,9 +182,9 @@ function createResponsesImageTool(payload: TaskExecutionPayload): Record<string,
   return tool
 }
 
-async function fileToDataUrl(filePath: string, mimeType: string) {
-  const buffer = await fs.readFile(filePath)
-  return `data:${mimeType};base64,${buffer.toString('base64')}`
+async function fileToDataUrl(filePath: string, mimeType: string, mode?: ProviderProfileRecord['referenceImageMode']) {
+  const result = await readOutgoingReference({ filePath, mimeType }, mode)
+  return `data:${result.mimeType};base64,${result.buffer.toString('base64')}`
 }
 
 async function fetchRemoteImage(url: string) {
@@ -545,7 +546,7 @@ async function callImagesApi(
       }
 
       const inputImageDataUrls = await Promise.all(
-        payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType)),
+        payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType, payload.provider.referenceImageMode)),
       )
 
       const usesMultipleImages = inputImageDataUrls.length > 1
@@ -588,7 +589,7 @@ async function callImagesApi(
 
       const inputImageUrls = payload.provider.publicReferenceEnabled
         ? payload.inputImages.map((image) => options.publicReferenceImageUrl!(image))
-        : await Promise.all(payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType)))
+        : await Promise.all(payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType, payload.provider.referenceImageMode)))
 
       const response = await fetchWithTimeout(
         buildApiUrl(payload.provider.baseUrl, 'images/edits'),
@@ -654,9 +655,9 @@ async function callImagesApi(
 
     for (let index = 0; index < payload.inputImages.length; index += 1) {
       const inputImage = payload.inputImages[index]
-      const buffer = await fs.readFile(inputImage.filePath)
-      const ext = inputImage.mimeType.split('/')[1] || 'png'
-      formData.append('image[]', new Blob([buffer], { type: inputImage.mimeType }), `input-${index + 1}.${ext}`)
+      const prepared = await readOutgoingReference(inputImage, payload.provider.referenceImageMode)
+      const fileName = !payload.provider.referenceImageMode || payload.provider.referenceImageMode === 'original' ? `input-${index + 1}.${inputImage.mimeType.split('/')[1] || 'png'}` : prepared.fileName
+      formData.append('image[]', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType }), fileName)
     }
 
     if (payload.maskImage) {
@@ -799,35 +800,34 @@ async function callResponsesApi(
     return callImagesApi(payload, apiKey, options)
   }
 
-  const inputImageDataUrls = await Promise.all(
-    payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType)),
-  )
-  const maskDataUrl = payload.maskImage
-    ? await fileToDataUrl(payload.maskImage.filePath, payload.maskImage.mimeType)
-    : null
-
   const timeoutSeconds = resolveImageTimeoutSeconds(payload)
-
-  const body = {
-    model: payload.provider.model,
-    input: createResponsesInput(payload.prompt, inputImageDataUrls),
-    tools: [
-      {
-        ...createResponsesImageTool(payload),
-        ...(maskDataUrl
-          ? {
-              input_image_mask: {
-                image_url: maskDataUrl,
-              },
-            }
-          : {}),
-      },
-    ],
-    // 用户明确生图：强制触发 image_generation 工具
-    tool_choice: 'required',
-  }
-
   const runSingle = async () => {
+    const inputImageDataUrls = await Promise.all(
+      payload.inputImages.map((image) => fileToDataUrl(image.filePath, image.mimeType, payload.provider.referenceImageMode)),
+    )
+    const maskDataUrl = payload.maskImage
+      ? await fileToDataUrl(payload.maskImage.filePath, payload.maskImage.mimeType)
+      : null
+
+    const body = {
+      model: payload.provider.model,
+      input: createResponsesInput(payload.prompt, inputImageDataUrls),
+      tools: [
+        {
+          ...createResponsesImageTool(payload),
+          ...(maskDataUrl
+            ? {
+                input_image_mask: {
+                  image_url: maskDataUrl,
+                },
+              }
+            : {}),
+        },
+      ],
+      // 用户明确生图：强制触发 image_generation 工具
+      tool_choice: 'required',
+    }
+
     const response = await fetchWithTimeout(
       buildApiUrl(payload.provider.baseUrl, 'responses'),
       {
@@ -886,6 +886,7 @@ export async function executeImageTask(
   options: ExecuteImageTaskOptions = {},
 ) {
   void db
+  for (const image of payload.inputImages) await assertReferenceModeSupported(image, payload.provider.referenceImageMode)
   const extensionError = imageExtensionError(payload.params, payload.provider, payload.inputImages.length, Boolean(payload.maskImage))
   if (extensionError) throw new Error(extensionError)
   const maxImages = resolveEffectiveMaxReferenceImages(payload.provider)

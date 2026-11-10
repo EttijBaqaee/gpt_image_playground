@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises'
+import { readOutgoingReference } from './outgoingReferenceImages.js'
 import path from 'node:path'
 import sharp from 'sharp'
 import type { ProviderProfileRecord } from './db.js'
@@ -211,10 +211,10 @@ async function uploadBinary(
   filePath: string,
   mimeType: string,
 ) {
-  const buffer = await fs.readFile(filePath)
+  const prepared = await readOutgoingReference({ filePath, mimeType }, provider.referenceImageMode)
   const form = new FormData()
-  const fileName = path.basename(filePath) || 'input.png'
-  form.append('file', new Blob([Uint8Array.from(buffer)], { type: mimeType || guessMimeType(filePath, mimeType) }), fileName)
+  const fileName = !provider.referenceImageMode || provider.referenceImageMode === 'original' ? path.basename(filePath) || 'input.png' : prepared.fileName
+  form.append('file', new Blob([Uint8Array.from(prepared.buffer)], { type: prepared.mimeType || guessMimeType(filePath, mimeType) }), fileName)
 
   const response = await fetchWithTimeout(
     joinUrl(provider.baseUrl, 'media/upload/binary'),
