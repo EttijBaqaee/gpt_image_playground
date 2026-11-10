@@ -221,3 +221,49 @@ This fork is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.
 - Original project: [CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
 - Baseline: the XianYuDaXian fork at commit `0477e08e8328652cfdfaf66c463970e626a9ff69`
 - Maintained fork: [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)
+
+## Privacy policy
+
+This project does not include user behavior analytics, advertising trackers, or features that send user data back to the project author. It does not proactively report API keys, prompts, images, or task records for statistics or telemetry.
+
+The application connects to GitHub to check public version information. These requests do not include the application data listed above. Pages may also request font resources from third-party font services, which may receive routine network request information such as IP addresses.
+
+When users submit generation tasks, query balances, or use other network features, the application sends the data necessary to perform those operations to the relevant providers and their supporting services according to its configuration. This may include prompts, reference images, request parameters, and authentication information. Those services process the data under their own privacy policies.
+
+Task records and media files are stored on the deployment server. Some interface preferences and drafts are stored locally in the browser. For self-hosted deployments, the operator manages data and access permissions. Users of an instance hosted by someone else should also review that operator's data handling practices.
+
+## Disclaimer
+
+1. **Software provided as is**
+
+   This project makes no warranties about feature completeness, operational stability, security, or fitness for a particular purpose. The code may contain undiscovered errors, vulnerabilities, or compatibility issues. Users should assess its suitability for their needs before use.
+
+2. **Responsibility for use and deployment**
+
+   Users are responsible for managing their deployment environment, access permissions, API keys, and backups, and for the risks of configuration, operation, and maintenance. To the extent permitted by applicable law, the author and contributors are not liable for data loss, service interruptions, expenses, or other losses arising from the use of, or inability to use, this project.
+
+3. **Third-party services and charges**
+
+   This project can connect to third-party model APIs, relay services, and other external resources. Their availability, output quality, content policies, billing, and refund rules are determined by the respective providers. This project does not guarantee that third-party requests will succeed or that failed requests will be free of charge. Review provider rules and set appropriate spending limits before use.
+
+4. **Content and intellectual property**
+
+   Users must ensure that content they upload, enter, generate, store, or distribute has a lawful source and the necessary permissions, and must comply with applicable laws and third-party service terms. This project must not be used to infringe copyright, trademarks, likeness rights, privacy rights, or other lawful rights. Generated content may contain errors or raise rights disputes and should be reviewed before publication or commercial use.
+
+5. **Data and privacy**
+
+   Reference images, prompts, and other request data may be sent to third-party services configured by the user. Users should review those services' data handling policies and meet any applicable notice, authorization, and protection obligations. When enabling reference image URLs, assess access to temporary links and protect sensitive information.
+
+6. **Open-source licensing and third-party components**
+
+   This project uses the GNU Affero General Public License v3.0 (AGPL-3.0). The rights and obligations are governed by [LICENSE](LICENSE). Distribution, modification, or offering a modified version over a network must comply with applicable requirements, including providing corresponding source and preserving copyright notices. Third-party dependencies and upstream code remain subject to their respective licenses, and their notices must be retained as required.
+
+7. **Modified versions and affiliation**
+
+   Providers of third-party modifications, hosted services, commercial products, or promotional material based on this project are responsible for their offerings. Without express authorization, they must not make commitments or guarantees in the name of the author or contributors, or imply their endorsement of related products, services, or uses.
+
+8. **Scope of this disclaimer**
+
+   This disclaimer explains usage risks and the limits of responsibility. It does not replace the project license or restrict rights granted by that license. Exclusions and limitations of liability apply only to the extent permitted by applicable law; liabilities that cannot lawfully be excluded or limited remain unaffected.
+
+Before use, read this disclaimer, the project license, and the terms of any connected services, and take appropriate measures to protect data, control costs, and review content.
