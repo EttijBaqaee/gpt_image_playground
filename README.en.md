@@ -9,17 +9,6 @@
 - Grok single-image edits follow the reference image's aspect ratio and omit `aspect_ratio`. Multiple-image edits retain the selected aspect ratio. Resolution still follows the xAI 2K option and requested size.
 - Existing origin checks, signed temporary URLs, access reminders, data directories, and Compose settings continue to apply. Grok image edits do not support masks.
 
-## What changes in 0.3.66.7
-
-- Chinese and English interfaces, with a language button on the login screen, main page, and Settings. The initial language follows the browser: Chinese for Chinese locales, English otherwise. Manual preferences are saved in the current browser.
-- System, light, and dark appearance controls. System is the default. Theme changes use a gentle crossfade and respect reduced-motion preferences.
-- Image extensions configured separately for each API profile and exact model ID. An OpenAI-compatible endpoint alone does not enable newer model features.
-- Optional complexity, extended quality, transparent markup edits, SVG output, and animated GIF output. Availability follows the administrator’s manual selections for each provider and model.
-- SVG remains a vector file, GIF retains animation, and downloads preserve their formats. SVG is displayed as an image after static-content checks. GIF playback is available in the full image preview.
-- Repeated uploads and compressed reference reuse are fixed. Historical and new identical inputs share disk storage through hard links while keeping separate task references; deleting the last reference releases the storage. Filesystems without hard-link support retain separate files.
-- Deleting tasks removes their empty media directories. Startup also removes empty directories belonging to deleted tasks, preserving other files.
-- Reference URL settings retain support for private networks and display a red reminder to ensure the upstream service can access the address. A successful check confirms access from the current server only.
-
 This fork provides image/video generation, reference images, masks, task history, usage-code access, quotas, and a server-managed provider configuration. Provider keys stay on the server. Supported modes include Images, Responses, Videos, Venice, WaveSpeed, and Kie, with a separate Grok compatibility option where applicable.
 
 ## Docker deployment
@@ -160,7 +149,7 @@ Administrators can create usage codes, limit which providers they may use, set i
 
 The server stores its SQLite database and uploaded/generated media under `/app/data`. Persist the entire directory. Use the administrator data controls to export or restore application backups and manage media exports. Keep backup archives private because they contain application data and provider configuration.
 
-Version 0.3.66.7 automatically checks historical input images at startup and after backup restoration, and deduplicates new uploads as well. Identical inputs share disk storage through hard links while retaining each task's image IDs, paths, permissions, order, and mask associations. Storage is released when the last reference is deleted. The data filesystem must support hard links; otherwise, separate files are preserved.
+The application automatically checks historical input images at startup and after backup restoration, and deduplicates new uploads as well. Identical inputs share disk storage through hard links while retaining each task's image IDs, paths, permissions, order, and mask associations. Storage is released when the last reference is deleted. The data filesystem must support hard links; otherwise, separate files are preserved.
 
 ## Environment reference
 
@@ -212,4 +201,12 @@ Use your actual persistence path. Do not replace it with a new empty directory, 
 - **Unsupported extension:** confirm the exact provider/model selection and its feature switches. OpenAI compatibility alone is insufficient.
 - **Clipboard unavailable:** use HTTPS or localhost and allow clipboard access. Copying SVG/GIF produces a PNG clipboard image; downloading preserves the original.
 
-For the full Chinese deployment examples and previous release notes, see [README.md](README.md).
+For the full Chinese deployment examples, see [README.md](README.md).
+
+## License and provenance
+
+This fork is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0-only)](LICENSE). The upstream copyright, `Copyright (c) 2026 CookSleep`, and its complete original MIT license are preserved in [NOTICE](NOTICE).
+
+- Original project: [CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
+- Baseline: the XianYuDaXian fork at commit `0477e08e8328652cfdfaf66c463970e626a9ff69`
+- Maintained fork: [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)

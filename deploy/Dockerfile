@@ -44,8 +44,8 @@ COPY --from=server-prod-deps /app/server/node_modules /app/server/node_modules
 COPY --from=server-build /app/server/dist /app/server/dist
 COPY --from=server-build /app/server/package.json /app/server/package.json
 COPY --from=web-build /app/dist /app/dist
-COPY LICENSE /app/LICENSE
-LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.version="0.3.66.8" org.opencontainers.image.licenses="MIT"
+COPY LICENSE NOTICE /app/
+LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.version="0.3.66.8" org.opencontainers.image.licenses="AGPL-3.0-only"
 
 RUN mkdir -p /app/data && chown node:node /app/data
 
