@@ -27,7 +27,7 @@ const envSchema = z.object({
   UPSTREAM_TIMEOUT_SECONDS: z.coerce.number().int().positive().optional(),
   UPSTREAM_CODEX_CLI: z.string().optional(),
   VERSION_CHECK_REPO_OWNER: z.string().default('EttijBaqaee'),
-  VERSION_CHECK_REPO_NAME: z.string().default('gpt_image_playground'),
+  VERSION_CHECK_REPO_NAME: z.string().default('pictelier'),
 })
 
 const parsed = envSchema.parse(process.env)

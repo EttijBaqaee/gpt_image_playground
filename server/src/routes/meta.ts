@@ -40,7 +40,7 @@ async function fetchJson(url: string) {
   const response = await fetch(url, {
     headers: {
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'User-Agent': 'gpt-image-playground-server',
+      'User-Agent': 'pictelier-server',
     },
     redirect: 'manual',
   })
@@ -74,7 +74,7 @@ async function fetchLatestTag(owner: string, repo: string) {
   const response = await fetch(`https://github.com/${owner}/${repo}/tags`, {
     headers: {
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'User-Agent': 'gpt-image-playground-server',
+      'User-Agent': 'pictelier-server',
     },
   })
 

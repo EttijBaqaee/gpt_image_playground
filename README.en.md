@@ -1,6 +1,16 @@
-# GPT Image Playground · 0.3.66.9
+# Pictelier · 0.3.66.9
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md)
+
+Pictelier (绘坊) is a self-hosted AI image and video generation workspace built on [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground). It brings multiple upstream services into one interface for managing creative tasks, reference images, and access quotas.
+
+- **Multiple providers:** connect Images, Responses, Videos, Venice, WaveSpeed, and Kie endpoints. Configure models and optional capabilities according to each provider's documentation.
+- **Creation and editing:** generate images, edit with references, masks, and transparent markup, preview static SVGs and animated GIFs, and download original formats. Available features depend on the selected endpoint and model.
+- **Tasks and assets:** retain task history, reuse prompts and input images, organize favorites and archives, perform batch actions, and back up data.
+- **Administration and usage codes:** manage upstream APIs, access, and quotas centrally. Provider API keys remain on the server.
+- **Localization and deployment:** Chinese and English interfaces, light and dark themes, Docker and 1Panel deployment, independent path settings, and private-network support.
+
+Existing browser storage, data directories, and Compose project names are preserved. Keep your data mounts, `APP_SECRET`, and path settings when upgrading; update the image address and version without creating a new data directory for the rename.
 
 ## What changes in 0.3.66.9
 
@@ -26,8 +36,6 @@
 - Repeated uploads and compressed reference reuse are fixed. Historical and new identical inputs share disk storage through hard links while keeping separate task references; deleting the last reference releases the storage. Filesystems without hard-link support retain separate files.
 - Deleting tasks removes their empty media directories. Startup also removes empty directories belonging to deleted tasks, preserving other files.
 - Reference URL settings retain support for private networks and display a red reminder to ensure the upstream service can access the address. A successful check confirms access from the current server only.
-
-This fork provides image/video generation, reference images, masks, task history, usage-code access, quotas, and a server-managed provider configuration. Provider keys stay on the server. Supported modes include Images, Responses, Videos, Venice, WaveSpeed, and Kie, with a separate Grok compatibility option where applicable.
 
 ## Docker deployment
 
@@ -58,17 +66,17 @@ docker compose pull app
 docker compose up -d
 ```
 
-Pin the image to `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.9` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
+Pin the image to `ghcr.io/ettijbaqaee/pictelier:0.3.66.9` for a fixed version. `latest` follows the most recently published version. Release images target Linux amd64. The GHCR image and offline release archive contain the same application.
 
-For offline installation, load the release archive with `docker load -i <archive.tar.gz>`, then use its image tag in Compose. Release downloads are available on the [releases page](https://github.com/EttijBaqaee/gpt_image_playground/releases).
+For offline installation, load the release archive with `docker load -i <archive.tar.gz>`, then use its image tag in Compose. Release downloads are available on the [releases page](https://github.com/EttijBaqaee/pictelier/releases).
 
 ### Building from source
 
 Clone or download the desired version, then configure the build template:
 
 ```bash
-git clone https://github.com/EttijBaqaee/gpt_image_playground.git
-cd gpt_image_playground/deploy
+git clone https://github.com/EttijBaqaee/pictelier.git
+cd pictelier/deploy
 cp .env.example .env
 docker compose -f docker-compose.build.yml up -d --build
 ```
@@ -227,7 +235,7 @@ This fork is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.
 
 - Original project: [CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
 - Baseline: the XianYuDaXian fork at commit `0477e08e8328652cfdfaf66c463970e626a9ff69`
-- Maintained fork: [EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)
+- Maintained fork: [EttijBaqaee/pictelier](https://github.com/EttijBaqaee/pictelier)
 
 ## Privacy policy
 

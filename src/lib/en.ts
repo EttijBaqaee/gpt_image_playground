@@ -1,4 +1,5 @@
 export const englishMessages: Record<string, string> = {
+  "绘坊 · Pictelier": "Pictelier",
   "参考图传输方案": "Reference image transmission",
   "原版不变（默认）": "Original, unchanged (default)",
   "无损文件扰动": "Lossless file variation",

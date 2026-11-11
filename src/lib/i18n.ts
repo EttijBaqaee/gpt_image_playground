@@ -27,7 +27,10 @@ export function getLanguagePreference() { return preference }
 export function getLocaleTag() { return locale === 'zh' ? 'zh-CN' : 'en-US' }
 
 function notify() {
-  if (typeof document !== 'undefined') document.documentElement.lang = getLocaleTag()
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = getLocaleTag()
+    document.title = t('绘坊 · Pictelier')
+  }
   listeners.forEach(listener => listener())
 }
 

@@ -1,6 +1,16 @@
-# GPT Image Playground · 0.3.66.9
+# 绘坊 · Pictelier · 0.3.66.9
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md)
+
+绘坊（Pictelier）是一款可自部署的 AI 图像与视频生成工作台，基于 [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) 开发。它将多家上游服务集中到同一界面，方便管理创作任务、参考图片和访问额度。
+
+- **多供应商接入**：支持 Images、Responses、Videos、Venice、WaveSpeed 和 Kie 等接口模式；按供应商文档配置模型与扩展能力。
+- **图像创作与编辑**：支持文生图、参考图编辑、遮罩和透明标注层，以及 SVG 静态预览、GIF 动画预览与原格式下载。具体能力取决于所选接口和模型。
+- **任务与素材管理**：保存任务历史、复用提示词和输入图片，支持收藏、归档、批量操作与数据备份。
+- **后台与使用码分发**：由管理员集中配置上游 API、访问方式和额度；供应商密钥保存在服务端。
+- **本地化与自部署**：提供中英文界面和明暗主题，可通过 Docker 或 1Panel 部署，支持独立路径配置及内网使用。
+
+更名前的浏览器存储、数据目录和编排名称继续沿用。升级时保留原有数据挂载、`APP_SECRET` 和路径设置，只更新镜像地址与版本；无需为更名新建数据目录。
 
 ## Update 0.3.66.9
 
@@ -46,12 +56,12 @@
 
 ## 1. 获取 Docker 镜像（推荐）
 
-服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
+服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取绘坊的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.9
-# 跟随本 fork 的最新发布版本
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
+docker pull ghcr.io/ettijbaqaee/pictelier:0.3.66.9
+# 跟随绘坊的最新发布版本
+docker pull ghcr.io/ettijbaqaee/pictelier:latest
 ```
 
 正式部署建议固定 `0.3.66.9`。本次发布镜像为 **Linux amd64**，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
@@ -65,19 +75,19 @@ mkdir -p /opt/gpt-image-playground-data
 chown 1000:1000 /opt/gpt-image-playground-data
 ```
 
-如果已有部署，继续使用原数据目录，不要新建空目录替代它。**从 0.3.66 升级前，必须检查整个旧数据目录的权限；只修改最外层目录不够。** 旧版默认以 root 运行，本 fork 的镜像使用 UID/GID 1000，具体迁移命令见第 10 节。
+如果已有部署，继续使用原数据目录，不要新建空目录替代它。**从 0.3.66 升级前，必须检查整个旧数据目录的权限；只修改最外层目录不够。** 旧版默认以 root 运行，绘坊的镜像使用 UID/GID 1000，具体迁移命令见第 10 节。
 
 ### 可选：获取源码并在 Docker 内构建
 
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.9 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.9 https://github.com/EttijBaqaee/pictelier.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.9 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.9) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.9 Release](https://github.com/EttijBaqaee/pictelier/releases/tag/v0.3.66.9) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -95,8 +105,8 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 
 services:
   app:
-    # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.9
+    # 镜像：推荐固定此版本；可按需改为绘坊的其他已发布标签。
+    image: ghcr.io/ettijbaqaee/pictelier:0.3.66.9
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -261,7 +271,7 @@ location ^~ /r/references/ {
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.9`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/pictelier:0.3.66.9`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。六项路径按第 6 节分别填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
@@ -271,7 +281,7 @@ location ^~ /r/references/ {
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.9
+image: pictelier:0.3.66.9
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -306,7 +316,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.9`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `pictelier:0.3.66.9`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 六项路径分别设置
 
@@ -649,17 +659,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.9-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `pictelier-0.3.66.9-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.9-amd64.tar.gz
+docker load -i pictelier-0.3.66.9-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.9
+image: pictelier:0.3.66.9
 pull_policy: never
 ```
 
@@ -673,7 +683,7 @@ pull_policy: never
 
 ### 从 0.3.66 升级：先迁移数据目录权限
 
-0.3.66 的容器默认以 root 运行，本 fork 以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
+0.3.66 的容器默认以 root 运行，绘坊 以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
 
 在**出错服务器**上以 root 身份进入该应用实际的编排目录（包含原 `docker-compose.yml` 和 `.env`），确认仍挂载原数据目录，先停止应用并备份该目录，再执行：
 
@@ -727,11 +737,11 @@ chmod -R u+rwX "$DATA_PATH"
 
 ## 许可证与来源
 
-本 fork 采用 [GNU Affero General Public License v3.0（AGPL-3.0-only）](LICENSE)。上游代码原有的 `Copyright (c) 2026 CookSleep` 和完整 MIT 许可文本保留在 [NOTICE](NOTICE) 中。
+绘坊 采用 [GNU Affero General Public License v3.0（AGPL-3.0-only）](LICENSE)。上游代码原有的 `Copyright (c) 2026 CookSleep` 和完整 MIT 许可文本保留在 [NOTICE](NOTICE) 中。
 
 - 原始项目：[CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
 - 0.3.66 基线：XianYuDaXian fork，提交 `0477e08e8328652cfdfaf66c463970e626a9ff69`
-- 当前维护：[EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)
+- 当前维护：[EttijBaqaee/pictelier](https://github.com/EttijBaqaee/pictelier)
 
 ## 隐私政策
 

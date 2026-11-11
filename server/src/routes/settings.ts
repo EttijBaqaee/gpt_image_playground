@@ -2771,7 +2771,7 @@ async function runBackupExportJob(app: Parameters<FastifyPluginAsync>[0]) {
 
     const manifest = buildFullBackupManifest(app)
     await fs.mkdir(app.config.backupsDir, { recursive: true })
-    const backupId = `gpt-image-playground-full-backup-${Date.now()}`
+    const backupId = `pictelier-full-backup-${Date.now()}`
     const backupDir = path.join(app.config.backupsDir, backupId)
     await fs.mkdir(backupDir, { recursive: true })
     const splitPlan = buildSplitBackupPlan(manifest, backupId)

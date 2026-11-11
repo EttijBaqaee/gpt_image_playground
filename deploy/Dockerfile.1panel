@@ -17,7 +17,7 @@ COPY --from=build /app/server/dist /app/server/dist
 COPY --from=build /app/dist /app/dist
 COPY --from=build /app/LICENSE /app/NOTICE /app/
 RUN mkdir -p /app/data && chown node:node /app/data
-LABEL org.opencontainers.image.source="https://github.com/EttijBaqaee/gpt_image_playground" org.opencontainers.image.version="0.3.66.9" org.opencontainers.image.licenses="AGPL-3.0-only"
+LABEL org.opencontainers.image.title="Pictelier" org.opencontainers.image.source="https://github.com/EttijBaqaee/pictelier" org.opencontainers.image.version="0.3.66.9" org.opencontainers.image.licenses="AGPL-3.0-only"
 USER node
 VOLUME ["/app/data"]
 EXPOSE 8787
