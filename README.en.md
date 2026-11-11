@@ -13,7 +13,12 @@ Pictelier (绘坊) is an AI creative workspace that stores generated images on y
 
 **Quick navigation**
 
-[What changes in 0.3.66.9](#release-0-3-66-9) · [What changes in 0.3.66.8](#release-0-3-66-8) · [What changes in 0.3.66.7](#release-0-3-66-7) · [Interface preview](#section-1) · [Docker deployment](#section-2) · [1Panel](#section-3) · [Paths and reverse proxies](#section-4) · [Provider setup](#section-5) · [Language and appearance](#section-6) · [Usage codes, tasks, and data](#section-7) · [Environment reference](#section-8) · [Updates and backups](#section-9) · [Troubleshooting](#section-10) · [License and provenance](#section-11) · [Privacy policy](#section-12) · [Disclaimer](#section-13)
+- **Overview:** [Interface preview](#section-1) · [Release notes](#release-0-3-66-9)
+- **Deploy:** [Docker](#section-2) · [1Panel](#section-3)
+- **Configure:** [Paths and proxies](#section-4) · [Providers](#section-5) · [Environment variables](#section-8)
+- **Use and maintain:** [Appearance](#section-6) · [Tasks and data](#section-7) · [Backups](#section-9) · [Troubleshooting](#section-10)
+- **Legal:** [License](#section-11) · [Privacy](#section-12) · [Disclaimer](#section-13)
+
 <a id="release-0-3-66-9"></a>
 
 ## What changes in 0.3.66.9
