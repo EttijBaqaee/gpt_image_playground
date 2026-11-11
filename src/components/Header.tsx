@@ -81,12 +81,12 @@ export default function Header({ onOpenAnnouncements }: { onOpenAnnouncements: (
         <div className="flex min-w-0 items-start gap-1">
           <h1 className="min-w-0 truncate text-lg font-bold tracking-tight">
             <a
-              href="https://github.com/EttijBaqaee/gpt_image_playground"
+              href="https://github.com/EttijBaqaee/pictelier"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-800 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
-              GPT Image Playground
+              {t("绘坊 · Pictelier")}
             </a>
           </h1>
           {hasUpdate && latestRelease ? (

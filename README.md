@@ -1,6 +1,16 @@
-# GPT Image Playground · 0.3.66.8
+# 绘坊 · Pictelier · 0.3.66.8
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md)
+
+绘坊（Pictelier）是一款可自部署的 AI 图像与视频生成工作台，基于 [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) 开发。它将多家上游服务集中到同一界面，方便管理创作任务、参考图片和访问额度。
+
+- **多供应商接入**：支持 Images、Responses、Videos、Venice、WaveSpeed 和 Kie 等接口模式；按供应商文档配置模型与扩展能力。
+- **图像创作与编辑**：支持文生图、参考图编辑、遮罩和透明标注层，以及 SVG 静态预览、GIF 动画预览与原格式下载。具体能力取决于所选接口和模型。
+- **任务与素材管理**：保存任务历史、复用提示词和输入图片，支持收藏、归档、批量操作与数据备份。
+- **后台与使用码分发**：由管理员集中配置上游 API、访问方式和额度；供应商密钥保存在服务端。
+- **本地化与自部署**：提供中英文界面和明暗主题，可通过 Docker 或 1Panel 部署，支持独立路径配置及内网使用。
+
+更名前的浏览器存储、数据目录和编排名称继续沿用。升级时保留原有数据挂载、`APP_SECRET` 和路径设置，只更新镜像地址与版本；无需为更名新建数据目录。
 
 ## Update 0.3.66.8
 
@@ -28,52 +38,10 @@
 
 官方已公布的完整模型名为 `gpt-image-2.6-sunburst`、`gpt-image-2.6-flare`。中转别名需按供应商实际值填写，再明确配置能力。详见 [OpenAI 图像文档](https://developers.openai.com/api/docs/guides/image-generation)。
 
-## Update 0.3.66.6
-
-**2026-11-03 · 新增供应商公网参考图，修复固定 5 分钟请求超时。**
-
-- **公网参考图开关**：在每个供应商的 API 配置中开启“参考图使用公网 URL”，填写 HTTPS 域名或无证书的 `http://公网IP:端口`，检测通过后才能保存；无需在编排中配置公网域名。修改地址、重新开启开关或更换参考图前缀后需重新检测。
-- **独立参考图路径**：新增可选 `REFERENCE_BASE_PATH`，例如 `r` 对应 `/r/references/…`，留空为 `/references/…`；公网参考图与普通媒体使用独立路由，编排注释及 Nginx 示例同步更新。
-- **OpenAI Images 兼容**：参考图按排列顺序以 `images[].image_url` 提交到 `/v1/images/edits`，遮罩使用 `mask.image_url`。只为指定输入图和遮罩生成临时签名链接，普通媒体仍需登录；关闭开关继续使用原文件上传方式。
-- **请求超时修复**：统一底层连接与完整正文读取的超时，解除 Undici 默认 300 秒响应头限制；已有节点使用网页保存的“请求超时”，不被编排初始化变量覆盖。详见下方超时说明。
-- **保留原有功能**：沿用 0.3.66.5 的手机与电脑多图排序修复，其余功能保持原有行为。
-
-## Update 0.3.66.5
-
-**2026-10-31 · 修复手机和电脑网页版多张参考图顺序不一致。**
-
-- **后端顺序持久化**：修复多张附件在同一毫秒写入时，被随机 UUID 重新排序的问题。上传顺序、任务详情、复用配置和 Worker 调用使用持久化序号；旧数据库自动按原始插入顺序补齐，新备份保留序号，旧备份继续兼容。
-- **异步恢复保留操作结果**：页面恢复图片草稿时，只补回对应图片内容，不再用旧列表覆盖用户刚刚进行的拖动、删除或替换；拖动以图片 ID 定位，避免读取完成或列表变化后移动错图。
-- **图片尚未读取完成**：已显示的图片可以继续排序；新图片读取、处理或下载完成后追加，不覆盖排序。全部参考图准备完成后才能点击生成，避免漏掉还没读完的图片；清空会取消未完成的添加。
-- **提交上传期间**：点击生成后，本次参考图顺序锁定，页面显示等待提示，暂停排序、删除与清空；提交成功或失败后恢复操作。此规则同时适用于手机和电脑网页版。
 
 
-## Update 0.3.66.3
 
-**2026-10-29 · 基于本 fork 的 0.3.66.2 更新。**
 
-- **独立 assets 路径**：新增可选 `ASSETS_BASE_PATH`，例如 `s` 对应 `/s/assets/`，与主页、API、媒体和健康检查分别设置。留空沿用原来的主页前缀，填 `/` 使用根路径 `/assets/`。修改编排后重新创建容器即可，无需重新构建镜像。
-- **静态资源完整迁移**：入口 JS、CSS、预加载、动态加载的图片编辑器和相对资源使用新的 assets 路径；图标、manifest 和 Service Worker 仍跟随主页。资源不存在时返回 404。
-- **升级说明**：补全从 0.3.66 升级时的旧数据目录权限迁移步骤，保留数据库、图片及原环境变量。编排参数注释和推荐 Nginx 反代示例同步补齐 assets。
-- **部署配置排错**：说明 Compose 环境变量的映射/列表写法、Nginx 保留路径前缀的规则，以及五项统一使用 `/gpt_image_playground/` 的完整反代示例；补充资源 404、白屏、变量未生效，以及修改前缀后旧标签页仍请求根路径导致登录失败的检查方法。
-
-## Update 0.3.66.2
-
-**2026-10-28 · 基于本 fork 的 0.3.66.1 更新。**
-
-- **修复手机触屏参考图排序**：长按参考图约 0.45 秒后，拖至目标参考图并松手即可调整顺序；支持跨行拖动。短按选择/编辑和普通滑动保留原有行为，桌面鼠标拖拽继续可用。
-- **保留遮罩顺序限制**：遮罩主图固定在第一张；多指、取消手势或拖出参考图区域时取消排序，拖动结束不会误触编辑。
-- **编排参数注释**：将参数用途、默认值与必填/可选说明直接写入完整 YAML；README 示例和下载模板保持一致。
-
-## Update 0.3.66.1
-
-**2026-10-28 · 基于 XianYuDaXian 的 0.3.66 fork。** 本版只围绕以下内容修订，其余业务功能沿用 0.3.66。
-
-- **四项独立路径前缀**：`APP_BASE_PATH` 控制主页，`API_BASE_PATH`、`MEDIA_BASE_PATH`、`HEALTH_BASE_PATH` 分别控制 API、媒体和健康检查。例如 `web` / `a` / `m` / `h` 对应 `/web/`、`/a/api/`、`/m/media/`、`/h/health`。新版编排各项留空使用各自默认路径，修改参数只需重建容器。
-- **修复 Chromium 复制粘贴丢换行**：保留连续空行、首尾换行、CRLF、中文、emoji，以及参考图 mention；修复全选复制漏掉末尾换行、粘贴后光标与继续输入的问题。
-- **修复额度事务**：额度预扣、任务、附件记录和初始事件通过同一 SQLite 事务提交；预校验失败不扣额度，任务失败按原有规则退款。
-- **修复附件路径与清理**：附件使用 UUID 和安全扩展名保存，避免同名覆盖和原始文件名影响路径；失败时清理本次上传，不留下可执行的残缺任务。
-- **限制上传与可信代理**：默认单文件 32 MiB、单次累计 128 MiB，流式累计检查；最多 32 个文件、16 个普通字段。默认不信任转发 IP，只有明确配置的可信代理才生效。
 
 ---
 
@@ -84,12 +52,12 @@
 
 ## 1. 获取 Docker 镜像（推荐）
 
-服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取本 fork 的镜像，无需安装 Node.js 或在宿主机编译：
+服务器只需 Docker Engine 和 Docker Compose v2，可直接拉取绘坊的镜像，无需安装 Node.js 或在宿主机编译：
 
 ```bash
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8
-# 跟随本 fork 的最新发布版本
-docker pull ghcr.io/ettijbaqaee/gpt_image_playground:latest
+docker pull ghcr.io/ettijbaqaee/pictelier:0.3.66.8
+# 跟随绘坊的最新发布版本
+docker pull ghcr.io/ettijbaqaee/pictelier:latest
 ```
 
 正式部署建议固定 `0.3.66.8`。本次发布镜像为 **Linux amd64**，容器使用 UID/GID 1000。GHCR 镜像与 Release 离线镜像使用相同应用内容，不是另行编译的版本。
@@ -103,19 +71,19 @@ mkdir -p /opt/gpt-image-playground-data
 chown 1000:1000 /opt/gpt-image-playground-data
 ```
 
-如果已有部署，继续使用原数据目录，不要新建空目录替代它。**从 0.3.66 升级前，必须检查整个旧数据目录的权限；只修改最外层目录不够。** 旧版默认以 root 运行，本 fork 的镜像使用 UID/GID 1000，具体迁移命令见第 10 节。
+如果已有部署，继续使用原数据目录，不要新建空目录替代它。**从 0.3.66 升级前，必须检查整个旧数据目录的权限；只修改最外层目录不够。** 旧版默认以 root 运行，绘坊的镜像使用 UID/GID 1000，具体迁移命令见第 10 节。
 
 ### 可选：获取源码并在 Docker 内构建
 
 只有需要自行构建时才需要 Git，以及访问基础镜像、npm 和 Debian 软件源：
 
 ```bash
-git clone --branch v0.3.66.8 https://github.com/EttijBaqaee/gpt_image_playground.git /opt/gpt-image-playground
+git clone --branch v0.3.66.8 https://github.com/EttijBaqaee/pictelier.git /opt/gpt-image-playground
 cd /opt/gpt-image-playground/deploy
 cp .env.example .env
 ```
 
-也可以从 [0.3.66.8 Release](https://github.com/EttijBaqaee/gpt_image_playground/releases/tag/v0.3.66.8) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
+也可以从 [0.3.66.8 Release](https://github.com/EttijBaqaee/pictelier/releases/tag/v0.3.66.8) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
 
@@ -133,8 +101,8 @@ name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部�
 
 services:
   app:
-    # 镜像：推荐固定此版本；可按需改为本 fork 的其他已发布标签。
-    image: ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8
+    # 镜像：推荐固定此版本；可按需改为绘坊的其他已发布标签。
+    image: ghcr.io/ettijbaqaee/pictelier:0.3.66.8
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
     container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
@@ -299,7 +267,7 @@ location ^~ /r/references/ {
 
 1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `gpt-image-playground-fork`。
-3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/gpt_image_playground:0.3.66.8`。
+3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/pictelier:0.3.66.8`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。六项路径按第 6 节分别填写或留空。
 5. 创建并启动，面板会拉取镜像并创建容器，不需要下载源码或现场编译。
 6. 容器健康状态变为 `healthy` 后，按 `APP_PORT` 和 `APP_BASE_PATH` 访问。推荐再按第 7 节配置 Nginx/HTTPS。
@@ -309,7 +277,7 @@ location ^~ /r/references/ {
 下载源码到服务器（例如 `/opt/gpt-image-playground`），在环境变量中设置 `APP_SOURCE_DIR=/opt/gpt-image-playground`，并把主编排中的 `image` / `pull_policy` 改为下面内容，同时加入 `build`：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.8
+image: pictelier:0.3.66.8
 pull_policy: never
 build:
   context: ${APP_SOURCE_DIR}
@@ -344,7 +312,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml build app
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 ```
 
-该模式使用本地镜像名 `gpt-image-playground-fork:0.3.66.8`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
+该模式使用本地镜像名 `pictelier:0.3.66.8`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
 ## 6. 六项路径分别设置
 
@@ -687,17 +655,17 @@ nginx -t && nginx -s reload
 
 ## 9. 离线镜像（可选）
 
-Release 中的 `gpt-image-playground-fork-0.3.66.8-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
+Release 中的 `pictelier-0.3.66.8-amd64.tar.gz` 是 **Linux amd64** 镜像，不适用于 ARM 主机；ARM 主机请使用源码 Docker 构建。
 
 ```bash
 sha256sum -c SHA256SUMS --ignore-missing
-docker load -i gpt-image-playground-fork-0.3.66.8-amd64.tar.gz
+docker load -i pictelier-0.3.66.8-amd64.tar.gz
 ```
 
 使用离线镜像时，将主编排的 `image` 和 `pull_policy` 改为下面内容；如果之前添加过 `build`，同时删除整个 `build` 块：
 
 ```yaml
-image: gpt-image-playground-fork:0.3.66.8
+image: pictelier:0.3.66.8
 pull_policy: never
 ```
 
@@ -711,7 +679,7 @@ pull_policy: never
 
 ### 从 0.3.66 升级：先迁移数据目录权限
 
-0.3.66 的容器默认以 root 运行，本 fork 自 0.3.66.1 起以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
+0.3.66 的容器默认以 root 运行，绘坊 自 0.3.66.1 起以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
 
 在**出错服务器**上以 root 身份进入该应用实际的编排目录（包含原 `docker-compose.yml` 和 `.env`），确认仍挂载原数据目录，先停止应用并备份该目录，再执行：
 
@@ -765,8 +733,8 @@ chmod -R u+rwX "$DATA_PATH"
 
 ## 许可证与来源
 
-[MIT License](LICENSE)。本 fork 与上游使用相同许可证，保留 `Copyright (c) 2026 CookSleep` 和原 MIT 许可文本。
+[MIT License](LICENSE)。绘坊 与上游使用相同许可证，保留 `Copyright (c) 2026 CookSleep` 和原 MIT 许可文本。
 
 - 原始项目：[CookSleep/gpt_image_playground](https://github.com/CookSleep/gpt_image_playground)
 - 0.3.66 基线：XianYuDaXian fork，提交 `0477e08e8328652cfdfaf66c463970e626a9ff69`
-- 当前维护：[EttijBaqaee/gpt_image_playground](https://github.com/EttijBaqaee/gpt_image_playground)
+- 当前维护：[EttijBaqaee/pictelier](https://github.com/EttijBaqaee/pictelier)
