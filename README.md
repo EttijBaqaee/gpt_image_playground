@@ -2,15 +2,20 @@
 
 [![简体中文](https://img.shields.io/badge/简体中文-当前页面-blue)](README.md) [![English](https://img.shields.io/badge/English-Readme-lightgrey)](README.en.md)
 
-绘坊（Pictelier）是一款可自部署的 AI 图像与视频生成工作台，基于 [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) 开发。它将多家上游服务集中到同一界面，方便管理创作任务、参考图片和访问额度。
+绘坊（Pictelier）是一款将生成图片保存在自己服务器上的 AI 创作工作台，基于 [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground) 开发。登录同一实例，即可在手机、电脑等设备上随时查看、下载和管理已生成的图片，不必依赖单台设备的浏览器记录。
 
+- **服务器图库与跨设备访问**：生成图片和任务记录集中保存在服务器；在不同设备上登录同一实例，即可访问已有作品。
 - **多供应商接入**：支持 Images、Responses、Videos、Venice、WaveSpeed 和 Kie 等接口模式；按供应商文档配置模型与扩展能力。
 - **图像创作与编辑**：支持文生图、参考图编辑、遮罩和透明标注层，以及 SVG 静态预览、GIF 动画预览与原格式下载。具体能力取决于所选接口和模型。
 - **任务与素材管理**：保存任务历史、复用提示词和输入图片，支持收藏、归档、批量操作与数据备份。
 - **后台与使用码分发**：由管理员集中配置上游 API、访问方式和额度；供应商密钥保存在服务端。
 - **本地化与自部署**：提供中英文界面和明暗主题，可通过 Docker 或 1Panel 部署，支持独立路径配置及内网使用。
 
-部署示例统一使用 `pictelier`。已有部署升级时，务必保留原数据挂载、`APP_SECRET` 和路径设置，示例中的目录应替换为实际使用的原目录。若将编排项目名或容器名改为 `pictelier`，请先停止旧实例，再启动新编排，避免两套实例同时访问同一数据目录。浏览器中已有的设置和草稿继续保留。
+**章节快速跳转**
+
+[Update 0.3.66.7](#release-0-3-66-7) · [界面预览](#section-1) · [1. 获取 Docker 镜像（推荐）](#section-2) · [2. 完整编排文件](#section-3) · [3. 环境变量怎么写](#section-4) · [4. 在 1Panel 中部署](#section-5) · [5. 命令行 Docker Compose](#section-6) · [6. 六项路径分别设置](#section-7) · [7. 推荐使用 Nginx 反代部署](#section-8) · [8. 上传限制与代理](#section-9) · [9. 离线镜像（可选）](#section-10) · [10. 更新与数据备份](#section-11) · [11. 常见问题](#section-12) · [许可证与来源](#section-13)
+
+<a id="release-0-3-66-7"></a>
 
 ## Update 0.3.66.7
 
@@ -36,10 +41,18 @@
 
 ---
 
+<a id="section-1"></a>
+
+## 界面预览
+
 <p align="center">
-  <img src="asset/主界面.png" alt="主界面" width="45%" />
-  <img src="asset/设置界面.png" alt="设置界面" width="45%" />
+  <img src="asset/主界面.png" alt="服务器图库与任务管理" width="100%" />
+  <img src="asset/设置界面.png" alt="服务器数据管理" width="100%" />
 </p>
+
+界面预览：0.3.66.9，使用本地演示数据展示图库和服务器数据管理。
+
+<a id="section-2"></a>
 
 ## 1. 获取 Docker 镜像（推荐）
 
@@ -62,7 +75,7 @@ mkdir -p /opt/pictelier-data
 chown 1000:1000 /opt/pictelier-data
 ```
 
-如果已有部署，继续使用原数据目录，不要新建空目录替代它。**从 0.3.66 升级前，必须检查整个旧数据目录的权限；只修改最外层目录不够。** 旧版默认以 root 运行，绘坊的镜像使用 UID/GID 1000，具体迁移命令见第 10 节。
+数据目录必须让 UID/GID 1000 可写。使用已有目录时，检查目录内数据库和媒体文件的权限，排障步骤见第 10 节。
 
 ### 可选：获取源码并在 Docker 内构建
 
@@ -77,6 +90,8 @@ cp .env.example .env
 也可以从 [0.3.66.7 Release](https://github.com/EttijBaqaee/pictelier/releases/tag/v0.3.66.7) 下载源码包并解压；`APP_SOURCE_DIR` 应指向含 `package.json`、`server/` 和 `deploy/` 的源码根目录。
 
 标准源码构建使用 `deploy/Dockerfile`，依赖安装、前端编译和后端编译都在 Docker 内完成。`deploy/Dockerfile.1panel` 是已有 Linux 锁定依赖缓存环境的构建文件，不能直接用于没有 `node_modules` 的干净源码；首次部署请使用标准 `deploy/Dockerfile`。
+
+<a id="section-3"></a>
 
 ## 2. 完整编排文件
 
@@ -99,13 +114,13 @@ services:
     container_name: pictelier # 可选：容器名；部署多套时必须各不相同。
     restart: unless-stopped # 可选：异常退出或重启服务器后自动启动，手动停止除外。
     ports:
-      # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
-      - "${APP_PORT:-8788}:8787"
+      # APP_PORT 可选，默认 8787：左侧为宿主机端口；右侧容器端口保持 8787。
+      - "${APP_PORT:-8787}:8787"
     environment:
       # 以下路径参数均可选；可填 web 或 /web/ 这样的形式。
       # 主页前缀（含图标、manifest、Service Worker）：web → /web/；默认留空 → /。
       APP_BASE_PATH: "${APP_BASE_PATH:-}"
-      # JS/CSS 等构建资源前缀：s → /s/assets/；留空沿用主页前缀以兼容旧版；填 / → /assets/。
+      # JS/CSS 等构建资源前缀：s → /s/assets/；留空沿用主页前缀；填 / → /assets/。
       # 可单独设置，不需要重新构建镜像。assets 末尾段保持不变。
       ASSETS_BASE_PATH: "${ASSETS_BASE_PATH:-}"
       # 以下四个后端前缀互相独立，留空均不继承主页前缀。
@@ -154,7 +169,6 @@ services:
       # APP_DATA_DIR 可选，默认 ../docker-data（相对编排文件目录）；1Panel 推荐填写绝对路径。
       # 左侧为宿主机持久化目录，需让 UID/GID 1000 可写；右侧保持 /app/data。
       # 升级必须继续使用原数据目录，避免进入空数据库。
-      # 从 0.3.66 升级时，旧文件可能属于 root；先按 README 第 10 节一次性迁移整个目录权限。
       - "${APP_DATA_DIR:-../docker-data}:/app/data"
     # 可选安全设置，建议保留：禁止提权并移除额外 Linux capabilities。
     security_opt:
@@ -185,6 +199,8 @@ services:
         max-file: "3" # 可选：保留的日志文件数量。
 ```
 
+<a id="section-4"></a>
+
 ## 3. 环境变量怎么写
 
 命令行部署使用 `deploy/.env`。1Panel 使用该编排的环境变量编辑区，或者编排目录中的 `.env`。**不要把 `.env` 提交到 GitHub。**
@@ -194,7 +210,7 @@ services:
 ```dotenv
 APP_SECRET=replace-with-a-long-random-secret-at-least-32-characters
 ADMIN_PASSWORD=replace-with-your-admin-password
-APP_PORT=8788
+APP_PORT=8787
 APP_BASE_PATH=
 ASSETS_BASE_PATH=
 API_BASE_PATH=
@@ -213,7 +229,7 @@ UPLOAD_MAX_FILE_MB=32
 UPLOAD_MAX_TOTAL_MB=128
 ```
 
-可用 `openssl rand -hex 32` 生成 `APP_SECRET`。如果已有部署，继续使用原来的 `APP_SECRET`、管理员密码和数据目录，不能照抄示例覆盖。
+可用 `openssl rand -hex 32` 生成 `APP_SECRET`。请妥善保管 `.env` 和数据目录；会话签名及供应商密钥加密依赖 `APP_SECRET`。
 
 `UPSTREAM_API_URL` / `UPSTREAM_API_KEY` 可留空，登录网页后配置供应商。可选初始化参数见 [`deploy/.env.example`](deploy/.env.example)。
 
@@ -221,7 +237,7 @@ UPLOAD_MAX_TOTAL_MB=128
 
 需要公网参考图的供应商，可在管理员的 API 配置中开启“参考图使用公网 URL”。开关位于“返回 Base64 图片数据”下方，开启后填写“公网访问地址”，然后点击“检测公网访问”；检测通过后才允许保存。无需在 Docker 编排中添加 `PUBLIC_BASE_URL`。
 
-- 支持 `https://example.com`、`https://example.com:8443`，也支持无证书的 `http://公网IP:端口`。只填写协议、域名或 IP、可选端口，不填主页或媒体路径。供应商必须能从外网访问该地址；部分供应商自身可能只允许 HTTPS。
+- 支持 `https://example.com`、`https://example.com:8443`，也支持无证书的 `http://公网IP:端口`。只填写协议、域名或 IP、可选端口，不填主页或媒体路径。上游服务必须能访问该地址；内网部署可使用上游能够访问的内网地址，部分供应商可能只允许 HTTPS。
 - 只对标准 Images 模式生效，与 Grok API 兼容、Codex CLI 模式互斥。没有参考图时继续使用原来的文生图请求；关闭开关后继续使用文件上传。
 - 有参考图时，后端按 OpenAI 官方格式，以 JSON 请求 `/v1/images/edits`，使用 `images: [{"image_url":"临时公网链接"}]`。多图按最终排列提交；遮罩使用 `mask.image_url`。第三方接口是否完整支持该格式及遮罩，仍由供应商决定。
 - 公网参考图使用独立的 `REFERENCE_BASE_PATH`，不继承主页或媒体前缀。编排中填 `REFERENCE_BASE_PATH: "r"`，公网地址填 `https://example.com`，生成链接就是 `https://example.com/r/references/uploads/…?ref_provider=…&ref_expires=…&ref_signature=…`；留空使用 `/references/…`。`references` 末尾段保留。
@@ -244,7 +260,7 @@ location ^~ /r/references/ {
 }
 ```
 
-直接通过 `http://公网IP:端口` 访问容器时，开放相应端口即可；若 `REFERENCE_BASE_PATH` 为空，临时链接直接使用 `/references/…`。该配置只改变访问路由，现有图片仍保存在同一持久化数据目录，不需要移动文件或新增挂载。
+直接通过 `http://公网IP:端口` 访问容器时，开放相应端口即可；若 `REFERENCE_BASE_PATH` 为空，临时链接直接使用 `/references/…`。该配置只改变访问路由，图片保存在持久化数据目录，无需为参考图链接新增挂载。
 
 ### 请求超时与 5 分钟报错
 
@@ -254,9 +270,11 @@ location ^~ /r/references/ {
 
 0.3.66.6 让直连、HTTP/HTTPS 代理和 SOCKS 请求按配置限制一次请求从发出到完整读取正文的总时间，同时取消图片接口强制不少于 180 秒的限制。Images / Responses 返回结果图片 URL 时，后续下载单独使用同一个超时秒数；视频结果下载同理。它不代表整个任务的统一总时限：多图多次调用、异步轮询和重试各有自己的计时；Kie / WaveSpeed 结果 CDN 下载原有的每次 120 秒和重试规则继续保留。上游自己的网关或反代超时也仍可能更早结束请求。
 
+<a id="section-5"></a>
+
 ## 4. 在 1Panel 中部署
 
-1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限；升级时使用原目录。
+1. 按第 1 节创建持久化目录并设置 UID/GID 1000 写入权限。
 2. 进入 **容器 → 编排 → 创建编排**，选择编辑编排，名称填写 `pictelier`。
 3. 粘贴第 2 节完整 YAML，使用 `ghcr.io/ettijbaqaee/pictelier:0.3.66.7`。
 4. 在编排环境变量中填写第 3 节参数，替换 `APP_SECRET` 和 `ADMIN_PASSWORD`，`APP_DATA_DIR` 使用绝对路径。六项路径按第 6 节分别填写或留空。
@@ -278,6 +296,8 @@ build:
 这些键与主编排 `app` 下的 `ports`、`environment` 平级。源码目录必须含 `package.json`、`server/`、`deploy/Dockerfile`；`build.context` 不是 `deploy/` 或 1Panel 编排自身目录。
 
 如果面板版本首次创建未执行构建，可在服务器终端进入 **面板管理的同一份编排目录**，执行 `docker compose build app`，再回面板启动。编排实际路径以面板显示为准，例如 `/opt/1panel/docker/compose/pictelier`。不要另外建立不同数据目录的一套部署。
+
+<a id="section-6"></a>
 
 ## 5. 命令行 Docker Compose
 
@@ -305,6 +325,8 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 
 该模式使用本地镜像名 `pictelier:0.3.66.7`，不向 GHCR 上传。之后修改环境变量时仍使用相同两个 `-f` 文件。依赖安装和前后端编译均在 Docker 内完成，不需要在宿主机执行 `npm install` 或 `npm run build`。
 
+<a id="section-7"></a>
+
 ## 6. 六项路径分别设置
 
 所有参数都是**前缀**，不是完整 URL；`assets`、`api`、`media`、`references`、`health` 末尾段仍保留。`REFERENCE_BASE_PATH` 为 0.3.66.6 新增参数，专用于供应商读取公网参考图。
@@ -318,11 +340,11 @@ REFERENCE_BASE_PATH=r
 HEALTH_BASE_PATH=h
 ```
 
-假设宿主机端口是 `8788`：
+假设宿主机端口是 `8787`：
 
 | 用途 | 全部留空 | 上面的配置 |
 | --- | --- | --- |
-| 主页、图标、manifest、Service Worker | `http://服务器IP:8788/` | `http://服务器IP:8788/web/` |
+| 主页、图标、manifest、Service Worker | `http://服务器IP:8787/` | `http://服务器IP:8787/web/` |
 | JS/CSS 等构建资源 | `/assets/…` | `/s/assets/…` |
 | API 与 SSE | `/api/…` | `/a/api/…` |
 | 媒体 | `/media/…` | `/m/media/…` |
@@ -403,13 +425,15 @@ docker compose up -d --force-recreate
 - 供应商读取参考图和遮罩，以及检测使用的临时图片，统一走独立的 `/references/`，跟随 `REFERENCE_BASE_PATH`。普通媒体访问继续要求登录，即使带上参考图签名也不会免登录。
 - 外部供应商 URL、GitHub 链接、现有外部字体 CDN 和浏览器本地 `blob:` / `data:` 地址不加本应用前缀。
 
+<a id="section-8"></a>
+
 ## 7. 推荐使用 Nginx 反代部署
 
 **我们推荐使用 Nginx（或 OpenResty）反代部署，由反向代理统一提供域名和 HTTPS。**
 
 ### 六项统一使用 /pictelier/ 前缀的完整示例
 
-使用第 6 节六项同前缀的编排设置后，主页、assets 和四个后端路径可以共用一个 `location`。下面按宿主机端口 `8787` 编写，即模板中设置 `APP_PORT=8787`，或使用端口映射 `"8787:8787"`。如果继续使用模板默认的宿主机端口 `8788`，把下面的上游端口改为 `8788`；Nginx 连接的是端口映射左侧的宿主机端口。
+使用第 6 节六项同前缀的编排设置后，主页、assets 和四个后端路径可以共用一个 `location`。模板默认使用 `8787:8787`，下面的代理示例均连接宿主机端口 `8787`。
 
 将下面内容放入域名现有的 `server { ... }` 中，替换旧的同路径 `location`，不要与旧配置重复添加：
 
@@ -444,10 +468,10 @@ location ^~ /pictelier/ {
 
 ### 六项分别设置的路径示例
 
-下面假设 Nginx 运行在 Docker 宿主机，应用映射到宿主机 `8788` 端口。先设置：
+下面假设 Nginx 运行在 Docker 宿主机，应用映射到宿主机 `8787` 端口。先设置：
 
 ```dotenv
-APP_PORT=8788
+APP_PORT=8787
 APP_BASE_PATH=pictelier
 ASSETS_BASE_PATH=s
 API_BASE_PATH=a
@@ -464,14 +488,14 @@ CORS_ORIGIN=https://image.example.com
 # APP_BASE_PATH=pictelier
 # ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  REFERENCE_BASE_PATH=r  HEALTH_BASE_PATH=h
-# APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
+# APP_PORT=8787；proxy_pass 末尾不加 /，保留请求的完整路径。
 location = /pictelier {
     return 301 /pictelier/;
 }
 
 # 主页、图标、manifest 和 Service Worker
 location ^~ /pictelier/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -486,7 +510,7 @@ location ^~ /pictelier/ {
 # 独立 JS/CSS 构建资源；留空 ASSETS_BASE_PATH 时资源随主页，此段无需单独添加。
 # ASSETS_BASE_PATH=/ 时改为 location ^~ /assets/；不要去掉 assets 末尾段。
 location ^~ /s/assets/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -500,7 +524,7 @@ location ^~ /s/assets/ {
 
 # API、上传和 SSE 任务进度
 location ^~ /a/api/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -519,7 +543,7 @@ location ^~ /a/api/ {
 
 # 媒体仍由应用鉴权，不在代理层建立公共缓存。
 location ^~ /m/media/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -535,7 +559,7 @@ location ^~ /m/media/ {
 # 独立公网参考图：应用验证临时签名；保留查询参数，不额外添加登录认证。
 # REFERENCE_BASE_PATH 留空时改为 location ^~ /references/。
 location ^~ /r/references/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -550,7 +574,7 @@ location ^~ /r/references/ {
 
 # 同时覆盖 /h/health 和 /h/health/；不存在的后缀由应用返回 404。
 location /h/health {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -572,9 +596,9 @@ location /h/health {
 
 API 段关闭响应缓冲和缓存，确保 SSE 实时进度及时到达；不强制发送 `Connection: upgrade`。后端是 HTTP，不需要 `proxy_ssl_server_name`、`proxy_ssl_name`。默认 `client_max_body_size 160m` 给 128 MiB 文件累计上限预留 multipart 和字段开销；应用仍检查单文件 32 MiB 和累计 128 MiB，调整应用上限时也要调整代理上限。
 
-### 从旧反代迁移，以及资源 404 / 白屏检查
+### 反代资源 404 / 白屏检查
 
-旧配置中的 `location /pictelier/` 搭配 `proxy_pass http://127.0.0.1:8787/;` 会剥掉匹配的 `/pictelier/` 前缀。设置本版路径变量后，应改成 `proxy_pass http://127.0.0.1:8787;`，让应用收到完整路径。只修改 Nginx 的访问路径不会自动设置应用环境变量；浏览器地址栏里的子路径也不会自动填入这些变量。
+若 `location /pictelier/` 搭配 `proxy_pass http://127.0.0.1:8787/;` 会剥掉匹配的 `/pictelier/` 前缀。应改成 `proxy_pass http://127.0.0.1:8787;`，让应用收到完整路径。只修改 Nginx 的访问路径不会自动设置应用环境变量；浏览器地址栏里的子路径也不会自动填入这些变量。
 
 例如访问 `/pictelier/`，页面却请求根路径 `/assets/index-….js`、`/manifest.webmanifest` 或 `/pwa-icon.svg` 并返回 404，应按顺序检查：
 
@@ -631,10 +655,12 @@ nginx -t && nginx -s reload
 
 ### 后端端口与可信代理
 
-- 示例的 `8788` 是宿主机端口；如果 `APP_PORT=8787`，四段代理地址都相应改为 `127.0.0.1:8787`。容器内端口始终是 `8787`。
-- Nginx 在宿主机且只通过反代访问时，可以把编排端口映射改为 `127.0.0.1:${APP_PORT:-8788}:8787`，让后端仅监听本机。
+- 示例的宿主机端口与容器端口均为 `8787`；如自定义宿主机端口，请同步调整反向代理的上游端口。
+- Nginx 在宿主机且只通过反代访问时，可以把编排端口映射改为 `127.0.0.1:${APP_PORT:-8787}:8787`，让后端仅监听本机。
 - 如果 Nginx 也在容器中，`127.0.0.1` 指向 Nginx 容器自己，应改用共享 Docker 网络中的应用服务名和容器端口 `8787`，或实际可达的宿主机地址。
 - `TRUSTED_PROXIES` 应填写应用实际看到的代理 IP/CIDR，Docker 转发下可能是网关地址，不能直接假定为 `127.0.0.1`；不确定时保持留空。
+
+<a id="section-9"></a>
 
 ## 8. 上传限制与代理
 
@@ -643,6 +669,8 @@ nginx -t && nginx -s reload
 - 超限请求会被拒绝并清理本次附件；未完成上传不会产生可运行的残缺任务或错误扣费。
 - `TRUSTED_PROXIES` 留空时，不采信请求中自行填写的 `X-Forwarded-For`。
 - 使用代理时只配置真正的代理 IP/CIDR，不能填写 `*`、`true`、`0.0.0.0/0` 或 `::/0`。
+
+<a id="section-10"></a>
 
 ## 9. 离线镜像（可选）
 
@@ -662,52 +690,41 @@ pull_policy: never
 
 其他端口、环境变量和数据挂载照常填写，然后在 1Panel 创建/启动或执行 `docker compose up -d`。不要执行 `docker compose pull`，该镜像已经通过 `docker load` 导入本机。
 
-## 10. 升级与数据保留
+<a id="section-11"></a>
+
+## 10. 更新与数据备份
 
 升级前先停止应用，备份整个持久化数据目录，并保留原 `.env`。供应商设置、使用码额度、历史任务和媒体文件都依赖原数据目录。
 
 0.3.66.7 会在启动及备份恢复后自动检查历史输入图；新上传的输入图也参与去重。内容完全相同的输入图通过硬链接共享磁盘存储，各任务的图片 ID、路径、权限、顺序及遮罩关联保持不变，最后一个引用删除后释放存储空间。数据目录的文件系统需支持硬链接；不支持时保留原有独立文件。
 
-### 从 0.3.66 升级：先迁移数据目录权限
+### 数据目录写权限
 
-0.3.66 的容器默认以 root 运行，绘坊 自 0.3.66.1 起以 UID/GID 1000 运行。旧数据库或 `media/` 等目录如果仍属于 root，直接更换镜像可能导致 `EACCES: permission denied, mkdir '/app/data/media/masks'`，或数据库只读错误。镜像构建时对 `/app/data` 设置权限，不会改变后来挂载进来的宿主机旧数据。
+容器以 UID/GID 1000 运行。SQLite 数据库、`app.db-wal`、`app.db-shm` 和媒体目录都需要该用户的写权限；只修改最外层目录不够。镜像内设置的权限不会覆盖宿主机挂载目录的权限。
 
-在**出错服务器**上以 root 身份进入该应用实际的编排目录（包含原 `docker-compose.yml` 和 `.env`），确认仍挂载原数据目录，先停止应用并备份该目录，再执行：
+出现 `SQLITE_READONLY` 或 `EACCES` 时，先在 1Panel 确认 `/app/data` 挂载为读写，并核对实际宿主机路径。停止应用并备份整个数据目录后，在实际编排目录以 root 执行：
 
 ```bash
-# 以下命令在同一个 shell 中运行；任何一步失败都会停止后续操作。
 set -e
 docker compose stop app
-# 在此完成原数据目录的备份后，再执行下面两条命令。
 docker compose run --rm --no-deps --user 0:0 \
   --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE \
   --entrypoint sh app -eu -c \
   'chown -Rh 1000:1000 /app/data && chmod -R u+rwX /app/data'
 docker compose up -d app
+docker compose logs --tail=50 app
 ```
 
-- `app` 是本仓库模板中的服务名；如果自己的编排使用其他服务名，替换命令中的 `app`。
-- 1Panel 可在编排详情中查看编排目录，再通过服务器 SSH 或终端执行。若平时使用自定义 `-f` 文件，请为上述每条 `docker compose` 命令继续使用相同文件。
-- 一次性容器复用该服务的原挂载，递归调整数据的属主和属主读写权限；不删除数据库、图片或配置，不重新生成 `APP_SECRET`。保留原 `.env`。
-- 原编排包含 `cap_drop: ALL`，因此修复容器显式添加修改权限所需的能力；修复结束后自动移除，正常应用继续按镜像的 UID/GID 1000 运行。
-- 修复后通过 1Panel 日志和健康状态确认启动成功。
-
-如果已确定 `/app/data` 对应的宿主机路径，也可以在 1Panel 停止应用并备份后，直接以 root 修复该路径。以下 `DATA_PATH` 必须替换为**自己的实际数据根目录**，不能只指向 `media/uploads`：
-
-```bash
-DATA_PATH=/实际的宿主机数据根目录
-chown -Rh 1000:1000 "$DATA_PATH"
-chmod -R u+rwX "$DATA_PATH"
-```
-
-两条命令均成功后，在 1Panel 重新启动/部署原编排。该权限迁移只需完成一次，继续使用原数据目录和原环境变量。
+`app` 是模板中的服务名。一次性容器使用该服务的数据挂载，仅调整属主及属主读写权限。若编排使用多个 `-f` 文件，所有命令都需带相同的文件组合。若挂载显示只读，应先改为读写；文件系统本身只读时，应先处理宿主机存储问题。
 
 - GHCR 镜像升级：修改 `image` 中的版本标签，执行 `docker compose pull app`，再执行 `docker compose up -d`；1Panel 等价操作为拉取镜像并重新部署编排。
 - 源码构建升级：更新源码后，使用第 5 节相同的两个 `-f` 文件重新构建并启动。
 - 离线镜像升级：导入新镜像，修改 `image` 标签后重新部署。
 - 只改环境变量：重新创建容器，不需要重新构建镜像。
 - 继续使用相同的 `APP_SECRET`、管理员密码和数据挂载；不要删除数据卷或对旧部署执行 `down -v`。
-- 本版 GHCR 和离线镜像均使用 UID/GID 1000。若挂载目录不可写，按上述步骤迁移旧数据目录权限；不要把容器改成特权模式。
+- GHCR 和离线镜像均使用 UID/GID 1000。若挂载目录不可写，按上述步骤修正数据目录权限。
+
+<a id="section-12"></a>
 
 ## 11. 常见问题
 
@@ -719,8 +736,10 @@ chmod -R u+rwX "$DATA_PATH"
 - **改前缀后无法登录，F12 仍请求 `/api/auth/status`**：先按实际 `API_BASE_PATH` 判断地址；若应带前缀，按第 7 节检查原标签页的 meta 和新请求记录，强制刷新或用无痕窗口对比，必要时仅清理本应用的 Service Worker 和缓存。
 - **健康检查失败**：检查容器日志；编排里的健康检查已经跟随 `HEALTH_BASE_PATH`，不要改回固定 `/health`。
 - **上传出现 413**：同时检查应用的单文件/累计上限及反向代理请求体上限。
-- **EACCES / 数据库只读或图片保存失败**：尤其是从 0.3.66 升级时，按第 10 节迁移整个原数据目录的属主和写入权限，仅修改最外层目录或新建空目录不能解决旧文件权限问题。
+- **EACCES / SQLITE_READONLY / 图片保存失败**：按第 10 节检查 `/app/data` 是否读写挂载，以及整个数据目录的属主和写权限。数据库、WAL/SHM 文件及所在目录均须可写。
 - **镜像拉取失败**：确认域名为 `ghcr.io`，账号与仓库全小写，标签正确，服务器能访问 GHCR；也可使用 Release 离线镜像，先 `docker load`，改成本地镜像名和 `pull_policy: never`。
+
+<a id="section-13"></a>
 
 ## 许可证与来源
 

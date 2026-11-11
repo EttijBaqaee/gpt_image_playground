@@ -2,15 +2,19 @@
 
 [![简体中文](https://img.shields.io/badge/简体中文-Readme-lightgrey)](README.md) [![English](https://img.shields.io/badge/English-Current-blue)](README.en.md)
 
-Pictelier (绘坊) is a self-hosted AI image and video generation workspace built on [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground). It brings multiple upstream services into one interface for managing creative tasks, reference images, and access quotas.
+Pictelier (绘坊) is an AI creative workspace that stores generated images on your own server, built on [GPT Image Playground](https://github.com/CookSleep/gpt_image_playground). Sign in to the same instance from your phone, computer, or another device to browse, download, and manage previous creations without relying on one browser’s history.
 
+- **Server-hosted gallery and access across devices:** generated images and task records stay on your server and are available when you sign in to the same instance from another device.
 - **Multiple providers:** connect Images, Responses, Videos, Venice, WaveSpeed, and Kie endpoints. Configure models and optional capabilities according to each provider's documentation.
 - **Creation and editing:** generate images, edit with references, masks, and transparent markup, preview static SVGs and animated GIFs, and download original formats. Available features depend on the selected endpoint and model.
 - **Tasks and assets:** retain task history, reuse prompts and input images, organize favorites and archives, perform batch actions, and back up data.
 - **Administration and usage codes:** manage upstream APIs, access, and quotas centrally. Provider API keys remain on the server.
 - **Localization and deployment:** Chinese and English interfaces, light and dark themes, Docker and 1Panel deployment, independent path settings, and private-network support.
 
-Deployment examples use `pictelier`. When upgrading an existing installation, keep its data mounts, `APP_SECRET`, and path settings, and replace example directories with the actual existing paths. If you rename the Compose project or container to `pictelier`, stop the old instance before starting the new stack so that two instances do not access the same data directory. Existing browser preferences and drafts are retained.
+**Quick navigation**
+
+[What changes in 0.3.66.7](#release-0-3-66-7) · [Interface preview](#section-1) · [Docker deployment](#section-2) · [1Panel](#section-3) · [Paths and reverse proxies](#section-4) · [Provider setup](#section-5) · [Language and appearance](#section-6) · [Usage codes, tasks, and data](#section-7) · [Environment reference](#section-8) · [Updates and backups](#section-9) · [Troubleshooting](#section-10)
+<a id="release-0-3-66-7"></a>
 
 ## What changes in 0.3.66.7
 
@@ -23,9 +27,22 @@ Deployment examples use `pictelier`. When upgrading an existing installation, ke
 - Deleting tasks removes their empty media directories. Startup also removes empty directories belonging to deleted tasks, preserving other files.
 - Reference URL settings retain support for private networks and display a red reminder to ensure the upstream service can access the address. A successful check confirms access from the current server only.
 
+<a id="section-1"></a>
+
+## Interface preview
+
+<p align="center">
+  <img src="asset/主界面-en.png" alt="Server-hosted gallery and tasks" width="100%" />
+  <img src="asset/设置界面-en.png" alt="Server data management" width="100%" />
+</p>
+
+Interface preview: 0.3.66.9 with local demonstration data for the gallery and server data management.
+
+<a id="section-2"></a>
+
 ## Docker deployment
 
-Docker Engine and Docker Compose v2 are sufficient. The production container runs as UID/GID **1000** and listens on port **8787**. The supplied Compose template publishes it on port **8788** by default.
+Docker Engine and Docker Compose v2 are sufficient. The production container runs as UID/GID **1000** and listens on port **8787**. The supplied Compose template publishes it on port **8787** by default.
 
 Create a persistent data directory for a new installation:
 
@@ -34,13 +51,13 @@ mkdir -p /opt/pictelier-data
 chown 1000:1000 /opt/pictelier-data
 ```
 
-Use [deploy/docker-compose.yml](deploy/docker-compose.yml) for a prebuilt image, or [deploy/docker-compose.build.yml](deploy/docker-compose.build.yml) to build from source. Copy [deploy/.env.example](deploy/.env.example) to `.env` beside the Compose file and set:
+Use [deploy/docker-compose.yml](deploy/docker-compose.yml) for a prebuilt image, or combine it with [deploy/docker-compose.build.yml](deploy/docker-compose.build.yml) to build from source. Copy [deploy/.env.example](deploy/.env.example) to `.env` beside the Compose file and set:
 
 ```dotenv
 APP_SECRET=replace-with-a-stable-random-secret-at-least-32-characters
 ADMIN_PASSWORD=replace-with-your-admin-login-password
 APP_DATA_DIR=/opt/pictelier-data
-APP_PORT=8788
+APP_PORT=8787
 ```
 
 Generate a random secret with `openssl rand -hex 32`. Keep the secret and your data directory when upgrading. API keys and encrypted data rely on the existing secret.
@@ -61,13 +78,16 @@ For offline installation, load the release archive with `docker load -i <archive
 Clone or download the desired version, then configure the build template:
 
 ```bash
-git clone https://github.com/EttijBaqaee/pictelier.git
+git clone --branch v0.3.66.7 https://github.com/EttijBaqaee/pictelier.git
 cd pictelier/deploy
 cp .env.example .env
-docker compose -f docker-compose.build.yml up -d --build
+# Edit .env and set APP_SECRET, ADMIN_PASSWORD, and APP_DATA_DIR before starting.
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 ```
 
 `APP_SOURCE_DIR` must point to the source root containing `package.json`, `server/`, and `deploy/`. The standard [Dockerfile](deploy/Dockerfile) installs dependencies and builds the application inside Docker. [Dockerfile.1panel](deploy/Dockerfile.1panel) requires an existing Linux dependency cache; use the standard Dockerfile for a clean source checkout.
+
+<a id="section-3"></a>
 
 ## 1Panel
 
@@ -82,6 +102,8 @@ environment:
 ```
 
 The equivalent list form is `- APP_BASE_PATH=web`. Do not mix the two forms. Recreate the container after changing environment variables.
+
+<a id="section-4"></a>
 
 ## Paths and reverse proxies
 
@@ -101,6 +123,8 @@ API, media, reference, and health prefixes are independent of the home prefix. A
 Forward all configured paths to the same application, preserving their full paths and query strings. See [deploy/nginx.conf.example](deploy/nginx.conf.example). Keep API connections open for long generation requests and disable proxy buffering for server-sent events. Configure proxy upload limits to match the application limits.
 
 Set `TRUSTED_PROXIES` to the actual proxy IP addresses or restricted CIDRs, comma-separated. It is empty by default. Only explicitly trusted proxies can supply forwarded client addresses.
+
+<a id="section-5"></a>
 
 ## Provider setup
 
@@ -147,11 +171,15 @@ Use **Check public access**, then save the profile. The application retrieves a 
 
 Temporary URLs remain valid for at least one hour, or twice the configured request timeout plus 60 seconds when longer. Expired tasks need resubmission. Changing the origin or reference prefix requires another check. Keep the origin free of credentials and private query parameters.
 
+<a id="section-6"></a>
+
 ## Language and appearance
 
 Use the **EN / 中文** control to change language. To restore automatic selection, choose **Follow browser** in **Settings → Preferences → Interface language**.
 
 Use the appearance control to choose system, light, or dark. System follows the browser’s preferred color scheme and updates when it changes. Theme transitions respect the operating system’s reduced-motion setting. These preferences are stored locally; switching them preserves the current prompt and form drafts.
+
+<a id="section-7"></a>
 
 ## Usage codes, tasks, and data
 
@@ -161,6 +189,8 @@ The server stores its SQLite database and uploaded/generated media under `/app/d
 
 Version 0.3.66.7 automatically checks historical input images at startup and after backup restoration, and deduplicates new uploads as well. Identical inputs share disk storage through hard links while retaining each task's image IDs, paths, permissions, order, and mask associations. Storage is released when the last reference is deleted. The data filesystem must support hard links; otherwise, separate files are preserved.
 
+<a id="section-8"></a>
+
 ## Environment reference
 
 | Variable | Meaning |
@@ -168,7 +198,7 @@ Version 0.3.66.7 automatically checks historical input images at startup and aft
 | `APP_SECRET` | Stable signing/encryption secret, at least 16 characters; 32+ recommended |
 | `ADMIN_PASSWORD` | Web administrator login password |
 | `APP_DATA_DIR` | Host persistence directory used by Compose |
-| `APP_PORT` | Host port, default 8788 |
+| `APP_PORT` | Host port, default 8787 |
 | `PORT` / `HOST` | Container listener, default 8787 / 0.0.0.0 |
 | `DATA_DIR` | Container persistence root, `/app/data` in the template |
 | `WEB_DIST_DIR` | Built web directory, `/app/dist` in the template |
@@ -183,23 +213,34 @@ Version 0.3.66.7 automatically checks historical input images at startup and aft
 
 Provider initialization applies when no default profile exists. For saved profiles, change the settings in the application. The path and trusted-proxy variables are described above.
 
-## Upgrading an existing deployment
+<a id="section-9"></a>
+
+## Updates and backups
 
 1. Export a backup and record the current image tag, data mount, `APP_SECRET`, password, and path settings.
 2. Stop the container before copying the entire persistent directory, including SQLite WAL/SHM files if present.
-3. When migrating from a root-run 0.3.66 installation, update ownership of the **entire old data directory** so UID/GID 1000 can read and write existing files. Confirm the path first; changing only the top-level directory is insufficient.
+3. Confirm that UID/GID 1000 can read and write the entire persistent directory, including its existing database and media files.
 4. Keep the original data mount and secret, update the image tag, then recreate the container. Database schema changes are applied automatically.
 5. Open the configured application path and confirm that the existing tasks and provider profiles are present.
 
-For a root-run installation using `/opt/pictelier-data`, the ownership migration is:
+For `SQLITE_READONLY` or `EACCES`, confirm that `/app/data` is mounted read-write and that UID/GID 1000 can write the database, its WAL/SHM files, and all media directories. Stop the application and back up the data directory, then run the following as root in the actual Compose directory:
 
 ```bash
+set -e
 docker compose stop app
-chown -R 1000:1000 /opt/pictelier-data
-docker compose up -d
+docker compose run --rm --no-deps --user 0:0 \
+  --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE \
+  --entrypoint sh app -eu -c \
+  'chown -Rh 1000:1000 /app/data && chmod -R u+rwX /app/data'
+docker compose up -d app
+docker compose logs --tail=50 app
 ```
 
+`app` is the template's service name. The one-off container uses the service's data mount and adjusts ownership and owner permissions. Include the same `-f` files in every command when using an override. A read-only mount or host filesystem must be corrected before changing file permissions.
+
 Use your actual persistence path. Do not replace it with a new empty directory, and do not remove the volume during an upgrade. To roll back after a schema change, restore the matching pre-upgrade backup together with its original image.
+
+<a id="section-10"></a>
 
 ## Troubleshooting
 

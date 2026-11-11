@@ -2,14 +2,14 @@
 # APP_BASE_PATH=pictelier
 # ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  REFERENCE_BASE_PATH=r  HEALTH_BASE_PATH=h
-# APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
+# APP_PORT=8787；proxy_pass 末尾不加 /，保留请求的完整路径。
 location = /pictelier {
     return 301 /pictelier/;
 }
 
 # 主页、图标、manifest 和 Service Worker
 location ^~ /pictelier/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -24,7 +24,7 @@ location ^~ /pictelier/ {
 # 独立 JS/CSS 构建资源；留空 ASSETS_BASE_PATH 时资源随主页，此段无需单独添加。
 # ASSETS_BASE_PATH=/ 时改为 location ^~ /assets/；不要去掉 assets 末尾段。
 location ^~ /s/assets/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -38,7 +38,7 @@ location ^~ /s/assets/ {
 
 # API、上传和 SSE 任务进度
 location ^~ /a/api/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -57,7 +57,7 @@ location ^~ /a/api/ {
 
 # 媒体仍由应用鉴权，不在代理层建立公共缓存。
 location ^~ /m/media/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -73,7 +73,7 @@ location ^~ /m/media/ {
 # 独立公网参考图：应用验证临时签名；保留查询参数，不额外添加登录认证。
 # REFERENCE_BASE_PATH 留空时改为 location ^~ /references/。
 location ^~ /r/references/ {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -88,7 +88,7 @@ location ^~ /r/references/ {
 
 # 同时覆盖 /h/health 和 /h/health/；不存在的后缀由应用返回 404。
 location /h/health {
-    proxy_pass http://127.0.0.1:8788;
+    proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
