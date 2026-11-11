@@ -109,7 +109,7 @@ services:
     image: ghcr.io/ettijbaqaee/pictelier:0.3.66.9
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
-    container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
+    container_name: pictelier # 可选：容器名；部署多套时必须各不相同。
     restart: unless-stopped # 可选：异常退出或重启服务器后自动启动，手动停止除外。
     ports:
       # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
@@ -427,13 +427,13 @@ docker compose up -d --force-recreate
 将下面内容放入域名现有的 `server { ... }` 中，替换旧的同路径 `location`，不要与旧配置重复添加：
 
 ```nginx
-location = /gpt_image_playground {
-    return 301 /gpt_image_playground/;
+location = /pictelier {
+    return 301 /pictelier/;
 }
 
-# 六项都设置为 gpt_image_playground；assets 也可留空以跟随主页。
-location ^~ /gpt_image_playground/ {
-    # 末尾不加 /，完整保留 /gpt_image_playground/ 前缀。
+# 六项都设置为 pictelier；assets 也可留空以跟随主页。
+location ^~ /pictelier/ {
+    # 末尾不加 /，完整保留 /pictelier/ 前缀。
     proxy_pass http://127.0.0.1:8787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -453,7 +453,7 @@ location ^~ /gpt_image_playground/ {
 }
 ```
 
-此配置同时覆盖 `/gpt_image_playground/health` 和 `/gpt_image_playground/health/`，也覆盖 JS/CSS、图标、PWA 文件及独立的 `/gpt_image_playground/references/`。无需再添加 API/媒体/参考图/健康检查反代。若六项设置为不同前缀，则使用下面的分别配置示例。
+此配置同时覆盖 `/pictelier/health` 和 `/pictelier/health/`，也覆盖 JS/CSS、图标、PWA 文件及独立的 `/pictelier/references/`。无需再添加 API/媒体/参考图/健康检查反代。若六项设置为不同前缀，则使用下面的分别配置示例。
 
 ### 六项分别设置的路径示例
 
@@ -461,7 +461,7 @@ location ^~ /gpt_image_playground/ {
 
 ```dotenv
 APP_PORT=8788
-APP_BASE_PATH=gpt_image_playground
+APP_BASE_PATH=pictelier
 ASSETS_BASE_PATH=s
 API_BASE_PATH=a
 MEDIA_BASE_PATH=m
@@ -474,16 +474,16 @@ CORS_ORIGIN=https://image.example.com
 
 ```nginx
 # 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
-# APP_BASE_PATH=gpt_image_playground
+# APP_BASE_PATH=pictelier
 # ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  REFERENCE_BASE_PATH=r  HEALTH_BASE_PATH=h
 # APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
-location = /gpt_image_playground {
-    return 301 /gpt_image_playground/;
+location = /pictelier {
+    return 301 /pictelier/;
 }
 
 # 主页、图标、manifest 和 Service Worker
-location ^~ /gpt_image_playground/ {
+location ^~ /pictelier/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -577,7 +577,7 @@ location /h/health {
 }
 ```
 
-对应的公开地址为：主页 `https://image.example.com/gpt_image_playground/`、构建资源 `/s/assets/…`、API `/a/api/…`、媒体 `/m/media/…`、公网参考图 `/r/references/…`、健康检查 `/h/health` 或 `/h/health/`。
+对应的公开地址为：主页 `https://image.example.com/pictelier/`、构建资源 `/s/assets/…`、API `/a/api/…`、媒体 `/m/media/…`、公网参考图 `/r/references/…`、健康检查 `/h/health` 或 `/h/health/`。
 
 **每段 `proxy_pass` 末尾都不加 `/`，完整路径原样转发给应用。** 不同前缀需要匹配各自的 `location`；六项共用同一前缀时，可使用上一例中的单个 `location`。
 
@@ -587,12 +587,12 @@ API 段关闭响应缓冲和缓存，确保 SSE 实时进度及时到达；不�
 
 ### 从旧反代迁移，以及资源 404 / 白屏检查
 
-旧配置中的 `location /gpt_image_playground/` 搭配 `proxy_pass http://127.0.0.1:8787/;` 会剥掉匹配的 `/gpt_image_playground/` 前缀。设置本版路径变量后，应改成 `proxy_pass http://127.0.0.1:8787;`，让应用收到完整路径。只修改 Nginx 的访问路径不会自动设置应用环境变量；浏览器地址栏里的子路径也不会自动填入这些变量。
+旧配置中的 `location /pictelier/` 搭配 `proxy_pass http://127.0.0.1:8787/;` 会剥掉匹配的 `/pictelier/` 前缀。设置本版路径变量后，应改成 `proxy_pass http://127.0.0.1:8787;`，让应用收到完整路径。只修改 Nginx 的访问路径不会自动设置应用环境变量；浏览器地址栏里的子路径也不会自动填入这些变量。
 
-例如访问 `/gpt_image_playground/`，页面却请求根路径 `/assets/index-….js`、`/manifest.webmanifest` 或 `/pwa-icon.svg` 并返回 404，应按顺序检查：
+例如访问 `/pictelier/`，页面却请求根路径 `/assets/index-….js`、`/manifest.webmanifest` 或 `/pwa-icon.svg` 并返回 404，应按顺序检查：
 
-1. 在浏览器查看页面源码中的 `<base href="…">` 和 `app-base-path`、`assets-base-path` 等 meta。六项统一配置时，base 应为 `/gpt_image_playground/`，原有五个 meta 的值应为 `/gpt_image_playground`；新增参考图路径由后端使用，不写入页面 meta。全部为空说明页面仍按默认根路径运行；只有 assets 为空也可能是显式配置了根路径 `/`，需对照实际设置。
-2. 核对 Compose 写法：映射用 `APP_BASE_PATH: "gpt_image_playground"`，列表用 `- APP_BASE_PATH=gpt_image_playground`，不要使用冒号列表。修改后重新创建容器，单纯重启不能更新环境变量。
+1. 在浏览器查看页面源码中的 `<base href="…">` 和 `app-base-path`、`assets-base-path` 等 meta。六项统一配置时，base 应为 `/pictelier/`，原有五个 meta 的值应为 `/pictelier`；新增参考图路径由后端使用，不写入页面 meta。全部为空说明页面仍按默认根路径运行；只有 assets 为空也可能是显式配置了根路径 `/`，需对照实际设置。
+2. 核对 Compose 写法：映射用 `APP_BASE_PATH: "pictelier"`，列表用 `- APP_BASE_PATH=gpt_image_playground`，不要使用冒号列表。修改后重新创建容器，单纯重启不能更新环境变量。
 3. 核对 Nginx 的上游端口和路径：请求进入应用前必须保留已配置的前缀。六项共用前缀时可直接使用上面的完整示例；后端四项独立留空时，则仍需代理根路径 `/api/`、`/media/`、`/references/` 和 `/health`。
 4. 在浏览器开发者工具的 Network 中核对入口 JS、CSS、动态加载的编辑器、manifest 和图标。JS/CSS 应返回对应资源，不能返回 404 或主页 HTML。修正后强制刷新页面；安装过旧 PWA 时，如仍加载旧内容，再注销该应用的旧 Service Worker 并重新打开。
 
@@ -627,9 +627,9 @@ docker compose exec -T app node -e 'for (const k of ["APP_BASE_PATH","ASSETS_BAS
    document.querySelector('meta[name="api-base-path"]')?.content
    ```
 
-   本例应输出 `/gpt_image_playground`。若输出为空或旧值，说明这个标签页的路径配置尚未更新；若输出正确而新请求仍走旧路径，查看 Network 的 Initiator（发起程序）以定位来源。
+   本例应输出 `/pictelier`。若输出为空或旧值，说明这个标签页的路径配置尚未更新；若输出正确而新请求仍走旧路径，查看 Network 的 Initiator（发起程序）以定位来源。
 3. 按 **Ctrl + Shift + R** 强制刷新，或关闭旧标签页后重新打开。也可使用无痕窗口对比是否仍出现相同请求。
-4. 如果只有原窗口仍异常，在开发者工具中注销**本应用对应的**旧 Service Worker，并清理 Cache Storage 中名称以 `gpt-image-playground` 开头的应用缓存，再重新打开页面。此操作只针对应用缓存，不清空整个域名的站点数据，也不涉及服务器数据目录。
+4. 如果只有原窗口仍异常，在开发者工具中注销**本应用对应的**旧 Service Worker，并清理 Cache Storage 中名称以 `pictelier` 开头的应用缓存，再重新打开页面。此操作只针对应用缓存，不清空整个域名的站点数据，也不涉及服务器数据目录。
 5. 全程使用同一个域名：`image.example.com` 与 `www.image.example.com` 是不同来源，浏览器会分别保存 Cookie、缓存及 Service Worker；不要在两个域名之间切换来判断同一次登录是否保留。
 
 恢复后，确认 Network 中新产生的请求使用配置后的前缀；成功登录后，再确认后续登录状态接口返回 `authenticated: true`。仅看到主页或状态接口返回 200，不能作为已经登录成功的依据。
