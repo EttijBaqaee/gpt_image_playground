@@ -1,7 +1,7 @@
 # 必填变量：APP_SECRET、ADMIN_PASSWORD；其余变量均可选，未填写时使用下方默认值。
 # ${变量:-默认值} 从同目录 .env 或 1Panel 编排环境变量读取；也可将整个引号内的值改为实际值。
 # 例如 APP_BASE_PATH: "web"；留空请写 ""。修改变量后需重新创建容器才能生效。
-name: gpt-image-playground-fork # 可选：编排项目名；同一服务器部署多套时使用不同名称。
+name: pictelier # 可选：编排项目名；同一服务器部署多套时使用不同名称。
 
 services:
   app:
@@ -9,7 +9,7 @@ services:
     image: ghcr.io/ettijbaqaee/pictelier:0.3.66.9
     # 可选：本机没有镜像时才拉取；升级时主动执行 docker compose pull app。
     pull_policy: if_not_present
-    container_name: gpt-image-playground-fork # 可选：容器名；部署多套时必须各不相同。
+    container_name: pictelier # 可选：容器名；部署多套时必须各不相同。
     restart: unless-stopped # 可选：异常退出或重启服务器后自动启动，手动停止除外。
     ports:
       # APP_PORT 可选，默认 8788：左侧为宿主机端口；右侧容器端口保持 8787。
