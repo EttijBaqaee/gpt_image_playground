@@ -10,7 +10,7 @@ Pictelier (绘坊) is a self-hosted AI image and video generation workspace buil
 - **Administration and usage codes:** manage upstream APIs, access, and quotas centrally. Provider API keys remain on the server.
 - **Localization and deployment:** Chinese and English interfaces, light and dark themes, Docker and 1Panel deployment, independent path settings, and private-network support.
 
-Existing browser storage, data directories, and Compose project names are preserved. Keep your data mounts, `APP_SECRET`, and path settings when upgrading; update the image address and version without creating a new data directory for the rename.
+Deployment examples use `pictelier`. When upgrading an existing installation, keep its data mounts, `APP_SECRET`, and path settings, and replace example directories with the actual existing paths. If you rename the Compose project or container to `pictelier`, stop the old instance before starting the new stack so that two instances do not access the same data directory. Existing browser preferences and drafts are retained.
 
 ## What changes in 0.3.66.7
 
@@ -30,8 +30,8 @@ Docker Engine and Docker Compose v2 are sufficient. The production container run
 Create a persistent data directory for a new installation:
 
 ```bash
-mkdir -p /opt/gpt-image-playground-data
-chown 1000:1000 /opt/gpt-image-playground-data
+mkdir -p /opt/pictelier-data
+chown 1000:1000 /opt/pictelier-data
 ```
 
 Use [deploy/docker-compose.yml](deploy/docker-compose.yml) for a prebuilt image, or [deploy/docker-compose.build.yml](deploy/docker-compose.build.yml) to build from source. Copy [deploy/.env.example](deploy/.env.example) to `.env` beside the Compose file and set:
@@ -39,7 +39,7 @@ Use [deploy/docker-compose.yml](deploy/docker-compose.yml) for a prebuilt image,
 ```dotenv
 APP_SECRET=replace-with-a-stable-random-secret-at-least-32-characters
 ADMIN_PASSWORD=replace-with-your-admin-login-password
-APP_DATA_DIR=/opt/gpt-image-playground-data
+APP_DATA_DIR=/opt/pictelier-data
 APP_PORT=8788
 ```
 
@@ -191,11 +191,11 @@ Provider initialization applies when no default profile exists. For saved profil
 4. Keep the original data mount and secret, update the image tag, then recreate the container. Database schema changes are applied automatically.
 5. Open the configured application path and confirm that the existing tasks and provider profiles are present.
 
-For a root-run installation using `/opt/gpt-image-playground-data`, the ownership migration is:
+For a root-run installation using `/opt/pictelier-data`, the ownership migration is:
 
 ```bash
 docker compose stop app
-chown -R 1000:1000 /opt/gpt-image-playground-data
+chown -R 1000:1000 /opt/pictelier-data
 docker compose up -d
 ```
 

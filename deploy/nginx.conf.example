@@ -1,14 +1,14 @@
 # 放入域名现有的 server 块；HTTPS 证书沿用站点配置。
-# APP_BASE_PATH=gpt_image_playground
+# APP_BASE_PATH=pictelier
 # ASSETS_BASE_PATH=s
 # API_BASE_PATH=a  MEDIA_BASE_PATH=m  REFERENCE_BASE_PATH=r  HEALTH_BASE_PATH=h
 # APP_PORT=8788；proxy_pass 末尾不加 /，保留请求的完整路径。
-location = /gpt_image_playground {
-    return 301 /gpt_image_playground/;
+location = /pictelier {
+    return 301 /pictelier/;
 }
 
 # 主页、图标、manifest 和 Service Worker
-location ^~ /gpt_image_playground/ {
+location ^~ /pictelier/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
