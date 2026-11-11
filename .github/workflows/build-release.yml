@@ -19,15 +19,15 @@ jobs:
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
           printf 'RELEASE_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
-          docker build --platform linux/amd64 -f deploy/Dockerfile -t "gpt-image-playground-fork:$version" .
+          docker build --platform linux/amd64 -f deploy/Dockerfile -t "pictelier:$version" .
 
       - name: Export image and deployment template
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          archive="gpt-image-playground-fork-$RELEASE_VERSION-amd64.tar.gz"
-          docker save "gpt-image-playground-fork:$RELEASE_VERSION" | gzip -1 > "artifacts/$archive"
+          archive="pictelier-$RELEASE_VERSION-amd64.tar.gz"
+          docker save "pictelier:$RELEASE_VERSION" | gzip -1 > "artifacts/$archive"
           cp deploy/docker-compose.yml artifacts/docker-compose.yml
           (cd artifacts && sha256sum "$archive" docker-compose.yml > SHA256SUMS)
 

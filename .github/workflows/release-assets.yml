@@ -1,0 +1,70 @@
+name: Attach release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Completed image build run
+        required: true
+        type: string
+      release_tag:
+        description: Existing release tag
+        required: true
+        type: string
+
+      replace_existing:
+        description: Replace assets on an already published release
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      REPLACE_EXISTING: ${{ inputs.replace_existing }}
+    steps:
+      - name: Select the tagged build
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" --jq .conclusion)" == success ]]
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" --jq .head_sha)
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)
+          kind=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.type)
+          if [[ "$kind" == tag ]]; then
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag" --jq .object.sha)
+          fi
+          [[ "$sha" == "$tag" ]]
+          draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)
+          [[ "$draft" == true || "$REPLACE_EXISTING" == true ]]
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-release-${{ steps.source.outputs.sha }}
+          path: release
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attach image and deployment template
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="pictelier-${RELEASE_TAG#v}-amd64.tar.gz"
+          (cd release && sha256sum --check SHA256SUMS)
+          args=()
+          if [[ "$REPLACE_EXISTING" == true ]]; then args+=(--clobber); fi
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            "release/$archive" release/docker-compose.yml release/SHA256SUMS "${args[@]}"

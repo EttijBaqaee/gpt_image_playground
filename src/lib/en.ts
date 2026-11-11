@@ -1,4 +1,5 @@
 export const englishMessages: Record<string, string> = {
+  "绘坊 · Pictelier": "Pictelier",
   '参考图不存在，无法复用配置': 'A reference image is missing. The configuration could not be reused.',
   '遮罩不存在，无法复用配置': 'The mask is missing. The configuration could not be reused.',
   '橡皮擦': 'Eraser',

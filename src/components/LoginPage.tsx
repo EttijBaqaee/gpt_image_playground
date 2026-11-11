@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className="absolute right-5 top-5"><AppearanceControls /></div>
       <section className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-white/[0.08] dark:bg-gray-900">
         <div className="mb-5">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">GPT Image Playground</h1>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("绘坊 · Pictelier")}</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {mode === 'admin' ? t("输入管理员密码后继续。") : t("输入管理员分配的使用码后继续。")}
           </p>
